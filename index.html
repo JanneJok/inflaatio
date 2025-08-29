@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inflaatio - Suomen talouden seuranta</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0f1b;
+            color: #ffffff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Starry background */
+        .starry-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to bottom, #0a0f1b 0%, #1a2847 50%, #0f1929 100%);
+            z-index: -2;
+            overflow: hidden;
+        }
+
+        /* Multiple star layers for depth */
+        .starry-bg::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                radial-gradient(3px 3px at 20% 30%, white, transparent),
+                radial-gradient(3px 3px at 60% 70%, #ffffff, transparent),
+                radial-gradient(2px 2px at 50% 50%, rgba(255, 255, 255, 0.9), transparent),
+                radial-gradient(2px 2px at 80% 10%, white, transparent),
+                radial-gradient(4px 4px at 90% 60%, #f0f0ff, transparent),
+                radial-gradient(1px 1px at 15% 80%, white, transparent),
+                radial-gradient(2px 2px at 75% 40%, rgba(255, 255, 255, 0.8), transparent),
+                radial-gradient(3px 3px at 35% 15%, #ffffff, transparent),
+                radial-gradient(1px 1px at 45% 85%, white, transparent),
+                radial-gradient(2px 2px at 25% 55%, rgba(255, 255, 255, 0.9), transparent);
+            background-size: 350px 350px, 400px 400px, 450px 450px, 300px 300px, 500px 500px,
+                           250px 250px, 380px 380px, 420px 420px, 320px 320px, 360px 360px;
+            animation: stars 60s linear infinite;
+            opacity: 1;
+        }
+
+        /* Additional twinkling stars layer */
+        .starry-bg::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.8) 1%, transparent 2%),
+                radial-gradient(circle at 30% 60%, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.7) 1%, transparent 2%),
+                radial-gradient(circle at 70% 35%, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.9) 1%, transparent 2%),
+                radial-gradient(circle at 85% 75%, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.6) 1%, transparent 2%),
+                radial-gradient(circle at 40% 90%, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.8) 1%, transparent 2%);
+            background-size: 600px 600px, 500px 500px, 700px 700px, 550px 550px, 650px 650px;
+            animation: twinkle 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes stars {
+            0% { 
+                transform: translateY(0) translateX(0); 
+            }
+            100% { 
+                transform: translateY(-350px) translateX(-100px); 
+            }
+        }
+
+        @keyframes twinkle {
+            0% { 
+                opacity: 0.3;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.1);
+            }
+            100% { 
+                opacity: 0.3;
+                transform: scale(1);
+            }
+        }
+
+        /* Mountain silhouette at bottom */
+        .mountain-bg {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 300px;
+            background: linear-gradient(to top, #0a0f1b, transparent);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .mountain-bg::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%230f1929' fill-opacity='1' d='M0,224L48,213.3C96,203,192,181,288,186.7C384,192,480,224,576,218.7C672,213,768,171,864,165.3C960,160,1056,192,1152,197.3C1248,203,1344,181,1392,170.7L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E") no-repeat bottom;
+            background-size: cover;
+            opacity: 0.3;
+        }
+
+        /* Navigation */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 1.5rem 2rem;
+            background: rgba(10, 15, 27, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: #ffffff;
+        }
+
+        /* Main container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 120px 2rem 4rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Hero section enhanced */
+        .hero-section {
+            text-align: center;
+            margin-bottom: 5rem;
+        }
+
+        .hero-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .hero-text {
+            text-align: left;
+        }
+
+        .hero-title {
+            font-size: clamp(2.5rem, 5vw, 3.5rem);
+            font-weight: 700;
+            margin-bottom: 1rem;
+            letter-spacing: -1px;
+        }
+
+        .hero-subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        .hero-image {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .hero-image img {
+            width: 100%;
+            max-width: 500px;
+            height: auto;
+            filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.3));
+        }
+
+        @media (max-width: 968px) {
+            .hero-content {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+
+            .hero-text {
+                text-align: center;
+            }
+
+            .hero-image {
+                margin-top: 2rem;
+            }
+        }
+
+        /* Metric cards row */
+        .metrics-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 2rem;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .metric-card h3 {
+            color: #1a2847;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value {
+            color: #1a2847;
+            font-size: 3rem;
+            font-weight: 700;
+            margin: 1rem 0;
+            line-height: 1;
+        }
+
+        .metric-description {
+            color: #6b7280;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        .metric-label {
+            color: #6b7280;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 0.5rem;
+        }
+
+        /* Chart cards */
+        .charts-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .chart-card {
+            background: rgba(15, 25, 41, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .chart-header {
+            margin-bottom: 2rem;
+        }
+
+        .chart-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .chart-canvas-container {
+            position: relative;
+            height: 250px;
+            margin-bottom: 2rem;
+        }
+
+        /* Time range buttons */
+        .time-selector {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .time-btn {
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .time-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+        }
+
+        .time-btn.active {
+            background: rgba(100, 150, 255, 0.3);
+            border-color: rgba(100, 150, 255, 0.5);
+            color: #ffffff;
+        }
+
+        /* Stats table */
+        .stats-table {
+            margin-top: 2rem;
+            width: 100%;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .stats-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stats-table td:first-child {
+            font-weight: 500;
+        }
+
+        .stats-table td:last-child {
+            text-align: right;
+            font-weight: 600;
+        }
+
+        .percentage-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: rgba(100, 150, 255, 0.2);
+            border-radius: 20px;
+            font-size: 0.875rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+            
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .metric-card {
+                padding: 1.5rem;
+            }
+            
+            .metric-value {
+                font-size: 2.5rem;
+            }
+        }
+
+        /* Loading animation */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <!-- Starry background -->
+    <div class="starry-bg">
+        <div class="shooting-stars">
+            <div class="shooting-star"></div>
+            <div class="shooting-star"></div>
+            <div class="shooting-star"></div>
+        </div>
+        <div class="nebula"></div>
+    </div>
+    <div class="mountain-bg"></div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">Inflaatio</div>
+            <ul class="nav-links">
+                <li><a href="#home">Koti</a></li>
+                <li><a href="#metrics">Tunnusluvut</a></li>
+                <li><a href="#charts">Analytiikka</a></li>
+                <li><a href="#info">Tietoa</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main content -->
+    <div class="container">
+        <!-- Hero Section -->
+        <section class="hero-section" id="home">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1 class="hero-title">Suomen inflaation seuranta</h1>
+                    <p class="hero-subtitle">
+                        Reaaliaikainen näkymä Suomen talouden hintakehitykseen. 
+                        Seuraa inflaatiota, analysoi trendejä ja tee tietoon perustuvia päätöksiä.
+                    </p>
+                </div>
+                <div class="hero-image">
+                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 600'%3E%3Crect fill='%231e3a5f' width='800' height='600'/%3E%3C!-- Placeholder for hero image --%3E%3Ctext x='50%25' y='50%25' fill='white' font-size='24' text-anchor='middle' dominant-baseline='middle'%3E[Inflation Growth Image]%3C/text%3E%3C/svg%3E" 
+                         alt="Financial growth illustration" 
+                         style="max-width: 100%; height: auto; border-radius: 20px;">
+                </div>
+            </div>
+        </section>
+
+        <!-- Metric Cards -->
+        <section id="metrics">
+            <div class="metrics-row">
+                <div class="metric-card">
+                    <h3>Nykyinen</h3>
+                    <div class="metric-value">1.90%</div>
+                    <p class="metric-description">Viimeisin vuosi-inflaatio</p>
+                    <p class="metric-label">Eurostat data</p>
+                </div>
+                
+                <div class="metric-card">
+                    <h3>Keskiarvo</h3>
+                    <div class="metric-value">1.60%</div>
+                    <p class="metric-description">12 kuukauden keskiarvo</p>
+                    <p class="metric-label">Vuositaso</p>
+                </div>
+                
+                <div class="metric-card">
+                    <h3>Tavoite</h3>
+                    <div class="metric-value">2.00%</div>
+                    <p class="metric-description">EKP:n inflaatiotavoite</p>
+                    <p class="metric-label">Pitkän aikavälin</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Chart Cards -->
+        <section id="charts">
+            <div class="charts-row">
+                <!-- Inflation Chart -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Vuosi-inflaation kehitys</h3>
+                        <div class="time-selector">
+                            <button class="time-btn" data-range="6kk">6kk</button>
+                            <button class="time-btn" data-range="1v">1v</button>
+                            <button class="time-btn active" data-range="3v">3v</button>
+                            <button class="time-btn" data-range="5v">5v</button>
+                            <button class="time-btn" data-range="max">Max</button>
+                        </div>
+                    </div>
+                    <div class="chart-canvas-container">
+                        <canvas id="inflationChart"></canvas>
+                    </div>
+                    <table class="stats-table">
+                        <tr>
+                            <td>🔵 Minimi</td>
+                            <td><span class="percentage-badge">0.5%</span></td>
+                        </tr>
+                        <tr>
+                            <td>🟡 Keskiarvo</td>
+                            <td><span class="percentage-badge">1.6%</span></td>
+                        </tr>
+                        <tr>
+                            <td>🔴 Maksimi</td>
+                            <td><span class="percentage-badge">2.3%</span></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- HICP Chart -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title">HICP-indeksi</h3>
+                        <div class="time-selector">
+                            <button class="time-btn" data-range="6kk">6kk</button>
+                            <button class="time-btn" data-range="1v">1v</button>
+                            <button class="time-btn active" data-range="3v">3v</button>
+                            <button class="time-btn" data-range="5v">5v</button>
+                            <button class="time-btn" data-range="max">Max</button>
+                        </div>
+                    </div>
+                    <div class="chart-canvas-container">
+                        <canvas id="hicpChart"></canvas>
+                    </div>
+                    <table class="stats-table">
+                        <tr>
+                            <td>📈 Nousutahti</td>
+                            <td><span class="percentage-badge">+1.9%</span></td>
+                        </tr>
+                        <tr>
+                            <td>📊 Indeksiarvo</td>
+                            <td><span class="percentage-badge">119.91</span></td>
+                        </tr>
+                        <tr>
+                            <td>📅 Vuosimuutos</td>
+                            <td><span class="percentage-badge">+2.1%</span></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Chart configuration with light colors on dark background
+        const chartConfig = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    titleColor: '#1a2847',
+                    bodyColor: '#6b7280',
+                    borderColor: 'rgba(100, 150, 255, 0.3)',
+                    borderWidth: 1,
+                    cornerRadius: 8,
+                    displayColors: false,
+                    padding: 12
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        color: 'rgba(255, 255, 255, 0.7)'
+                    }
+                },
+                y: {
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        color: 'rgba(255, 255, 255, 0.7)',
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        };
+
+        // Initialize Inflation Chart
+        const inflationCtx = document.getElementById('inflationChart').getContext('2d');
+        const inflationChart = new Chart(inflationCtx, {
+            type: 'line',
+            data: {
+                labels: ['2022-01', '2022-04', '2022-07', '2022-10', '2023-01', '2023-04', '2023-07', '2023-10', '2024-01', '2024-04', '2024-07', '2024-10', '2025-01'],
+                datasets: [{
+                    data: [4.5, 5.8, 8.0, 9.1, 8.5, 6.3, 5.0, 3.5, 2.5, 2.0, 1.8, 1.9, 1.9],
+                    borderColor: '#93c5fd',  // Light blue
+                    backgroundColor: 'rgba(147, 197, 253, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#dbeafe',
+                    pointBorderColor: '#60a5fa',
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: chartConfig
+        });
+
+        // Initialize HICP Chart
+        const hicpCtx = document.getElementById('hicpChart').getContext('2d');
+        const hicpChart = new Chart(hicpCtx, {
+            type: 'line',
+            data: {
+                labels: ['2022-01', '2022-04', '2022-07', '2022-10', '2023-01', '2023-04', '2023-07', '2023-10', '2024-01', '2024-04', '2024-07', '2024-10', '2025-01'],
+                datasets: [{
+                    data: [105, 107, 110, 113, 115, 116, 117, 118, 118.5, 119, 119.3, 119.6, 119.9],
+                    borderColor: '#a5b4fc',  // Light indigo
+                    backgroundColor: 'rgba(165, 180, 252, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#e0e7ff',
+                    pointBorderColor: '#818cf8',
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                ...chartConfig,
+                scales: {
+                    ...chartConfig.scales,
+                    y: {
+                        ...chartConfig.scales.y,
+                        ticks: {
+                            ...chartConfig.scales.y.ticks,
+                            callback: function(value) {
+                                return value.toFixed(0);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Time range button functionality
+        document.querySelectorAll('.time-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Remove active class from siblings
+                this.parentElement.querySelectorAll('.time-btn').forEach(b => {
+                    b.classList.remove('active');
+                });
+                // Add active class to clicked button
+                this.classList.add('active');
+                
+                // Here you would update the chart data based on the selected range
+                console.log('Selected range:', this.dataset.range);
+            });
+        });
+
+        // Smooth scroll for navigation
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
