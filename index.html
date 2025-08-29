@@ -28,12 +28,12 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(to bottom, #0a0f1b 0%, #1a2847 50%, #0f1929 100%);
+            background: linear-gradient(to bottom, #0f2936 0%, #1e5a7d 50%, #245066 100%);
             z-index: -2;
             overflow: hidden;
         }
 
-        /* Multiple star layers for depth */
+        /* Small stars only - moving upward slowly */
         .starry-bg::before {
             content: '';
             position: absolute;
@@ -42,23 +42,23 @@
             right: 0;
             bottom: 0;
             background-image: 
-                radial-gradient(3px 3px at 20% 30%, white, transparent),
-                radial-gradient(3px 3px at 60% 70%, #ffffff, transparent),
-                radial-gradient(2px 2px at 50% 50%, rgba(255, 255, 255, 0.9), transparent),
-                radial-gradient(2px 2px at 80% 10%, white, transparent),
-                radial-gradient(4px 4px at 90% 60%, #f0f0ff, transparent),
+                radial-gradient(1px 1px at 20% 30%, white, transparent),
+                radial-gradient(1px 1px at 60% 70%, rgba(255, 255, 255, 0.9), transparent),
+                radial-gradient(1px 1px at 50% 50%, rgba(255, 255, 255, 0.8), transparent),
+                radial-gradient(1px 1px at 80% 10%, white, transparent),
+                radial-gradient(1px 1px at 90% 60%, rgba(255, 255, 255, 0.9), transparent),
                 radial-gradient(1px 1px at 15% 80%, white, transparent),
-                radial-gradient(2px 2px at 75% 40%, rgba(255, 255, 255, 0.8), transparent),
-                radial-gradient(3px 3px at 35% 15%, #ffffff, transparent),
-                radial-gradient(1px 1px at 45% 85%, white, transparent),
-                radial-gradient(2px 2px at 25% 55%, rgba(255, 255, 255, 0.9), transparent);
+                radial-gradient(1px 1px at 75% 40%, rgba(255, 255, 255, 0.8), transparent),
+                radial-gradient(1px 1px at 35% 15%, white, transparent),
+                radial-gradient(1px 1px at 45% 85%, rgba(255, 255, 255, 0.9), transparent),
+                radial-gradient(1px 1px at 25% 55%, white, transparent);
             background-size: 350px 350px, 400px 400px, 450px 450px, 300px 300px, 500px 500px,
                            250px 250px, 380px 380px, 420px 420px, 320px 320px, 360px 360px;
-            animation: stars 60s linear infinite;
-            opacity: 1;
+            animation: stars-up 90s linear infinite;
+            opacity: 0.8;
         }
 
-        /* Additional twinkling stars layer */
+        /* Additional layer of small stars for depth */
         .starry-bg::after {
             content: '';
             position: absolute;
@@ -67,36 +67,22 @@
             right: 0;
             bottom: 0;
             background-image: 
-                radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.8) 1%, transparent 2%),
-                radial-gradient(circle at 30% 60%, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.7) 1%, transparent 2%),
-                radial-gradient(circle at 70% 35%, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.9) 1%, transparent 2%),
-                radial-gradient(circle at 85% 75%, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.6) 1%, transparent 2%),
-                radial-gradient(circle at 40% 90%, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.8) 1%, transparent 2%);
+                radial-gradient(1px 1px at 10% 20%, rgba(255, 255, 255, 0.7), transparent),
+                radial-gradient(1px 1px at 30% 60%, rgba(255, 255, 255, 0.6), transparent),
+                radial-gradient(1px 1px at 70% 35%, rgba(255, 255, 255, 0.8), transparent),
+                radial-gradient(1px 1px at 85% 75%, rgba(255, 255, 255, 0.7), transparent),
+                radial-gradient(1px 1px at 40% 90%, rgba(255, 255, 255, 0.6), transparent);
             background-size: 600px 600px, 500px 500px, 700px 700px, 550px 550px, 650px 650px;
-            animation: twinkle 3s ease-in-out infinite alternate;
+            animation: stars-up 120s linear infinite;
+            opacity: 0.6;
         }
 
-        @keyframes stars {
+        @keyframes stars-up {
             0% { 
-                transform: translateY(0) translateX(0); 
+                transform: translateY(0); 
             }
             100% { 
-                transform: translateY(-350px) translateX(-100px); 
-            }
-        }
-
-        @keyframes twinkle {
-            0% { 
-                opacity: 0.3;
-                transform: scale(1);
-            }
-            50% {
-                opacity: 1;
-                transform: scale(1.1);
-            }
-            100% { 
-                opacity: 0.3;
-                transform: scale(1);
+                transform: translateY(-350px); 
             }
         }
 
@@ -131,10 +117,10 @@
             left: 0;
             right: 0;
             padding: 1.5rem 2rem;
-            background: rgba(10, 15, 27, 0.8);
+            background: rgba(15, 41, 54, 0.8);
             backdrop-filter: blur(10px);
             z-index: 1000;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(76, 165, 186, 0.2);
         }
 
         .nav-container {
@@ -251,24 +237,24 @@
             padding: 2rem;
             text-align: center;
             backdrop-filter: blur(10px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 10px 30px rgba(15, 41, 54, 0.3);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
         .metric-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 15px 40px rgba(15, 41, 54, 0.4);
         }
 
         .metric-card h3 {
-            color: #1a2847;
+            color: #1e5a7d;
             font-size: 1.25rem;
             font-weight: 600;
             margin-bottom: 0.5rem;
         }
 
         .metric-value {
-            color: #1a2847;
+            color: #245066;
             font-size: 3rem;
             font-weight: 700;
             margin: 1rem 0;
@@ -276,13 +262,13 @@
         }
 
         .metric-description {
-            color: #6b7280;
+            color: #5a7b8c;
             font-size: 0.875rem;
             line-height: 1.5;
         }
 
         .metric-label {
-            color: #6b7280;
+            color: #5a7b8c;
             font-size: 0.75rem;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -331,23 +317,23 @@
 
         .time-btn {
             padding: 0.5rem 1rem;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(76, 165, 186, 0.2);
+            border: 1px solid rgba(76, 165, 186, 0.3);
             border-radius: 8px;
-            color: rgba(255, 255, 255, 0.7);
+            color: rgba(255, 255, 255, 0.8);
             font-size: 0.875rem;
             cursor: pointer;
             transition: all 0.3s ease;
         }
 
         .time-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(76, 165, 186, 0.3);
             color: #ffffff;
         }
 
         .time-btn.active {
-            background: rgba(100, 150, 255, 0.3);
-            border-color: rgba(100, 150, 255, 0.5);
+            background: rgba(42, 123, 160, 0.5);
+            border-color: rgba(42, 123, 160, 0.7);
             color: #ffffff;
         }
 
@@ -375,7 +361,7 @@
         .percentage-badge {
             display: inline-block;
             padding: 0.25rem 0.75rem;
-            background: rgba(100, 150, 255, 0.2);
+            background: rgba(42, 123, 160, 0.2);
             border-radius: 20px;
             font-size: 0.875rem;
         }
@@ -397,16 +383,6 @@
             .metric-value {
                 font-size: 2.5rem;
             }
-        }
-
-        /* Loading animation */
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .loading {
-            animation: pulse 2s infinite;
         }
     </style>
 </head>
@@ -608,13 +584,13 @@
                 labels: ['2022-01', '2022-04', '2022-07', '2022-10', '2023-01', '2023-04', '2023-07', '2023-10', '2024-01', '2024-04', '2024-07', '2024-10', '2025-01'],
                 datasets: [{
                     data: [4.5, 5.8, 8.0, 9.1, 8.5, 6.3, 5.0, 3.5, 2.5, 2.0, 1.8, 1.9, 1.9],
-                    borderColor: '#93c5fd',  // Light blue
-                    backgroundColor: 'rgba(147, 197, 253, 0.1)',
+                    borderColor: '#4ca5ba',  // Teal light
+                    backgroundColor: 'rgba(76, 165, 186, 0.1)',
                     borderWidth: 3,
                     tension: 0.4,
                     fill: true,
-                    pointBackgroundColor: '#dbeafe',
-                    pointBorderColor: '#60a5fa',
+                    pointBackgroundColor: '#b8d4e3',
+                    pointBorderColor: '#2a7ba0',
                     pointRadius: 4,
                     pointHoverRadius: 6
                 }]
@@ -630,13 +606,13 @@
                 labels: ['2022-01', '2022-04', '2022-07', '2022-10', '2023-01', '2023-04', '2023-07', '2023-10', '2024-01', '2024-04', '2024-07', '2024-10', '2025-01'],
                 datasets: [{
                     data: [105, 107, 110, 113, 115, 116, 117, 118, 118.5, 119, 119.3, 119.6, 119.9],
-                    borderColor: '#a5b4fc',  // Light indigo
-                    backgroundColor: 'rgba(165, 180, 252, 0.1)',
+                    borderColor: '#3891a6',  // Teal medium
+                    backgroundColor: 'rgba(56, 145, 166, 0.1)',
                     borderWidth: 3,
                     tension: 0.4,
                     fill: true,
-                    pointBackgroundColor: '#e0e7ff',
-                    pointBorderColor: '#818cf8',
+                    pointBackgroundColor: '#b8d4e3',
+                    pointBorderColor: '#1e5a7d',
                     pointRadius: 4,
                     pointHoverRadius: 6
                 }]
