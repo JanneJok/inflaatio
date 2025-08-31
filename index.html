@@ -199,43 +199,12 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            position: relative;
         }
 
         .hero-image img {
             width: 100%;
             max-width: 500px;
             height: auto;
-            filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.3));
-            position: relative;
-            z-index: 2;
-        }
-
-        /* Gradient fade overlay for smooth blending */
-        .hero-image::before {
-            content: '';
-            position: absolute;
-            bottom: -50px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 120%;
-            height: 150px;
-            background: linear-gradient(to bottom, transparent 0%, #0f2936 100%);
-            z-index: 3;
-            pointer-events: none;
-        }
-
-        .hero-image::after {
-            content: '';
-            position: absolute;
-            top: -50px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 120%;
-            height: 100px;
-            background: radial-gradient(ellipse at center, rgba(42, 123, 160, 0.2) 0%, transparent 70%);
-            z-index: 1;
-            pointer-events: none;
         }
 
         @media (max-width: 968px) {
@@ -461,40 +430,58 @@
                     </p>
                 </div>
                 <div class="hero-image">
-                    <picture>
-                        <source srcset="https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/file_00000000fbbc6246b29f5252e8021c2a.webp" type="image/webp">
-                        <source srcset="https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/file_00000000fbbc6246b29f5252e8021c2a.png" type="image/png">
-                        <img src="https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/file_00000000fbbc6246b29f5252e8021c2a.png" 
-                             alt="Financial growth illustration" 
-                             style="max-width: 100%; height: auto; border-radius: 20px;"
-                             loading="lazy">
-                    </picture>
+                    <img src="https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/file_00000000fbbc6246b29f5252e8021c2a.png" 
+                         alt="Financial growth illustration" 
+                         style="max-width: 100%; height: auto;"
+                         loading="lazy"
+                         onerror="this.style.display='none'">
                 </div>
             </div>
         </section>
 
         <!-- Metric Cards -->
         <section id="metrics">
-            <div class="metrics-row">
-                <div class="metric-card">
-                    <h3>Nykyinen</h3>
-                    <div class="metric-value">1.90%</div>
-                    <p class="metric-description">Viimeisin vuosi-inflaatio</p>
-                    <p class="metric-label">Eurostat data</p>
-                </div>
-                
-                <div class="metric-card">
-                    <h3>Keskiarvo</h3>
-                    <div class="metric-value">1.60%</div>
-                    <p class="metric-description">12 kuukauden keskiarvo</p>
-                    <p class="metric-label">Vuositaso</p>
-                </div>
-                
-                <div class="metric-card">
-                    <h3>Tavoite</h3>
-                    <div class="metric-value">2.00%</div>
-                    <p class="metric-description">EKP:n inflaatiotavoite</p>
-                    <p class="metric-label">Pitkän aikavälin</p>
+            <div class="metrics-container">
+                <div class="metrics-scroll">
+                    <div class="metric-card">
+                        <h3>Viimeisin inflaatiolukema</h3>
+                        <div class="metric-value positive">
+                            <span class="arrow">▲</span>1.9%
+                        </div>
+                        <p class="metric-description">Viimeisin Eurostatin julkaisema vuosi-inflaatio. Perustuu kuluttajahintaindeksiin.</p>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <h3>Muutos edelliseen kuukauteen</h3>
+                        <div class="metric-value neutral">
+                            0.0%
+                        </div>
+                        <p class="metric-description">Kertoo, onko hintojen nousuvauhti kiihtynyt vai hidastunut edellisestä kuukaudesta.</p>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <h3>12 kuukauden keskiarvo</h3>
+                        <div class="metric-value positive">
+                            <span class="arrow">▲</span>1.6%
+                        </div>
+                        <p class="metric-description">Keskimääräinen inflaatio viimeisten 12 kuukauden aikana. Vakaampi kuva hintakehityksestä.</p>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <h3>Vuoden 2025 keskiarvo</h3>
+                        <div class="metric-value positive">
+                            <span class="arrow">▲</span>1.8%
+                        </div>
+                        <p class="metric-description">Inflaation keskiarvo vuoden alusta tähän hetkeen. Hyödyllinen budjetointiin ja analyysiin.</p>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <h3>Vuosi sitten (sama kuukausi)</h3>
+                        <div class="metric-value positive">
+                            <span class="arrow">▲</span>0.5%
+                        </div>
+                        <p class="metric-description">Vertailu viime vuoden samaan kuukauteen näyttää, miten paljon inflaatio on muuttunut vuodessa.</p>
+                    </div>
                 </div>
             </div>
         </section>
