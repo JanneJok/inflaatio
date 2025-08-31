@@ -189,6 +189,9 @@
     <link rel="preload" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" as="script">
     <link rel="dns-prefetch" href="https://sheets.googleapis.com">
     
+    <!-- Favicon to prevent 404 -->
+    <link rel="icon" href="data:,">
+    
     <!-- Non-critical CSS loaded asynchronously -->
     <link rel="preload" href="#" as="style" onload="this.onload=null;this.rel='stylesheet'" id="main-css">
     <noscript><link rel="stylesheet" href="inflation-site-optimized.css"></noscript>
@@ -394,7 +397,8 @@
             });
         });
 
-        // Service Worker for caching (optional)
+        // Service Worker for caching (disable for now due to path issues)
+        /*
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('service-worker.js').catch(() => {
@@ -402,6 +406,7 @@
                 });
             });
         }
+        */
     </script>
 
     <!-- Structured data for SEO -->
