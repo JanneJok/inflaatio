@@ -276,6 +276,37 @@ function updateCharts() {
     updateHICPChart(filteredData);
 }
 
+// Filter data based on time range
+function filterDataByRange(data, range) {
+    if (!data || data.length === 0) return [];
+    
+    const now = new Date();
+    let startDate = new Date();
+    
+    switch (range) {
+        case '6kk':
+            startDate.setMonth(now.getMonth() - 6);
+            break;
+        case '1v':
+            startDate.setFullYear(now.getFullYear() - 1);
+            break;
+        case '3v':
+            startDate.setFullYear(now.getFullYear() - 3);
+            break;
+        case '5v':
+            startDate.setFullYear(now.getFullYear() - 5);
+            break;
+        case 'Max':
+            return data;
+    }
+    
+    return data.filter(d => {
+        // Convert "YYYY-MM" format to date for comparison
+        const itemDate = new Date(d.date + '-01');
+        return itemDate >= startDate;
+    });
+}
+
 // Format date for chart display
 function formatDateForChart(dateString) {
     // dateString is in format "YYYY-MM", convert to readable format
