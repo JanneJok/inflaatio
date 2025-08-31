@@ -22,7 +22,7 @@
 body {
     font-family: 'Inter', sans-serif;
     background: var(--dark-bg);
-    color: var(--text-primary);
+    color: var(--text-primary);1.5
     min-height: 100vh;
     overflow-x: hidden;
 }
@@ -279,7 +279,7 @@ body {
 }
 
 /* Chart Section */
-.charts {
+.charts {500
     max-width: 1400px;
     margin: 4rem auto;
     display: grid;
@@ -408,6 +408,6 @@ body {
     }
     
     .chart {
-        padding: 1.5rem;
+        padding: 0.5rem;
     }
 }
