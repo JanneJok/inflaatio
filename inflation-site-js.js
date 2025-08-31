@@ -45,23 +45,45 @@ function processSheetData(rawData) {
     const headers = rawData[0];
     const rows = rawData.slice(1);
     
-    // Find important column indices (adjust based on your sheet structure)
-    const dateCol = findColumnIndex(headers, ['date', 'kuukausi', 'month']);
-    const inflationCol = findColumnIndex(headers, ['inflation', 'inflaatio', 'rate']);
-    const hicpCol = findColumnIndex(headers, ['hicp', 'indeksi', 'index']);
+    console.log('Headers found:', headers);
+    console.log('Sample row:', rows[0]);
+    
+    // Find column indices based on your exact structure
+    const dateCol = headers.indexOf('Kuukausi');
+    const inflationCol = headers.indexOf('Inflaatio %');
+    const indexCol = headers.indexOf('Indeksi');
+    
+    console.log('Column indices:', { dateCol, inflationCol, indexCol });
     
     const processedData = rows.map(row => {
+        // Clean and parse the data
+        const dateStr = row[dateCol] || '';
+        const inflationStr = row[inflationCol] || '';
+        const indexStr = row[indexCol] || '';
+        
+        // Parse inflation percentage (remove % and convert to number)
+        const inflationValue = parseFloat(inflationStr.replace('%', '').replace(',', '.').trim());
+        
+        // Parse index value (replace comma with dot for decimal separator)
+        const indexValue = parseFloat(indexStr.replace(',', '.').trim());
+        
         return {
-            date: row[dateCol] || '',
-            inflation: parseFloat(row[inflationCol]) || 0,
-            hicp: parseFloat(row[hicpCol]) || 0,
-            monthlyChange: 0, // Calculate if needed
+            date: dateStr,
+            inflation: isNaN(inflationValue) ? 0 : inflationValue,
+            hicp: isNaN(indexValue) ? 0 : indexValue,
+            monthlyChange: 0, // Will calculate later
             rawRow: row
         };
-    }).filter(item => item.date && !isNaN(item.inflation));
+    }).filter(item => {
+        // Filter out invalid rows
+        return item.date && 
+               item.date.length > 0 && 
+               !isNaN(item.inflation) && 
+               item.inflation !== 0;
+    });
     
     // Sort by date
-    processedData.sort((a, b) => new Date(a.date) - new Date(b.date));
+    processedData.sort((a, b) => new Date(a.date + '-01') - new Date(b.date + '-01'));
     
     // Calculate monthly changes
     for (let i = 1; i < processedData.length; i++) {
@@ -69,6 +91,9 @@ function processSheetData(rawData) {
         const previous = processedData[i-1].inflation;
         processedData[i].monthlyChange = current - previous;
     }
+    
+    console.log('Processed data sample:', processedData.slice(-5)); // Show last 5 entries
+    console.log('Total processed rows:', processedData.length);
     
     return processedData;
 }
@@ -95,18 +120,30 @@ function updateUI() {
 
 // Update carousel tiles with real data
 function updateCarouselTiles() {
+    if (!inflationData || inflationData.length === 0) return;
+    
     const latest = inflationData[inflationData.length - 1];
-    const previous = inflationData[inflationData.length - 2];
+    const previous = inflationData.length > 1 ? inflationData[inflationData.length - 2] : null;
+    
+    // Find data from same month previous year
     const yearAgo = inflationData.find(d => {
-        const latestDate = new Date(latest.date);
-        const dataDate = new Date(d.date);
-        return Math.abs(latestDate.getFullYear() - dataDate.getFullYear()) === 1 &&
-               latestDate.getMonth() === dataDate.getMonth();
+        const latestDateParts = latest.date.split('-');
+        const dataDateParts = d.date.split('-');
+        const latestYear = parseInt(latestDateParts[0]);
+        const latestMonth = parseInt(latestDateParts[1]);
+        const dataYear = parseInt(dataDateParts[0]);
+        const dataMonth = parseInt(dataDateParts[1]);
+        
+        return (latestYear - dataYear === 1) && (latestMonth === dataMonth);
     });
     
     // Calculate statistics
     const currentYear = new Date().getFullYear();
-    const thisYearData = inflationData.filter(d => new Date(d.date).getFullYear() === currentYear);
+    const thisYearData = inflationData.filter(d => {
+        const year = parseInt(d.date.split('-')[0]);
+        return year === currentYear;
+    });
+    
     const last12Months = inflationData.slice(-12);
     
     const yearAverage = thisYearData.length > 0 
@@ -117,6 +154,9 @@ function updateCarouselTiles() {
         ? (last12Months.reduce((sum, d) => sum + d.inflation, 0) / last12Months.length)
         : 0;
     
+    // Calculate monthly change
+    const monthlyChange = previous ? latest.inflation - previous.inflation : 0;
+    
     // Update tiles
     const tiles = [
         {
@@ -126,7 +166,7 @@ function updateCarouselTiles() {
         },
         {
             selector: '.tile:nth-child(2) .highlight',
-            value: previous ? latest.inflation - previous.inflation : 0,
+            value: monthlyChange,
             format: 'percentage'
         },
         {
@@ -154,6 +194,14 @@ function updateCarouselTiles() {
             element.className = `highlight ${getValueClass(tile.value)}`;
         }
     });
+    
+    console.log('Updated tiles with data:', {
+        latest: latest.inflation,
+        monthlyChange,
+        yearAverage,
+        twelveMonthAverage,
+        yearAgo: yearAgo?.inflation
+    });
 }
 
 // Format values for display
@@ -180,29 +228,15 @@ function updateCharts() {
     updateHICPChart(filteredData);
 }
 
-// Filter data based on time range
-function filterDataByRange(data, range) {
-    const now = new Date();
-    let startDate = new Date();
-    
-    switch (range) {
-        case '6kk':
-            startDate.setMonth(now.getMonth() - 6);
-            break;
-        case '1v':
-            startDate.setFullYear(now.getFullYear() - 1);
-            break;
-        case '3v':
-            startDate.setFullYear(now.getFullYear() - 3);
-            break;
-        case '5v':
-            startDate.setFullYear(now.getFullYear() - 5);
-            break;
-        case 'Max':
-            return data;
-    }
-    
-    return data.filter(d => new Date(d.date) >= startDate);
+// Format date for chart display
+function formatDateForChart(dateString) {
+    // dateString is in format "YYYY-MM", convert to readable format
+    const [year, month] = dateString.split('-');
+    const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+    return date.toLocaleDateString('fi-FI', { 
+        year: '2-digit', 
+        month: '2-digit' 
+    });
 }
 
 // Update inflation chart
@@ -239,39 +273,41 @@ function updateHICPChart(data) {
 
 // Update chart statistics
 function updateChartStats(chartType, values, data = null) {
+    if (!values || values.length === 0) return;
+    
     const min = Math.min(...values);
     const max = Math.max(...values);
     const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
     
     if (chartType === 'inflation') {
-        const statsElements = document.querySelectorAll('#inflationChart').closest('.chart').querySelectorAll('.chart-stats p');
+        const chartElement = document.querySelector('#inflationChart').closest('.chart');
+        const statsElements = chartElement.querySelectorAll('.chart-stats p');
         if (statsElements[0]) statsElements[0].innerHTML = `<span class="percentage-badge">🔵</span> Minimi ${min.toFixed(1)}%`;
         if (statsElements[1]) statsElements[1].innerHTML = `<span class="percentage-badge">🟡</span> Keskiarvo ${avg.toFixed(1)}%`;
         if (statsElements[2]) statsElements[2].innerHTML = `<span class="percentage-badge">🔴</span> Maksimi ${max.toFixed(1)}%`;
-    } else if (chartType === 'hicp' && data) {
+    } else if (chartType === 'hicp' && data && data.length > 0) {
         const latest = data[data.length - 1];
+        
+        // Find data from approximately 12 months ago
         const yearAgo = data.find(d => {
-            const latestDate = new Date(latest.date);
-            const dataDate = new Date(d.date);
-            return Math.abs(latestDate.getTime() - dataDate.getTime()) < 366 * 24 * 60 * 60 * 1000;
+            const latestDateParts = latest.date.split('-');
+            const dataDateParts = d.date.split('-');
+            const latestYear = parseInt(latestDateParts[0]);
+            const latestMonth = parseInt(latestDateParts[1]);
+            const dataYear = parseInt(dataDateParts[0]);
+            const dataMonth = parseInt(dataDateParts[1]);
+            
+            return (latestYear - dataYear === 1) && (latestMonth === dataMonth);
         });
         
         const yearlyChange = yearAgo ? ((latest.hicp - yearAgo.hicp) / yearAgo.hicp) * 100 : 0;
         
-        const statsElements = document.querySelectorAll('#hicpChart').closest('.chart').querySelectorAll('.chart-stats p');
-        if (statsElements[0]) statsElements[0].innerHTML = `<span class="percentage-badge">📈</span> Nousutahti +${latest.inflation.toFixed(1)}%`;
+        const chartElement = document.querySelector('#hicpChart').closest('.chart');
+        const statsElements = chartElement.querySelectorAll('.chart-stats p');
+        if (statsElements[0]) statsElements[0].innerHTML = `<span class="percentage-badge">📈</span> Nousutahti ${latest.inflation > 0 ? '+' : ''}${latest.inflation.toFixed(1)}%`;
         if (statsElements[1]) statsElements[1].innerHTML = `<span class="percentage-badge">📊</span> Indeksiarvo ${latest.hicp.toFixed(2)}`;
-        if (statsElements[2]) statsElements[2].innerHTML = `<span class="percentage-badge">📅</span> Vuosimuutos +${yearlyChange.toFixed(1)}%`;
+        if (statsElements[2]) statsElements[2].innerHTML = `<span class="percentage-badge">📅</span> Vuosimuutos ${yearlyChange > 0 ? '+' : ''}${yearlyChange.toFixed(1)}%`;
     }
-}
-
-// Format date for chart display
-function formatDateForChart(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fi-FI', { 
-        year: '2-digit', 
-        month: '2-digit' 
-    });
 }
 
 // Update last updated timestamp
