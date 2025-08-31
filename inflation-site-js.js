@@ -2,36 +2,62 @@
 const CONFIG = {
     SHEET_ID: '1tj7AbW3BkzmPZUd_pfrXmaHZrgpKgYwNljSoVoAObx8',
     API_KEY: 'AIzaSyDbeAW-uO-vEHuPdSJPVQwR_l1Axc7Cq7g',
-    SHEET_RANGE: 'Sheet1!A:Z' // Adjust based on your data structure
+    HISTORICAL_RANGE: 'Raakadata!A:F', // Historical data for charts
+    METRICS_RANGE: 'Key Metrics!A:B'    // Key metrics for tiles
 };
 
 // Global variables for data storage
 let inflationData = [];
+let keyMetrics = {};
 let currentChartRange = '1v';
 
 // Fetch data from Google Sheets
 async function fetchInflationData() {
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.SHEET_RANGE}?key=${CONFIG.API_KEY}`;
-    
     try {
         showLoadingState();
-        const response = await fetch(url);
         
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        console.log('Fetching data from both sheets...');
+        
+        // Fetch both ranges simultaneously
+        const [historicalResponse, metricsResponse] = await Promise.all([
+            fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.HISTORICAL_RANGE}?key=${CONFIG.API_KEY}`),
+            fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.METRICS_RANGE}?key=${CONFIG.API_KEY}`)
+        ]);
+        
+        // Check historical data response
+        if (!historicalResponse.ok) {
+            const errorText = await historicalResponse.text();
+            console.error('Historical data error:', errorText);
+            throw new Error(`Historical data error: ${historicalResponse.status}`);
         }
         
-        const data = await response.json();
-        
-        if (!data.values || data.values.length === 0) {
-            throw new Error('No data found in spreadsheet');
+        // Check metrics data response
+        if (!metricsResponse.ok) {
+            const errorText = await metricsResponse.text();
+            console.error('Metrics data error:', errorText);
+            throw new Error(`Metrics data error: ${metricsResponse.status}`);
         }
         
-        inflationData = processSheetData(data.values);
+        const historicalData = await historicalResponse.json();
+        const metricsData = await metricsResponse.json();
+        
+        console.log('Historical data:', historicalData);
+        console.log('Metrics data:', metricsData);
+        
+        // Process historical data for charts
+        if (historicalData.values && historicalData.values.length > 0) {
+            inflationData = processHistoricalData(historicalData.values);
+        }
+        
+        // Process key metrics for tiles
+        if (metricsData.values && metricsData.values.length > 0) {
+            keyMetrics = processKeyMetrics(metricsData.values);
+        }
+        
         updateUI();
         hideLoadingState();
         
-        return inflationData;
+        return { historical: inflationData, metrics: keyMetrics };
     } catch (error) {
         console.error('Error fetching data:', error);
         showErrorState(error.message);
@@ -39,47 +65,40 @@ async function fetchInflationData() {
     }
 }
 
-// Process raw sheet data into usable format
-function processSheetData(rawData) {
-    // Assume first row is headers
+// Process historical data (Raakadata sheet) for charts
+function processHistoricalData(rawData) {
     const headers = rawData[0];
     const rows = rawData.slice(1);
     
-    console.log('Headers found:', headers);
-    console.log('Sample row:', rows[0]);
+    console.log('Historical headers:', headers);
+    console.log('Historical sample row:', rows[0]);
     
     // Find column indices based on your exact structure
     const dateCol = headers.indexOf('Kuukausi');
     const inflationCol = headers.indexOf('Inflaatio %');
     const indexCol = headers.indexOf('Indeksi');
     
-    console.log('Column indices:', { dateCol, inflationCol, indexCol });
+    console.log('Historical column indices:', { dateCol, inflationCol, indexCol });
     
     const processedData = rows.map(row => {
-        // Clean and parse the data
         const dateStr = row[dateCol] || '';
         const inflationStr = row[inflationCol] || '';
         const indexStr = row[indexCol] || '';
         
-        // Parse inflation percentage (remove % and convert to number)
         const inflationValue = parseFloat(inflationStr.replace('%', '').replace(',', '.').trim());
-        
-        // Parse index value (replace comma with dot for decimal separator)
         const indexValue = parseFloat(indexStr.replace(',', '.').trim());
         
         return {
             date: dateStr,
             inflation: isNaN(inflationValue) ? 0 : inflationValue,
             hicp: isNaN(indexValue) ? 0 : indexValue,
-            monthlyChange: 0, // Will calculate later
+            monthlyChange: 0,
             rawRow: row
         };
     }).filter(item => {
-        // Filter out invalid rows
         return item.date && 
                item.date.length > 0 && 
-               !isNaN(item.inflation) && 
-               item.inflation !== 0;
+               !isNaN(item.inflation);
     });
     
     // Sort by date
@@ -92,10 +111,42 @@ function processSheetData(rawData) {
         processedData[i].monthlyChange = current - previous;
     }
     
-    console.log('Processed data sample:', processedData.slice(-5)); // Show last 5 entries
-    console.log('Total processed rows:', processedData.length);
+    console.log('Historical processed data sample:', processedData.slice(-5));
+    console.log('Total historical rows:', processedData.length);
     
     return processedData;
+}
+
+// Process key metrics data for tiles
+function processKeyMetrics(rawData) {
+    console.log('Processing key metrics data:', rawData);
+    
+    const metrics = {};
+    
+    // Skip header row and process data rows
+    rawData.slice(1).forEach(row => {
+        if (row.length >= 2) {
+            const key = row[0]; // Column A - metric name
+            const value = row[1]; // Column B - metric value
+            
+            if (key && value) {
+                // Clean the value - remove % and convert to number if it's a percentage
+                let cleanValue = value;
+                if (typeof value === 'string' && value.includes('%')) {
+                    cleanValue = parseFloat(value.replace('%', '').replace(',', '.').trim());
+                } else if (typeof value === 'string') {
+                    // Try to parse as number
+                    const numValue = parseFloat(value.replace(',', '.').trim());
+                    cleanValue = isNaN(numValue) ? value : numValue;
+                }
+                
+                metrics[key] = cleanValue;
+            }
+        }
+    });
+    
+    console.log('Processed key metrics:', metrics);
+    return metrics;
 }
 
 // Helper function to find column index by possible names
@@ -118,93 +169,90 @@ function updateUI() {
     updateLastUpdated();
 }
 
-// Update carousel tiles with real data
+// Update carousel tiles with real data from Key Metrics
 function updateCarouselTiles() {
-    if (!inflationData || inflationData.length === 0) return;
+    console.log('Updating carousel tiles with metrics:', keyMetrics);
     
-    const latest = inflationData[inflationData.length - 1];
-    const previous = inflationData.length > 1 ? inflationData[inflationData.length - 2] : null;
+    if (!keyMetrics || Object.keys(keyMetrics).length === 0) {
+        console.log('No key metrics available, skipping tile update');
+        return;
+    }
     
-    // Find data from same month previous year
-    const yearAgo = inflationData.find(d => {
-        const latestDateParts = latest.date.split('-');
-        const dataDateParts = d.date.split('-');
-        const latestYear = parseInt(latestDateParts[0]);
-        const latestMonth = parseInt(latestDateParts[1]);
-        const dataYear = parseInt(dataDateParts[0]);
-        const dataMonth = parseInt(dataDateParts[1]);
-        
-        return (latestYear - dataYear === 1) && (latestMonth === dataMonth);
-    });
-    
-    // Calculate statistics
-    const currentYear = new Date().getFullYear();
-    const thisYearData = inflationData.filter(d => {
-        const year = parseInt(d.date.split('-')[0]);
-        return year === currentYear;
-    });
-    
-    const last12Months = inflationData.slice(-12);
-    
-    const yearAverage = thisYearData.length > 0 
-        ? (thisYearData.reduce((sum, d) => sum + d.inflation, 0) / thisYearData.length)
-        : 0;
-    
-    const twelveMonthAverage = last12Months.length > 0
-        ? (last12Months.reduce((sum, d) => sum + d.inflation, 0) / last12Months.length)
-        : 0;
-    
-    // Calculate monthly change
-    const monthlyChange = previous ? latest.inflation - previous.inflation : 0;
-    
-    // Update tiles
-    const tiles = [
+    // Map the metrics to tiles based on your sheet structure
+    const tileMapping = [
         {
             selector: '.tile:nth-child(1) .highlight',
-            value: latest.inflation,
-            format: 'percentage'
+            key: 'Viimeisin inflaatio', // This should match the Finnish text in your sheet
+            fallbackKey: 'Latest inflation' // Fallback if English is used
         },
         {
             selector: '.tile:nth-child(2) .highlight',
-            value: monthlyChange,
-            format: 'percentage'
+            key: 'Muutos edelliseen kuukauteen',
+            fallbackKey: 'Monthly change'
         },
         {
             selector: '.tile:nth-child(3) .highlight',
-            value: twelveMonthAverage,
-            format: 'percentage'
+            key: '12 kk keskiarvo',
+            fallbackKey: '12 month average'
         },
         {
             selector: '.tile:nth-child(4) .highlight',
-            value: yearAverage,
-            format: 'percentage'
+            key: 'Vuoden alun keskiarvo',
+            fallbackKey: 'Year to date average'
         },
         {
             selector: '.tile:nth-child(5) .highlight',
-            value: yearAgo ? yearAgo.inflation : 0,
-            format: 'percentage'
+            key: 'Sama kuukausi vuotta aiemmin',
+            fallbackKey: 'Same month last year'
         }
     ];
     
-    tiles.forEach(tile => {
+    tileMapping.forEach((tile, index) => {
         const element = document.querySelector(tile.selector);
-        if (element) {
-            const formattedValue = formatValue(tile.value, tile.format);
-            element.textContent = formattedValue;
-            element.className = `highlight ${getValueClass(tile.value)}`;
+        if (!element) return;
+        
+        // Try to find the metric value using different possible keys
+        let value = keyMetrics[tile.key] || keyMetrics[tile.fallbackKey];
+        
+        // If not found, try to find by index position (since your image shows 6 rows)
+        if (value === undefined) {
+            const keys = Object.keys(keyMetrics);
+            if (keys[index + 1]) { // +1 to skip header row
+                value = keyMetrics[keys[index + 1]];
+            }
         }
-    });
-    
-    console.log('Updated tiles with data:', {
-        latest: latest.inflation,
-        monthlyChange,
-        yearAverage,
-        twelveMonthAverage,
-        yearAgo: yearAgo?.inflation
+        
+        if (value !== undefined) {
+            const formattedValue = formatTileValue(value);
+            element.textContent = formattedValue;
+            element.className = `highlight ${getValueClass(typeof value === 'number' ? value : 0)}`;
+            
+            console.log(`Updated tile ${index + 1}: ${tile.key} = ${formattedValue}`);
+        } else {
+            element.textContent = 'N/A';
+            element.className = 'highlight neutral';
+            console.log(`No value found for tile ${index + 1}: ${tile.key}`);
+        }
     });
 }
 
-// Format values for display
+// Format values for tile display
+function formatTileValue(value) {
+    if (typeof value === 'number') {
+        const symbol = value > 0 ? '▲' : value < 0 ? '▼' : '';
+        return `${symbol} ${Math.abs(value).toFixed(1)}%`;
+    } else if (typeof value === 'string' && value.includes('%')) {
+        // Already formatted with %
+        const numValue = parseFloat(value.replace('%', '').replace(',', '.'));
+        if (!isNaN(numValue)) {
+            const symbol = numValue > 0 ? '▲' : numValue < 0 ? '▼' : '';
+            return `${symbol} ${value}`;
+        }
+    }
+    return value.toString();
+}
+
+// Format values for display (keep old function for charts)
 function formatValue(value, format) {
     if (format === 'percentage') {
         const symbol = value > 0 ? '▲' : value < 0 ? '▼' : '';
