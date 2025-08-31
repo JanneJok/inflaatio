@@ -1,52 +1,201 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Suomen inflaation seuranta</title>
-    <link rel="stylesheet" href="inflation-site-css.css">
+    
+    <!-- Critical CSS inline -->
+    <style>
+        /* Critical above-the-fold CSS */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --gradient-primary: linear-gradient(135deg, #1e5a7d 0%, #2a7ba0 100%);
+            --dark-bg: #0f2936;
+            --dark-surface: #1a3f52;
+            --dark-card: #245066;
+            --text-primary: #ffffff;
+            --text-secondary: #b8d4e3;
+            --teal-primary: #2a7ba0;
+            --teal-light: #4ca5ba;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--dark-bg);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Optimized starry background with CSS animations */
+        .starry-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to bottom, #0f2936 0%, #1e5a7d 50%, #245066 100%);
+            z-index: -2;
+        }
+
+        .starry-bg::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                radial-gradient(1px 1px at 20% 30%, white, transparent),
+                radial-gradient(1px 1px at 60% 70%, rgba(255, 255, 255, 0.9), transparent),
+                radial-gradient(1px 1px at 50% 50%, rgba(255, 255, 255, 0.8), transparent);
+            background-size: 350px 350px, 400px 400px, 450px 450px;
+            animation: stars-up 90s linear infinite;
+            opacity: 0.8;
+            will-change: transform;
+        }
+
+        @keyframes stars-up {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-350px); }
+        }
+
+        /* Navigation with backdrop-filter optimization */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 1.5rem 2rem;
+            background: rgba(15, 41, 54, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            z-index: 1000;
+            border-bottom: 1px solid rgba(76, 165, 186, 0.2);
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: #ffffff;
+        }
+
+        /* Container and hero optimizations */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 120px 2rem 4rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-section {
+            text-align: center;
+            margin-bottom: 5rem;
+        }
+
+        .hero-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .hero-text {
+            text-align: left;
+        }
+
+        .hero-title {
+            font-size: clamp(2.5rem, 5vw, 3.5rem);
+            font-weight: 700;
+            margin-bottom: 1rem;
+            letter-spacing: -1px;
+        }
+
+        .hero-subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        .hero-image {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .hero-image img {
+            width: 100%;
+            max-width: 500px;
+            height: auto;
+            border-radius: 20px;
+        }
+
+        /* Loading states */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+
+    <!-- Preload critical resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" as="script">
+    <link rel="dns-prefetch" href="https://sheets.googleapis.com">
+    
+    <!-- Non-critical CSS loaded asynchronously -->
+    <link rel="preload" href="#" as="style" onload="this.onload=null;this.rel='stylesheet'" id="main-css">
+    <noscript><link rel="stylesheet" href="inflation-site-css.css"></noscript>
 </head>
 <body>
     <div class="starry-bg"></div>
+    
     <nav class="navbar">
         <div class="nav-container">
             <div class="logo">Inflaatio</div>
@@ -68,93 +217,209 @@
                         Reaaliaikainen näkymä Suomen talouden hintakehitykseen. 
                         Seuraa inflaatiota, analysoi trendejä ja tee tietoon perustuvia päätöksiä.
                     </p>
+                    <button id="explore-btn" style="
+                        margin-top: 2rem;
+                        padding: 1rem 2rem;
+                        background: var(--gradient-primary);
+                        border: none;
+                        border-radius: 12px;
+                        color: white;
+                        font-size: 1rem;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: transform 0.2s ease, box-shadow 0.2s ease;
+                    " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                        Tutustu dataan
+                    </button>
                 </div>
                 <div class="hero-image">
-                    <img src="https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/file_00000000fbbc6246b29f5252e8021c2a.png" 
-                         alt="Financial growth illustration" 
-                         loading="lazy"
-                         onerror="this.style.display='none'">
+                    <!-- Lazy load hero image -->
+                    <img 
+                        loading="lazy"
+                        decoding="async"
+                        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='400'%3E%3Crect width='500' height='400' fill='%23245066'/%3E%3C/svg%3E"
+                        data-src="https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/file_00000000fbbc6246b29f5252e8021c2a.png" 
+                        alt="Talouden kasvukuvaaja" 
+                        style="transition: opacity 0.3s ease;"
+                        onload="this.style.opacity='1'"
+                        onerror="this.style.display='none'">
                 </div>
             </div>
         </section>
 
+        <!-- Optimized carousel with virtual scrolling concept -->
         <section class="carousel" id="tunnusluvut">
             <div class="carousel-header">
                 <h2>Suomen inflaation keskeiset luvut</h2>
             </div>
-            <button type="button" class="arrow arrow-left" aria-label="Previous items">‹</button>
-            <div class="carousel-inner">
-                <div class="tile">
-                    <h3>Viimeisin inflaatiolukema</h3>
-                    <p class="highlight positive">▲ 1.9%</p>
+            <button type="button" class="arrow arrow-left" aria-label="Edelliset kohteet">‹</button>
+            <div class="carousel-inner" role="region" aria-label="Inflaatioluvut">
+                <!-- Tiles with loading states -->
+                <div class="tile" role="article" aria-labelledby="tile-1-title">
+                    <h3 id="tile-1-title">Viimeisin inflaatiolukema</h3>
+                    <p class="highlight neutral"><span class="loading"></span></p>
                     <p>Viimeisin Eurostatin julkaisema vuosi-inflaatio. Perustuu kuluttajahintaindeksiin.</p>
                 </div>
-                <div class="tile">
-                    <h3>Muutos edelliseen kuukauteen</h3>
-                    <p class="highlight neutral">0.0%</p>
+                <div class="tile" role="article" aria-labelledby="tile-2-title">
+                    <h3 id="tile-2-title">Muutos edelliseen kuukauteen</h3>
+                    <p class="highlight neutral"><span class="loading"></span></p>
                     <p>Kertoo, onko hintojen nousuvauhti kiihtynyt vai hidastunut edellisestä kuukaudesta.</p>
                 </div>
-                <div class="tile">
-                    <h3>12 kuukauden keskiarvo</h3>
-                    <p class="highlight positive">▲ 1.6%</p>
+                <div class="tile" role="article" aria-labelledby="tile-3-title">
+                    <h3 id="tile-3-title">12 kuukauden keskiarvo</h3>
+                    <p class="highlight neutral"><span class="loading"></span></p>
                     <p>Keskimääräinen inflaatio viimeisten 12 kuukauden aikana. Vakaampi kuva hintakehityksestä.</p>
                 </div>
-                <div class="tile">
-                    <h3>Vuoden 2025 keskiarvo</h3>
-                    <p class="highlight positive">▲ 1.8%</p>
+                <div class="tile" role="article" aria-labelledby="tile-4-title">
+                    <h3 id="tile-4-title">Vuoden 2025 keskiarvo</h3>
+                    <p class="highlight neutral"><span class="loading"></span></p>
                     <p>Inflaation keskiarvo vuoden alusta tähän hetkeen. Hyödyllinen budjetointiin ja analyysiin.</p>
                 </div>
-                <div class="tile">
-                    <h3>Vuosi sitten (sama kuukausi)</h3>
-                    <p class="highlight positive">▲ 0.5%</p>
+                <div class="tile" role="article" aria-labelledby="tile-5-title">
+                    <h3 id="tile-5-title">Vuosi sitten (sama kuukausi)</h3>
+                    <p class="highlight neutral"><span class="loading"></span></p>
                     <p>Vertailu viime vuoden samaan kuukauteen näyttää, miten paljon inflaatio on muuttunut vuodessa.</p>
                 </div>
             </div>
-            <button type="button" class="arrow arrow-right" aria-label="Next items">›</button>
+            <button type="button" class="arrow arrow-right" aria-label="Seuraavat kohteet">›</button>
         </section>
 
+        <!-- Chart section with intersection observer for lazy loading -->
         <section class="charts" id="analytiikka">
-            <div class="chart">
+            <div class="chart" data-chart="inflation">
                 <h2>Vuosi-inflaation kehitys</h2>
-                <div class="chart-controls">
-                    <button>6kk</button>
-                    <button>1v</button>
-                    <button>3v</button>
-                    <button>5v</button>
-                    <button>Max</button>
+                <div class="chart-controls" role="tablist" aria-label="Aikavälin valinta">
+                    <button role="tab" aria-selected="false">6kk</button>
+                    <button role="tab" aria-selected="true">1v</button>
+                    <button role="tab" aria-selected="false">3v</button>
+                    <button role="tab" aria-selected="false">5v</button>
+                    <button role="tab" aria-selected="false">Max</button>
                 </div>
-                <div class="chart-placeholder">
-                    <canvas id="inflationChart"></canvas>
+                <div class="chart-placeholder" role="img" aria-label="Inflaation kehityskuvaaja">
+                    <div class="chart-loading" style="
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        height: 250px;
+                        color: rgba(255,255,255,0.6);
+                    ">
+                        <div class="loading" style="margin-right: 10px;"></div>
+                        Ladataan kaavioita...
+                    </div>
+                    <canvas id="inflationChart" style="display: none;"></canvas>
                 </div>
                 <div class="chart-stats">
-                    <p><span class="percentage-badge">🔵</span> Minimi 0.5%</p>
-                    <p><span class="percentage-badge">🟡</span> Keskiarvo 1.6%</p>
-                    <p><span class="percentage-badge">🔴</span> Maksimi 2.3%</p>
+                    <p><span class="percentage-badge">🔵</span> <span id="inflation-min">Ladataan...</span></p>
+                    <p><span class="percentage-badge">🟡</span> <span id="inflation-avg">Ladataan...</span></p>
+                    <p><span class="percentage-badge">🔴</span> <span id="inflation-max">Ladataan...</span></p>
                 </div>
             </div>
 
-            <div class="chart">
+            <div class="chart" data-chart="hicp">
                 <h2>HICP-indeksi</h2>
-                <div class="chart-controls">
-                    <button>6kk</button>
-                    <button>1v</button>
-                    <button>3v</button>
-                    <button>5v</button>
-                    <button>Max</button>
+                <div class="chart-controls" role="tablist" aria-label="Aikavälin valinta">
+                    <button role="tab" aria-selected="false">6kk</button>
+                    <button role="tab" aria-selected="true">1v</button>
+                    <button role="tab" aria-selected="false">3v</button>
+                    <button role="tab" aria-selected="false">5v</button>
+                    <button role="tab" aria-selected="false">Max</button>
                 </div>
-                <div class="chart-placeholder">
-                    <canvas id="hicpChart"></canvas>
+                <div class="chart-placeholder" role="img" aria-label="HICP-indeksin kehityskuvaaja">
+                    <div class="chart-loading" style="
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        height: 250px;
+                        color: rgba(255,255,255,0.6);
+                    ">
+                        <div class="loading" style="margin-right: 10px;"></div>
+                        Ladataan kaavioita...
+                    </div>
+                    <canvas id="hicpChart" style="display: none;"></canvas>
                 </div>
                 <div class="chart-stats">
-                    <p><span class="percentage-badge">📈</span> Nousutahti +1.9%</p>
-                    <p><span class="percentage-badge">📊</span> Indeksiarvo 119.91</p>
-                    <p><span class="percentage-badge">📅</span> Vuosimuutos +2.1%</p>
+                    <p><span class="percentage-badge">📈</span> <span id="hicp-trend">Ladataan...</span></p>
+                    <p><span class="percentage-badge">📊</span> <span id="hicp-value">Ladataan...</span></p>
+                    <p><span class="percentage-badge">📅</span> <span id="hicp-change">Ladataan...</span></p>
                 </div>
             </div>
         </section>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="inflation-site-js.js"></script>
+    <!-- Scripts loaded asynchronously -->
+    <script>
+        // Critical functionality inline
+        document.addEventListener('DOMContentLoaded', () => {
+            // Lazy load hero image
+            const heroImg = document.querySelector('.hero-image img');
+            if (heroImg) {
+                const src = heroImg.getAttribute('data-src');
+                if (src) {
+                    heroImg.src = src;
+                }
+            }
+
+            // Smooth scrolling for navigation
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                });
+            });
+
+            // Load main CSS asynchronously
+            const mainCssLink = document.getElementById('main-css');
+            mainCssLink.href = 'inflation-site-css.css';
+        });
+
+        // Load non-critical scripts asynchronously
+        function loadScript(src, callback) {
+            const script = document.createElement('script');
+            script.src = src;
+            script.async = true;
+            if (callback) script.onload = callback;
+            document.head.appendChild(script);
+        }
+
+        // Load Chart.js and main functionality after page load
+        window.addEventListener('load', () => {
+            loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js', () => {
+                loadScript('inflation-site-js-optimized.js');
+            });
+        });
+
+        // Service Worker for caching (optional)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(() => {
+                    // Ignore if service worker fails to register
+                });
+            });
+        }
+    </script>
+
+    <!-- Structured data for SEO -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Suomen inflaation seuranta",
+        "description": "Reaaliaikainen näkymä Suomen talouden hintakehitykseen",
+        "url": "https://yourdomain.com",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "Web browser",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "EUR"
+        }
+    }
+    </script>
 </body>
 </html>

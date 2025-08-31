@@ -1,459 +1,469 @@
+// Optimized JavaScript with performance improvements
 // Configuration
 const CONFIG = {
     SHEET_ID: '1tj7AbW3BkzmPZUd_pfrXmaHZrgpKgYwNljSoVoAObx8',
     API_KEY: 'AIzaSyDbeAW-uO-vEHuPdSJPVQwR_l1Axc7Cq7g',
-    HISTORICAL_RANGE: 'Raakadata!A:F', // Historical data for charts
-    METRICS_RANGE: 'Key Metrics!A:B'    // Key metrics for tiles
+    HISTORICAL_RANGE: 'Raakadata!A:F',
+    METRICS_RANGE: 'Key Metrics!A:B',
+    CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
+    RETRY_ATTEMPTS: 3,
+    RETRY_DELAY: 1000
 };
 
-// Global variables for data storage
+// Global variables with better memory management
 let inflationData = [];
 let keyMetrics = {};
 let currentChartRange = '1v';
+let chartInstances = {};
+let dataCache = new Map();
+let lastFetch = 0;
 
-// Fetch data from Google Sheets
-async function fetchInflationData() {
+// Performance monitoring
+const performance = {
+    start: Date.now(),
+    marks: {},
+    
+    mark(name) {
+        this.marks[name] = Date.now();
+        if (typeof window !== 'undefined' && window.performance) {
+            window.performance.mark(name);
+        }
+    },
+    
+    measure(name, startMark, endMark) {
+        const start = this.marks[startMark] || this.start;
+        const end = this.marks[endMark] || Date.now();
+        const duration = end - start;
+        
+        console.log(`⏱️ ${name}: ${duration}ms`);
+        
+        if (typeof window !== 'undefined' && window.performance) {
+            window.performance.measure(name, startMark, endMark);
+        }
+        
+        return duration;
+    }
+};
+
+// Optimized data fetching with caching and retry logic
+async function fetchInflationData(forceRefresh = false) {
+    const cacheKey = 'inflation_data';
+    const now = Date.now();
+    
+    // Check cache first
+    if (!forceRefresh && dataCache.has(cacheKey) && (now - lastFetch) < CONFIG.CACHE_DURATION) {
+        console.log('📦 Using cached data');
+        const cachedData = dataCache.get(cacheKey);
+        inflationData = cachedData.historical;
+        keyMetrics = cachedData.metrics;
+        updateUI();
+        return cachedData;
+    }
+    
+    performance.mark('fetch-start');
+    
     try {
         showLoadingState();
+        console.log('🔄 Fetching fresh data from Google Sheets...');
         
-        console.log('Fetching data from both sheets...');
-        
-        // Fetch both ranges simultaneously
-        const [historicalResponse, metricsResponse] = await Promise.all([
-            fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.HISTORICAL_RANGE}?key=${CONFIG.API_KEY}`),
-            fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.METRICS_RANGE}?key=${CONFIG.API_KEY}`)
+        // Use Promise.allSettled for better error handling
+        const [historicalResult, metricsResult] = await Promise.allSettled([
+            fetchWithRetry(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.HISTORICAL_RANGE}?key=${CONFIG.API_KEY}`),
+            fetchWithRetry(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.METRICS_RANGE}?key=${CONFIG.API_KEY}`)
         ]);
         
-        // Check historical data response
-        if (!historicalResponse.ok) {
-            const errorText = await historicalResponse.text();
-            console.error('Historical data error:', errorText);
-            throw new Error(`Historical data error: ${historicalResponse.status}`);
+        // Handle partial failures gracefully
+        let historicalData = null;
+        let metricsData = null;
+        
+        if (historicalResult.status === 'fulfilled') {
+            historicalData = await historicalResult.value.json();
+        } else {
+            console.error('❌ Historical data fetch failed:', historicalResult.reason);
         }
         
-        // Check metrics data response
-        if (!metricsResponse.ok) {
-            const errorText = await metricsResponse.text();
-            console.error('Metrics data error:', errorText);
-            throw new Error(`Metrics data error: ${metricsResponse.status}`);
+        if (metricsResult.status === 'fulfilled') {
+            metricsData = await metricsResult.value.json();
+        } else {
+            console.error('❌ Metrics data fetch failed:', metricsResult.reason);
         }
         
-        const historicalData = await historicalResponse.json();
-        const metricsData = await metricsResponse.json();
-        
-        console.log('Historical data:', historicalData);
-        console.log('Metrics data:', metricsData);
-        
-        // Process historical data for charts
-        if (historicalData.values && historicalData.values.length > 0) {
+        // Process data if available
+        if (historicalData?.values?.length > 0) {
             inflationData = processHistoricalData(historicalData.values);
         }
         
-        // Process key metrics for tiles
-        if (metricsData.values && metricsData.values.length > 0) {
+        if (metricsData?.values?.length > 0) {
             keyMetrics = processKeyMetrics(metricsData.values);
         }
+        
+        // Cache the results
+        const processedData = { historical: inflationData, metrics: keyMetrics };
+        dataCache.set(cacheKey, processedData);
+        lastFetch = now;
+        
+        performance.mark('fetch-end');
+        performance.measure('Data Fetch', 'fetch-start', 'fetch-end');
         
         updateUI();
         hideLoadingState();
         
-        return { historical: inflationData, metrics: keyMetrics };
+        return processedData;
+        
     } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('💥 Error fetching data:', error);
         showErrorState(error.message);
         return null;
     }
 }
 
-// Process historical data (Raakadata sheet) for charts
+// Retry mechanism with exponential backoff
+async function fetchWithRetry(url, attempts = CONFIG.RETRY_ATTEMPTS) {
+    for (let i = 0; i < attempts; i++) {
+        try {
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            return response;
+        } catch (error) {
+            console.warn(`🔄 Fetch attempt ${i + 1}/${attempts} failed:`, error.message);
+            
+            if (i === attempts - 1) {
+                throw error;
+            }
+            
+            // Exponential backoff
+            await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY * Math.pow(2, i)));
+        }
+    }
+}
+
+// Optimized data processing with better error handling
 function processHistoricalData(rawData) {
+    performance.mark('process-historical-start');
+    
+    if (!rawData || rawData.length < 2) {
+        console.warn('⚠️ Insufficient historical data');
+        return [];
+    }
+    
     const headers = rawData[0];
     const rows = rawData.slice(1);
     
-    console.log('Historical headers:', headers);
-    console.log('Historical sample row:', rows[0]);
+    // More robust column detection
+    const dateCol = findColumn(headers, ['kuukausi', 'date', 'month']);
+    const inflationCol = findColumn(headers, ['inflaatio %', 'inflation', 'rate']);
+    const indexCol = findColumn(headers, ['indeksi', 'index', 'hicp']);
     
-    // Find column indices based on your exact structure
-    const dateCol = headers.indexOf('Kuukausi');
-    const inflationCol = headers.indexOf('Inflaatio %');
-    const indexCol = headers.indexOf('Indeksi');
-    
-    console.log('Historical column indices:', { dateCol, inflationCol, indexCol });
-    
-    const processedData = rows.map(row => {
-        const dateStr = row[dateCol] || '';
-        const inflationStr = row[inflationCol] || '';
-        const indexStr = row[indexCol] || '';
-        
-        const inflationValue = parseFloat(inflationStr.replace('%', '').replace(',', '.').trim());
-        const indexValue = parseFloat(indexStr.replace(',', '.').trim());
-        
-        return {
-            date: dateStr,
-            inflation: isNaN(inflationValue) ? 0 : inflationValue,
-            hicp: isNaN(indexValue) ? 0 : indexValue,
-            monthlyChange: 0,
-            rawRow: row
-        };
-    }).filter(item => {
-        return item.date && 
-               item.date.length > 0 && 
-               !isNaN(item.inflation);
-    });
-    
-    // Sort by date
-    processedData.sort((a, b) => new Date(a.date + '-01') - new Date(b.date + '-01'));
-    
-    // Calculate monthly changes
-    for (let i = 1; i < processedData.length; i++) {
-        const current = processedData[i].inflation;
-        const previous = processedData[i-1].inflation;
-        processedData[i].monthlyChange = current - previous;
+    if (dateCol === -1 || inflationCol === -1) {
+        throw new Error('Required columns not found in historical data');
     }
     
-    console.log('Historical processed data sample:', processedData.slice(-5));
-    console.log('Total historical rows:', processedData.length);
+    const processedData = rows.reduce((acc, row, index) => {
+        try {
+            const item = processDataRow(row, dateCol, inflationCol, indexCol);
+            if (item && item.date && !isNaN(item.inflation)) {
+                acc.push(item);
+            }
+        } catch (error) {
+            console.warn(`⚠️ Skipping row ${index + 2}:`, error.message);
+        }
+        return acc;
+    }, []);
     
+    // Sort and calculate changes efficiently
+    processedData.sort((a, b) => new Date(a.date + '-01') - new Date(b.date + '-01'));
+    
+    // Calculate monthly changes in a single pass
+    for (let i = 1; i < processedData.length; i++) {
+        processedData[i].monthlyChange = processedData[i].inflation - processedData[i - 1].inflation;
+    }
+    
+    performance.mark('process-historical-end');
+    performance.measure('Historical Data Processing', 'process-historical-start', 'process-historical-end');
+    
+    console.log(`✅ Processed ${processedData.length} historical records`);
     return processedData;
 }
 
-// Process key metrics data for tiles
+// Helper function for robust column detection
+function findColumn(headers, possibleNames) {
+    return headers.findIndex(header => 
+        possibleNames.some(name => 
+            header.toLowerCase().includes(name.toLowerCase())
+        )
+    );
+}
+
+// Helper function for processing individual data rows
+function processDataRow(row, dateCol, inflationCol, indexCol) {
+    const dateStr = row[dateCol]?.toString().trim() || '';
+    const inflationStr = row[inflationCol]?.toString().trim() || '';
+    const indexStr = indexCol !== -1 ? row[indexCol]?.toString().trim() || '' : '';
+    
+    if (!dateStr || !inflationStr) {
+        return null;
+    }
+    
+    // More robust number parsing
+    const inflationValue = parseNumericValue(inflationStr);
+    const indexValue = indexStr ? parseNumericValue(indexStr) : 0;
+    
+    return {
+        date: dateStr,
+        inflation: inflationValue,
+        hicp: indexValue,
+        monthlyChange: 0
+    };
+}
+
+// Robust numeric value parsing
+function parseNumericValue(str) {
+    if (!str) return 0;
+    
+    // Handle different formats: "1.5%", "1,5 %", "1.5", etc.
+    const cleaned = str
+        .replace(/[%\s]/g, '')  // Remove % and spaces
+        .replace(/,/g, '.')      // Replace comma with dot
+        .trim();
+    
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? 0 : num;
+}
+
+// Optimized key metrics processing
 function processKeyMetrics(rawData) {
-    console.log('Processing key metrics data:', rawData);
+    performance.mark('process-metrics-start');
+    
+    if (!rawData || rawData.length < 2) {
+        console.warn('⚠️ Insufficient metrics data');
+        return {};
+    }
     
     const metrics = {};
     
-    // Skip header row and process data rows
-    rawData.slice(1).forEach(row => {
-        if (row.length >= 2) {
-            const key = row[0]; // Column A - metric name
-            const value = row[1]; // Column B - metric value
-            
-            if (key && value) {
-                // Clean the value - remove % and convert to number if it's a percentage
-                let cleanValue = value;
-                if (typeof value === 'string' && value.includes('%')) {
-                    cleanValue = parseFloat(value.replace('%', '').replace(',', '.').trim());
-                } else if (typeof value === 'string') {
-                    // Try to parse as number
-                    const numValue = parseFloat(value.replace(',', '.').trim());
-                    cleanValue = isNaN(numValue) ? value : numValue;
-                }
+    // Skip header and process data rows
+    rawData.slice(1).forEach((row, index) => {
+        try {
+            if (row.length >= 2 && row[0] && row[1]) {
+                const key = row[0].toString().trim();
+                const value = parseNumericValue(row[1].toString());
                 
-                metrics[key] = cleanValue;
+                if (key && !isNaN(value)) {
+                    metrics[key] = value;
+                }
             }
+        } catch (error) {
+            console.warn(`⚠️ Skipping metrics row ${index + 2}:`, error.message);
         }
     });
     
-    console.log('Processed key metrics:', metrics);
+    performance.mark('process-metrics-end');
+    performance.measure('Metrics Processing', 'process-metrics-start', 'process-metrics-end');
+    
+    console.log(`✅ Processed ${Object.keys(metrics).length} key metrics`);
     return metrics;
 }
 
-// Helper function to find column index by possible names
-function findColumnIndex(headers, possibleNames) {
-    for (let name of possibleNames) {
-        const index = headers.findIndex(header => 
-            header.toLowerCase().includes(name.toLowerCase())
-        );
-        if (index !== -1) return index;
-    }
-    return 0; // Default to first column if not found
-}
-
-// Update all UI elements with fresh data
+// Optimized UI updates with batch DOM operations
 function updateUI() {
-    if (!inflationData.length) return;
+    performance.mark('ui-update-start');
     
-    updateCarouselTiles();
-    updateCharts();
-    updateLastUpdated();
+    // Use requestAnimationFrame for smooth UI updates
+    requestAnimationFrame(() => {
+        updateCarouselTiles();
+        
+        // Only update charts if they're visible (intersection observer could be added)
+        if (isElementVisible(document.querySelector('.charts'))) {
+            updateCharts();
+        }
+        
+        updateLastUpdated();
+        
+        performance.mark('ui-update-end');
+        performance.measure('UI Update', 'ui-update-start', 'ui-update-end');
+    });
 }
 
-// Update carousel tiles with real data from Key Metrics
-function updateCarouselTiles() {
-    console.log('Updating carousel tiles with metrics:', keyMetrics);
+// Check if element is visible in viewport
+function isElementVisible(element) {
+    if (!element) return false;
     
+    const rect = element.getBoundingClientRect();
+    return (
+        rect.top >= 0 &&
+        rect.left >= 0 &&
+        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+        rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+    );
+}
+
+// Optimized carousel tile updates with error handling
+function updateCarouselTiles() {
     if (!keyMetrics || Object.keys(keyMetrics).length === 0) {
-        console.log('No key metrics available, skipping tile update');
+        console.log('📝 No key metrics available for tiles');
         return;
     }
     
-    // Map the metrics to tiles based on your sheet structure
-    const tileMapping = [
-        {
-            selector: '.tile:nth-child(1) .highlight',
-            key: 'Viimeisin inflaatio', // This should match the Finnish text in your sheet
-            fallbackKey: 'Latest inflation' // Fallback if English is used
-        },
-        {
-            selector: '.tile:nth-child(2) .highlight',
-            key: 'Muutos edelliseen kuukauteen',
-            fallbackKey: 'Monthly change'
-        },
-        {
-            selector: '.tile:nth-child(3) .highlight',
-            key: '12 kk keskiarvo',
-            fallbackKey: '12 month average'
-        },
-        {
-            selector: '.tile:nth-child(4) .highlight',
-            key: 'Vuoden alun keskiarvo',
-            fallbackKey: 'Year to date average'
-        },
-        {
-            selector: '.tile:nth-child(5) .highlight',
-            key: 'Sama kuukausi vuotta aiemmin',
-            fallbackKey: 'Same month last year'
-        }
+    // Batch DOM updates
+    const updates = [];
+    const tileSelectors = [
+        '.tile:nth-child(1) .highlight',
+        '.tile:nth-child(2) .highlight', 
+        '.tile:nth-child(3) .highlight',
+        '.tile:nth-child(4) .highlight',
+        '.tile:nth-child(5) .highlight'
     ];
     
-    tileMapping.forEach((tile, index) => {
-        const element = document.querySelector(tile.selector);
+    // Prepare all updates first
+    tileSelectors.forEach((selector, index) => {
+        const element = document.querySelector(selector);
         if (!element) return;
         
-        // Try to find the metric value using different possible keys
-        let value = keyMetrics[tile.key] || keyMetrics[tile.fallbackKey];
+        // Try to find matching metric value
+        const metricKeys = Object.keys(keyMetrics);
+        const value = index < metricKeys.length ? keyMetrics[metricKeys[index]] : null;
         
-        // If not found, try to find by index position (since your image shows 6 rows)
-        if (value === undefined) {
-            const keys = Object.keys(keyMetrics);
-            if (keys[index + 1]) { // +1 to skip header row
-                value = keyMetrics[keys[index + 1]];
-            }
-        }
-        
-        if (value !== undefined) {
-            const formattedValue = formatTileValue(value);
-            element.textContent = formattedValue;
-            element.className = `highlight ${getValueClass(typeof value === 'number' ? value : 0)}`;
-            
-            console.log(`Updated tile ${index + 1}: ${tile.key} = ${formattedValue}`);
+        if (value !== null && value !== undefined) {
+            updates.push({
+                element,
+                value: formatTileValue(value),
+                className: `highlight ${getValueClass(typeof value === 'number' ? value : 0)}`
+            });
         } else {
-            element.textContent = 'N/A';
-            element.className = 'highlight neutral';
-            console.log(`No value found for tile ${index + 1}: ${tile.key}`);
+            updates.push({
+                element,
+                value: 'N/A',
+                className: 'highlight neutral'
+            });
         }
     });
+    
+    // Apply all updates in a single batch
+    updates.forEach(update => {
+        update.element.textContent = update.value;
+        update.element.className = update.className;
+    });
+    
+    console.log(`✅ Updated ${updates.length} tiles`);
 }
 
-// Format values for tile display
-function formatTileValue(value) {
-    if (typeof value === 'number') {
-        const symbol = value > 0 ? '▲' : value < 0 ? '▼' : '';
-        return `${symbol} ${Math.abs(value).toFixed(1)}%`;
-    } else if (typeof value === 'string' && value.includes('%')) {
-        // Already formatted with %
-        const numValue = parseFloat(value.replace('%', '').replace(',', '.'));
-        if (!isNaN(numValue)) {
-            const symbol = numValue > 0 ? '▲' : numValue < 0 ? '▼' : '';
-            return `${symbol} ${value}`;
-        }
-    }
-    return value.toString();
-}
-
-// Format values for display (keep old function for charts)
-function formatValue(value, format) {
-    if (format === 'percentage') {
-        const symbol = value > 0 ? '▲' : value < 0 ? '▼' : '';
-        return `${symbol} ${Math.abs(value).toFixed(1)}%`;
-    }
-    return value.toFixed(1);
-}
-
-// Get CSS class based on value
-function getValueClass(value) {
-    if (value > 0) return 'positive';
-    if (value < 0) return 'negative';
-    return 'neutral';
-}
-
-// Update charts with real data
+// Optimized chart updates with lazy loading
 function updateCharts() {
+    if (!inflationData || inflationData.length === 0) {
+        console.log('📊 No historical data available for charts');
+        return;
+    }
+    
     const filteredData = filterDataByRange(inflationData, currentChartRange);
     
-    updateInflationChart(filteredData);
-    updateHICPChart(filteredData);
-}
-
-// Filter data based on time range
-function filterDataByRange(data, range) {
-    if (!data || data.length === 0) return [];
-    
-    const now = new Date();
-    let startDate = new Date();
-    
-    switch (range) {
-        case '6kk':
-            startDate.setMonth(now.getMonth() - 6);
-            break;
-        case '1v':
-            startDate.setFullYear(now.getFullYear() - 1);
-            break;
-        case '3v':
-            startDate.setFullYear(now.getFullYear() - 3);
-            break;
-        case '5v':
-            startDate.setFullYear(now.getFullYear() - 5);
-            break;
-        case 'Max':
-            return data;
+    // Update charts only if they exist and are visible
+    if (chartInstances.inflation) {
+        updateInflationChart(filteredData);
     }
     
-    return data.filter(d => {
-        // Convert "YYYY-MM" format to date for comparison
-        const itemDate = new Date(d.date + '-01');
-        return itemDate >= startDate;
-    });
-}
-
-// Format date for chart display
-function formatDateForChart(dateString) {
-    // dateString is in format "YYYY-MM", convert to readable format
-    const [year, month] = dateString.split('-');
-    const date = new Date(parseInt(year), parseInt(month) - 1, 1);
-    return date.toLocaleDateString('fi-FI', { 
-        year: '2-digit', 
-        month: '2-digit' 
-    });
-}
-
-// Update inflation chart
-function updateInflationChart(data) {
-    const canvas = document.getElementById('inflationChart');
-    if (!canvas || !window.inflationChart) return;
-    
-    const labels = data.map(d => formatDateForChart(d.date));
-    const values = data.map(d => d.inflation);
-    
-    window.inflationChart.data.labels = labels;
-    window.inflationChart.data.datasets[0].data = values;
-    window.inflationChart.update();
-    
-    // Update chart statistics
-    updateChartStats('inflation', values);
-}
-
-// Update HICP chart
-function updateHICPChart(data) {
-    const canvas = document.getElementById('hicpChart');
-    if (!canvas || !window.hicpChart) return;
-    
-    const labels = data.map(d => formatDateForChart(d.date));
-    const values = data.map(d => d.hicp);
-    
-    window.hicpChart.data.labels = labels;
-    window.hicpChart.data.datasets[0].data = values;
-    window.hicpChart.update();
-    
-    // Update chart statistics
-    updateChartStats('hicp', values, data);
-}
-
-// Update chart statistics
-function updateChartStats(chartType, values, data = null) {
-    if (!values || values.length === 0) return;
-    
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
-    
-    if (chartType === 'inflation') {
-        const chartElement = document.querySelector('#inflationChart').closest('.chart');
-        const statsElements = chartElement.querySelectorAll('.chart-stats p');
-        if (statsElements[0]) statsElements[0].innerHTML = `<span class="percentage-badge">🔵</span> Minimi ${min.toFixed(1)}%`;
-        if (statsElements[1]) statsElements[1].innerHTML = `<span class="percentage-badge">🟡</span> Keskiarvo ${avg.toFixed(1)}%`;
-        if (statsElements[2]) statsElements[2].innerHTML = `<span class="percentage-badge">🔴</span> Maksimi ${max.toFixed(1)}%`;
-    } else if (chartType === 'hicp' && data && data.length > 0) {
-        const latest = data[data.length - 1];
-        
-        // Find data from approximately 12 months ago
-        const yearAgo = data.find(d => {
-            const latestDateParts = latest.date.split('-');
-            const dataDateParts = d.date.split('-');
-            const latestYear = parseInt(latestDateParts[0]);
-            const latestMonth = parseInt(latestDateParts[1]);
-            const dataYear = parseInt(dataDateParts[0]);
-            const dataMonth = parseInt(dataDateParts[1]);
-            
-            return (latestYear - dataYear === 1) && (latestMonth === dataMonth);
-        });
-        
-        const yearlyChange = yearAgo ? ((latest.hicp - yearAgo.hicp) / yearAgo.hicp) * 100 : 0;
-        
-        const chartElement = document.querySelector('#hicpChart').closest('.chart');
-        const statsElements = chartElement.querySelectorAll('.chart-stats p');
-        if (statsElements[0]) statsElements[0].innerHTML = `<span class="percentage-badge">📈</span> Nousutahti ${latest.inflation > 0 ? '+' : ''}${latest.inflation.toFixed(1)}%`;
-        if (statsElements[1]) statsElements[1].innerHTML = `<span class="percentage-badge">📊</span> Indeksiarvo ${latest.hicp.toFixed(2)}`;
-        if (statsElements[2]) statsElements[2].innerHTML = `<span class="percentage-badge">📅</span> Vuosimuutos ${yearlyChange > 0 ? '+' : ''}${yearlyChange.toFixed(1)}%`;
+    if (chartInstances.hicp) {
+        updateHICPChart(filteredData);
     }
 }
 
-// Update last updated timestamp
-function updateLastUpdated() {
-    const now = new Date().toLocaleString('fi-FI');
-    let element = document.querySelector('.last-updated');
-    
-    if (!element) {
-        element = document.createElement('p');
-        element.className = 'last-updated';
-        element.style.cssText = 'text-align: center; color: rgba(255,255,255,0.6); font-size: 0.875rem; margin-top: 2rem;';
-        document.querySelector('.container').appendChild(element);
-    }
-    
-    element.textContent = `Päivitetty: ${now}`;
-}
-
-// Loading and error states
-function showLoadingState() {
-    document.querySelectorAll('.tile .highlight').forEach(el => {
-        el.textContent = '...';
-        el.className = 'highlight neutral';
-    });
-}
-
-function hideLoadingState() {
-    // Loading state is automatically hidden when data updates
-}
-
-function showErrorState(message) {
-    console.error('Data fetch error:', message);
-    
-    // Show error in tiles
-    document.querySelectorAll('.tile .highlight').forEach(el => {
-        el.textContent = 'Virhe';
-        el.className = 'highlight negative';
-    });
-    
-    // Add error message
-    let errorElement = document.querySelector('.error-message');
-    if (!errorElement) {
-        errorElement = document.createElement('div');
-        errorElement.className = 'error-message';
-        errorElement.style.cssText = 'background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: center; color: #ef4444;';
-        document.querySelector('.hero-section').after(errorElement);
-    }
-    
-    errorElement.innerHTML = `
-        <strong>Tietojen lataus epäonnistui</strong><br>
-        <small>${message}</small><br>
-        <button onclick="retryDataFetch()" style="margin-top: 0.5rem; padding: 0.5rem 1rem; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.5); border-radius: 4px; color: white; cursor: pointer;">Yritä uudelleen</button>
-    `;
-}
-
-// Retry function for error recovery
-function retryDataFetch() {
-    const errorElement = document.querySelector('.error-message');
-    if (errorElement) errorElement.remove();
-    
-    fetchInflationData();
-}
-
-// Initialize charts (updated from original code)
+// Lazy chart initialization
 function initializeCharts() {
-    const chartConfig = {
+    performance.mark('chart-init-start');
+    
+    const chartConfig = getChartConfig();
+    
+    // Initialize Inflation Chart
+    const inflationCanvas = document.getElementById('inflationChart');
+    if (inflationCanvas && !chartInstances.inflation) {
+        hideChartLoading('inflation');
+        inflationCanvas.style.display = 'block';
+        
+        const ctx = inflationCanvas.getContext('2d');
+        chartInstances.inflation = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    data: [],
+                    borderColor: '#4ca5ba',
+                    backgroundColor: 'rgba(76, 165, 186, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#b8d4e3',
+                    pointBorderColor: '#2a7ba0',
+                    pointRadius: 3,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: chartConfig
+        });
+    }
+    
+    // Initialize HICP Chart
+    const hicpCanvas = document.getElementById('hicpChart');
+    if (hicpCanvas && !chartInstances.hicp) {
+        hideChartLoading('hicp');
+        hicpCanvas.style.display = 'block';
+        
+        const ctx = hicpCanvas.getContext('2d');
+        chartInstances.hicp = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    data: [],
+                    borderColor: '#3891a6',
+                    backgroundColor: 'rgba(56, 145, 166, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#b8d4e3',
+                    pointBorderColor: '#1e5a7d',
+                    pointRadius: 3,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                ...chartConfig,
+                scales: {
+                    ...chartConfig.scales,
+                    y: {
+                        ...chartConfig.scales.y,
+                        ticks: {
+                            ...chartConfig.scales.y.ticks,
+                            callback: function(value) {
+                                return value.toFixed(0);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    performance.mark('chart-init-end');
+    performance.measure('Chart Initialization', 'chart-init-start', 'chart-init-end');
+    
+    // Update charts with current data
+    if (inflationData.length > 0) {
+        updateCharts();
+    }
+}
+
+// Get optimized chart configuration
+function getChartConfig() {
+    return {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: {
+            intersect: false,
+            mode: 'index'
+        },
         plugins: {
             legend: {
                 display: false
@@ -466,7 +476,10 @@ function initializeCharts() {
                 borderWidth: 1,
                 cornerRadius: 8,
                 displayColors: false,
-                padding: 12
+                padding: 12,
+                animation: {
+                    duration: 200
+                }
             }
         },
         scales: {
@@ -478,7 +491,7 @@ function initializeCharts() {
                 ticks: {
                     color: 'rgba(255, 255, 255, 0.7)',
                     maxRotation: 45,
-                    minRotation: 45,
+                    minRotation: 0,
                     font: {
                         size: window.innerWidth < 400 ? 9 : 11
                     }
@@ -500,6 +513,10 @@ function initializeCharts() {
                 }
             }
         },
+        animation: {
+            duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 750,
+            easing: 'easeInOutQuart'
+        },
         layout: {
             padding: {
                 left: 0,
@@ -509,138 +526,292 @@ function initializeCharts() {
             }
         }
     };
+}
 
-    // Initialize Inflation Chart
-    const inflationCanvas = document.getElementById('inflationChart');
-    if (inflationCanvas) {
-        const inflationCtx = inflationCanvas.getContext('2d');
-        window.inflationChart = new Chart(inflationCtx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    data: [],
-                    borderColor: '#4ca5ba',
-                    backgroundColor: 'rgba(76, 165, 186, 0.1)',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    fill: true,
-                    pointBackgroundColor: '#b8d4e3',
-                    pointBorderColor: '#2a7ba0',
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                }]
-            },
-            options: chartConfig
-        });
+// Optimized chart update functions
+function updateInflationChart(data) {
+    if (!chartInstances.inflation || !data.length) return;
+    
+    const labels = data.map(d => formatDateForChart(d.date));
+    const values = data.map(d => d.inflation);
+    
+    chartInstances.inflation.data.labels = labels;
+    chartInstances.inflation.data.datasets[0].data = values;
+    chartInstances.inflation.update('none'); // Skip animation for better performance
+    
+    updateChartStats('inflation', values);
+}
+
+function updateHICPChart(data) {
+    if (!chartInstances.hicp || !data.length) return;
+    
+    const labels = data.map(d => formatDateForChart(d.date));
+    const values = data.map(d => d.hicp);
+    
+    chartInstances.hicp.data.labels = labels;
+    chartInstances.hicp.data.datasets[0].data = values;
+    chartInstances.hicp.update('none'); // Skip animation for better performance
+    
+    updateChartStats('hicp', values, data);
+}
+
+// Rest of the utility functions (optimized)
+function filterDataByRange(data, range) {
+    if (!data || data.length === 0) return [];
+    
+    if (range === 'Max') return data;
+    
+    const now = new Date();
+    const startDate = new Date();
+    
+    const periods = {
+        '6kk': () => startDate.setMonth(now.getMonth() - 6),
+        '1v': () => startDate.setFullYear(now.getFullYear() - 1),
+        '3v': () => startDate.setFullYear(now.getFullYear() - 3),
+        '5v': () => startDate.setFullYear(now.getFullYear() - 5)
+    };
+    
+    periods[range]?.();
+    
+    return data.filter(d => {
+        const itemDate = new Date(d.date + '-01');
+        return itemDate >= startDate;
+    });
+}
+
+function formatDateForChart(dateString) {
+    const [year, month] = dateString.split('-');
+    return `${month}/${year.slice(2)}`;
+}
+
+function formatTileValue(value) {
+    if (typeof value === 'number') {
+        const symbol = value > 0 ? '▲' : value < 0 ? '▼' : '';
+        return `${symbol} ${Math.abs(value).toFixed(1)}%`;
     }
+    return value.toString();
+}
 
-    // Initialize HICP Chart
-    const hicpCanvas = document.getElementById('hicpChart');
-    if (hicpCanvas) {
-        const hicpCtx = hicpCanvas.getContext('2d');
-        window.hicpChart = new Chart(hicpCtx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    data: [],
-                    borderColor: '#3891a6',
-                    backgroundColor: 'rgba(56, 145, 166, 0.1)',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    fill: true,
-                    pointBackgroundColor: '#b8d4e3',
-                    pointBorderColor: '#1e5a7d',
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                }]
-            },
-            options: {
-                ...chartConfig,
-                scales: {
-                    ...chartConfig.scales,
-                    y: {
-                        ...chartConfig.scales.y,
-                        ticks: {
-                            ...chartConfig.scales.y.ticks,
-                            callback: function(value) {
-                                return value.toFixed(0);
-                            }
-                        }
-                    }
-                }
-            }
-        });
+function getValueClass(value) {
+    if (value > 0) return 'positive';
+    if (value < 0) return 'negative';
+    return 'neutral';
+}
+
+// Loading and error state management
+function showLoadingState() {
+    document.querySelectorAll('.tile .highlight').forEach(el => {
+        if (!el.querySelector('.loading')) {
+            el.innerHTML = '<span class="loading"></span>';
+            el.className = 'highlight neutral';
+        }
+    });
+}
+
+function hideLoadingState() {
+    // Loading states are replaced when data updates
+}
+
+function hideChartLoading(chartType) {
+    const chart = document.querySelector(`[data-chart="${chartType}"]`);
+    if (chart) {
+        const loading = chart.querySelector('.chart-loading');
+        if (loading) {
+            loading.style.display = 'none';
+        }
     }
 }
 
-// Enhanced DOM loaded event
+function updateChartStats(chartType, values, data = null) {
+    if (!values || values.length === 0) return;
+    
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
+    
+    if (chartType === 'inflation') {
+        updateElement('#inflation-min', `Minimi ${min.toFixed(1)}%`);
+        updateElement('#inflation-avg', `Keskiarvo ${avg.toFixed(1)}%`);
+        updateElement('#inflation-max', `Maksimi ${max.toFixed(1)}%`);
+    } else if (chartType === 'hicp' && data && data.length > 0) {
+        const latest = data[data.length - 1];
+        updateElement('#hicp-trend', `Nousutahti ${latest.inflation > 0 ? '+' : ''}${latest.inflation.toFixed(1)}%`);
+        updateElement('#hicp-value', `Indeksiarvo ${latest.hicp.toFixed(2)}`);
+        
+        const yearAgo = findYearAgoData(data, latest);
+        const yearlyChange = yearAgo ? ((latest.hicp - yearAgo.hicp) / yearAgo.hicp) * 100 : 0;
+        updateElement('#hicp-change', `Vuosimuutos ${yearlyChange > 0 ? '+' : ''}${yearlyChange.toFixed(1)}%`);
+    }
+}
+
+function updateElement(selector, text) {
+    const element = document.querySelector(selector);
+    if (element) {
+        element.textContent = text;
+    }
+}
+
+function findYearAgoData(data, latest) {
+    const latestDateParts = latest.date.split('-');
+    const latestYear = parseInt(latestDateParts[0]);
+    const latestMonth = parseInt(latestDateParts[1]);
+    
+    return data.find(d => {
+        const dataDateParts = d.date.split('-');
+        const dataYear = parseInt(dataDateParts[0]);
+        const dataMonth = parseInt(dataDateParts[1]);
+        
+        return (latestYear - dataYear === 1) && (latestMonth === dataMonth);
+    });
+}
+
+function showErrorState(message) {
+    console.error('💥 Error state:', message);
+    
+    // Update tiles with error state
+    document.querySelectorAll('.tile .highlight').forEach(el => {
+        el.textContent = 'Virhe';
+        el.className = 'highlight negative';
+    });
+    
+    // Show error message
+    let errorElement = document.querySelector('.error-message');
+    if (!errorElement) {
+        errorElement = document.createElement('div');
+        errorElement.className = 'error-message';
+        document.querySelector('.hero-section').after(errorElement);
+    }
+    
+    errorElement.innerHTML = `
+        <strong>Tietojen lataus epäonnistui</strong><br>
+        <small>${message}</small><br>
+        <button onclick="retryDataFetch()">Yritä uudelleen</button>
+    `;
+}
+
+function retryDataFetch() {
+    const errorElement = document.querySelector('.error-message');
+    if (errorElement) errorElement.remove();
+    
+    // Clear cache and force refresh
+    dataCache.clear();
+    fetchInflationData(true);
+}
+
+function updateLastUpdated() {
+    const now = new Date().toLocaleString('fi-FI');
+    let element = document.querySelector('.last-updated');
+    
+    if (!element) {
+        element = document.createElement('p');
+        element.className = 'last-updated';
+        document.querySelector('.container').appendChild(element);
+    }
+    
+    element.textContent = `Päivitetty: ${now}`;
+}
+
+// Enhanced DOM loaded event with performance monitoring
 document.addEventListener('DOMContentLoaded', () => {
-    // Original carousel functionality
+    performance.mark('dom-ready');
+    console.log('🚀 DOM loaded, initializing application...');
+    
+    // Carousel functionality with throttling
     const carousel = document.querySelector('.carousel-inner');
     const leftArrow = document.querySelector('.arrow-left');
     const rightArrow = document.querySelector('.arrow-right');
 
     if (carousel && leftArrow && rightArrow) {
-        leftArrow.addEventListener('click', () => {
-            carousel.scrollBy({ left: -330, behavior: 'smooth' });
-        });
-
-        rightArrow.addEventListener('click', () => {
-            carousel.scrollBy({ left: 330, behavior: 'smooth' });
-        });
+        let isScrolling = false;
+        
+        const throttledScroll = (direction) => {
+            if (isScrolling) return;
+            isScrolling = true;
+            
+            const scrollAmount = direction === 'left' ? -330 : 330;
+            carousel.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+            
+            setTimeout(() => { isScrolling = false; }, 500);
+        };
+        
+        leftArrow.addEventListener('click', () => throttledScroll('left'));
+        rightArrow.addEventListener('click', () => throttledScroll('right'));
     }
 
-    // Smooth scrolling for navigation
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function (e) {
-            e.preventDefault();
-            const target = document.querySelector(this.getAttribute('href'));
-            if (target) {
-                target.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start'
-                });
-            }
-        });
-    });
-
-    // Enhanced chart time range buttons
+    // Enhanced chart time range buttons with better UX
     document.querySelectorAll('.chart-controls button').forEach(btn => {
         btn.addEventListener('click', function() {
-            // Remove active class from siblings
+            // Remove active state from siblings
             this.parentElement.querySelectorAll('button').forEach(b => {
                 b.classList.remove('active');
+                b.setAttribute('aria-selected', 'false');
             });
-            // Add active class to clicked button
+            
+            // Add active state to clicked button
             this.classList.add('active');
+            this.setAttribute('aria-selected', 'true');
             
             // Update current range and refresh charts
             currentChartRange = this.textContent;
             if (inflationData.length > 0) {
                 updateCharts();
             }
+            
+            console.log(`📊 Chart range changed to: ${currentChartRange}`);
         });
     });
 
     // Initialize first button as active in each chart
     document.querySelectorAll('.chart-controls').forEach(controls => {
-        const firstBtn = controls.querySelector('button');
-        if (firstBtn) {
-            firstBtn.classList.add('active');
-            currentChartRange = firstBtn.textContent;
+        const secondBtn = controls.children[1]; // Default to "1v"
+        if (secondBtn) {
+            secondBtn.classList.add('active');
+            secondBtn.setAttribute('aria-selected', 'true');
+            currentChartRange = secondBtn.textContent;
         }
     });
 
-    // Initialize charts
+    // Initialize charts when Chart.js is available
     if (typeof Chart !== 'undefined') {
         initializeCharts();
+        
+        // Initial data fetch
+        fetchInflationData();
+        
+        // Set up auto-refresh with exponential backoff
+        let refreshInterval = CONFIG.CACHE_DURATION;
+        const setupAutoRefresh = () => {
+            setTimeout(async () => {
+                try {
+                    await fetchInflationData();
+                    refreshInterval = CONFIG.CACHE_DURATION; // Reset on success
+                } catch (error) {
+                    refreshInterval = Math.min(refreshInterval * 2, 30 * 60 * 1000); // Max 30 min
+                }
+                setupAutoRefresh();
+            }, refreshInterval);
+        };
+        
+        setupAutoRefresh();
+    } else {
+        console.warn('⚠️ Chart.js not loaded yet, charts will initialize when available');
     }
-
-    // Fetch initial data
-    fetchInflationData();
     
-    // Set up auto-refresh every 5 minutes
-    setInterval(fetchInflationData, 5 * 60 * 1000);
+    performance.mark('app-ready');
+    performance.measure('App Initialization', 'dom-ready', 'app-ready');
+    
+    console.log('✅ Application initialized successfully');
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    // Clear intervals and destroy chart instances
+    Object.values(chartInstances).forEach(chart => {
+        if (chart && typeof chart.destroy === 'function') {
+            chart.destroy();
+        }
+    });
+    
+    // Clear caches
+    dataCache.clear();
 });
