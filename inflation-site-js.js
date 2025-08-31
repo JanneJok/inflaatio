@@ -1,0 +1,183 @@
+document.addEventListener('DOMContentLoaded', () => {
+    // Carousel functionality
+    const carousel = document.querySelector('.carousel-inner');
+    const leftArrow = document.querySelector('.arrow-left');
+    const rightArrow = document.querySelector('.arrow-right');
+
+    if (carousel && leftArrow && rightArrow) {
+        leftArrow.addEventListener('click', () => {
+            carousel.scrollBy({ left: -330, behavior: 'smooth' }); // Adjusted to tile width (300px) + gap (1.5rem ≈ 24px)
+        });
+
+        rightArrow.addEventListener('click', () => {
+            carousel.scrollBy({ left: 330, behavior: 'smooth' });
+        });
+    }
+
+    // Smooth scrolling for navigation
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        });
+    });
+
+    // Chart time range buttons
+    document.querySelectorAll('.chart-controls button').forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Remove active class from siblings
+            this.parentElement.querySelectorAll('button').forEach(b => {
+                b.classList.remove('active');
+            });
+            // Add active class to clicked button
+            this.classList.add('active');
+            
+            // Here you would update the chart data based on the selected range
+            console.log('Selected range:', this.textContent);
+        });
+    });
+
+    // Initialize first button as active in each chart
+    document.querySelectorAll('.chart-controls').forEach(controls => {
+        const firstBtn = controls.querySelector('button');
+        if (firstBtn) {
+            firstBtn.classList.add('active');
+        }
+    });
+
+    // Initialize Chart.js charts if available
+    if (typeof Chart !== 'undefined') {
+        initializeCharts();
+    }
+});
+
+function initializeCharts() {
+    const chartConfig = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            },
+            tooltip: {
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                titleColor: '#1a2847',
+                bodyColor: '#6b7280',
+                borderColor: 'rgba(42, 123, 160, 0.3)',
+                borderWidth: 1,
+                cornerRadius: 8,
+                displayColors: false,
+                padding: 12
+            }
+        },
+        scales: {
+            x: {
+                grid: {
+                    color: 'rgba(255, 255, 255, 0.1)',
+                    drawBorder: false
+                },
+                ticks: {
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    maxRotation: 45,
+                    minRotation: 45,
+                    font: {
+                        size: window.innerWidth < 400 ? 9 : 11
+                    }
+                }
+            },
+            y: {
+                grid: {
+                    color: 'rgba(255, 255, 255, 0.1)',
+                    drawBorder: false
+                },
+                ticks: {
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    callback: function(value) {
+                        return value + '%';
+                    },
+                    font: {
+                        size: window.innerWidth < 400 ? 9 : 11
+                    }
+                }
+            }
+        },
+        layout: {
+            padding: {
+                left: 0,
+                right: 0,
+                top: 10,
+                bottom: 0
+            }
+        }
+    };
+
+    // Initialize Inflation Chart
+    const inflationCanvas = document.getElementById('inflationChart');
+    if (inflationCanvas) {
+        const inflationCtx = inflationCanvas.getContext('2d');
+        new Chart(inflationCtx, {
+            type: 'line',
+            data: {
+                labels: ['2023-01', '2023-04', '2023-07', '2023-10', '2024-01', '2024-04', '2024-07', '2024-10', '2025-01'],
+                datasets: [{
+                    data: [8.5, 6.3, 5.0, 3.5, 2.5, 2.0, 1.8, 1.9, 1.9],
+                    borderColor: '#4ca5ba',
+                    backgroundColor: 'rgba(76, 165, 186, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#b8d4e3',
+                    pointBorderColor: '#2a7ba0',
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: chartConfig
+        });
+    }
+
+    // Initialize HICP Chart
+    const hicpCanvas = document.getElementById('hicpChart');
+    if (hicpCanvas) {
+        const hicpCtx = hicpCanvas.getContext('2d');
+        new Chart(hicpCtx, {
+            type: 'line',
+            data: {
+                labels: ['2023-01', '2023-04', '2023-07', '2023-10', '2024-01', '2024-04', '2024-07', '2024-10', '2025-01'],
+                datasets: [{
+                    data: [115, 116, 117, 118, 118.5, 119, 119.3, 119.6, 119.9],
+                    borderColor: '#3891a6',
+                    backgroundColor: 'rgba(56, 145, 166, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#b8d4e3',
+                    pointBorderColor: '#1e5a7d',
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                ...chartConfig,
+                scales: {
+                    ...chartConfig.scales,
+                    y: {
+                        ...chartConfig.scales.y,
+                        ticks: {
+                            ...chartConfig.scales.y.ticks,
+                            callback: function(value) {
+                                return value.toFixed(0);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
