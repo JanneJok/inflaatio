@@ -28,13 +28,115 @@
     </nav>
 
     <div class="container">
-        <!-- Hero, carousel ja chart -osiot ennallaan -->
-        <!-- ... -->
+        <!-- Hero Section -->
+        <section class="hero-section" id="home">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1 class="hero-title">Suomen inflaation seuranta</h1>
+                    <p class="hero-subtitle">
+                        Reaaliaikainen näkymä Suomen talouden hintakehitykseen. 
+                        Seuraa inflaatiota, analysoi trendejä ja tee tietoon perustuvia päätöksiä.
+                    </p>
+                </div>
+                <div class="hero-image">
+                    <img 
+                        loading="lazy"
+                        src="https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/file_00000000fbbc6246b29f5252e8021c2a.png" 
+                        alt="Talouden kasvukuvaaja" 
+                        onerror="this.style.display='none'">
+                </div>
+            </div>
+        </section>
+
+        <!-- Carousel -->
+        <section class="carousel" id="tunnusluvut">
+            <div class="carousel-header">
+                <h2>Suomen inflaation keskeiset luvut</h2>
+            </div>
+            <button type="button" class="arrow arrow-left" aria-label="Edelliset kohteet">‹</button>
+            <div class="carousel-inner">
+                <div class="tile">
+                    <h3>Viimeisin inflaatiolukema</h3>
+                    <p class="highlight neutral"><span class="loading"></span></p>
+                    <p>Viimeisin Eurostatin julkaisema vuosi-inflaatio. Perustuu kuluttajahintaindeksiin.</p>
+                </div>
+                <div class="tile">
+                    <h3>Muutos edelliseen kuukauteen</h3>
+                    <p class="highlight neutral"><span class="loading"></span></p>
+                    <p>Kertoo, onko hintojen nousuvauhti kiihtynyt vai hidastunut edellisestä kuukaudesta.</p>
+                </div>
+                <div class="tile">
+                    <h3>12 kuukauden keskiarvo</h3>
+                    <p class="highlight neutral"><span class="loading"></span></p>
+                    <p>Keskimääräinen inflaatio viimeisten 12 kuukauden aikana. Vakaampi kuva hintakehityksestä.</p>
+                </div>
+                <div class="tile">
+                    <h3>Vuoden 2025 keskiarvo</h3>
+                    <p class="highlight neutral"><span class="loading"></span></p>
+                    <p>Inflaation keskiarvo vuoden alusta tähän hetkeen. Hyödyllinen budjetointiin ja analyysiin.</p>
+                </div>
+                <div class="tile">
+                    <h3>Vuosi sitten (sama kuukausi)</h3>
+                    <p class="highlight neutral"><span class="loading"></span></p>
+                    <p>Vertailu viime vuoden samaan kuukauteen näyttää, miten paljon inflaatio on muuttunut vuodessa.</p>
+                </div>
+            </div>
+            <button type="button" class="arrow arrow-right" aria-label="Seuraavat kohteet">›</button>
+        </section>
+
+        <!-- Charts -->
+        <section class="charts" id="analytiikka">
+            <div class="chart">
+                <h2>Vuosi-inflaation kehitys</h2>
+                <div class="chart-controls">
+                    <button data-range="6kk">6kk</button>
+                    <button data-range="1v">1v</button>
+                    <button data-range="3v">3v</button>
+                    <button data-range="5v" class="active">5v</button>
+                    <button data-range="Max">Max</button>
+                </div>
+                <div class="chart-placeholder">
+                    <div>
+                        <div class="loading" style="margin-right: 10px; display: inline-block;"></div>
+                        Ladataan kaavioita...
+                    </div>
+                    <canvas id="inflationChart" style="display: none;"></canvas>
+                </div>
+                <div class="chart-stats">
+                    <p><span class="percentage-badge">🔵</span> <span id="inflation-min">Ladataan...</span></p>
+                    <p><span class="percentage-badge">🟡</span> <span id="inflation-avg">Ladataan...</span></p>
+                    <p><span class="percentage-badge">🔴</span> <span id="inflation-max">Ladataan...</span></p>
+                </div>
+            </div>
+
+            <div class="chart">
+                <h2>HICP-indeksi</h2>
+                <div class="chart-controls">
+                    <button data-range="6kk">6kk</button>
+                    <button data-range="1v">1v</button>
+                    <button data-range="3v">3v</button>
+                    <button data-range="5v" class="active">5v</button>
+                    <button data-range="Max">Max</button>
+                </div>
+                <div class="chart-placeholder">
+                    <div>
+                        <div class="loading" style="margin-right: 10px; display: inline-block;"></div>
+                        Ladataan kaavioita...
+                    </div>
+                    <canvas id="hicpChart" style="display: none;"></canvas>
+                </div>
+                <div class="chart-stats">
+                    <p><span class="percentage-badge">📈</span> <span id="hicp-trend">Ladataan...</span></p>
+                    <p><span class="percentage-badge">📊</span> <span id="hicp-value">Ladataan...</span></p>
+                    <p><span class="percentage-badge">📅</span> <span id="hicp-change">Ladataan...</span></p>
+                </div>
+            </div>
+        </section>
     </div>
 
     <!-- Chart.js vain kerran -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <!-- Oikea oma koodi -->
+    <!-- Oma koodi -->
     <script src="inflation-site-optimized.js"></script>
 
     <!-- Structured data for SEO -->
