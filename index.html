@@ -1,43 +1,4 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fi">
 <head>
     <meta charset="UTF-8">
@@ -68,7 +29,6 @@
                         Reaaliaikainen näkymä Suomen talouden hintakehitykseen. 
                         Seuraa inflaatiota, analysoi trendejä ja tee tietoon perustuvia päätöksiä.
                     </p>
-                    <button>Tutustu dataan</button>
                 </div>
                 <div class="hero-image">
                     <img src="https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/file_00000000fbbc6246b29f5252e8021c2a.png" 
@@ -87,27 +47,27 @@
             <div class="carousel-inner">
                 <div class="tile">
                     <h3>Viimeisin inflaatiolukema</h3>
-                    <p class="highlight positive">▲ 1.9%</p>
+                    <p class="highlight neutral"><span class="loading"></span></p>
                     <p>Viimeisin Eurostatin julkaisema vuosi-inflaatio. Perustuu kuluttajahintaindeksiin.</p>
                 </div>
                 <div class="tile">
                     <h3>Muutos edelliseen kuukauteen</h3>
-                    <p class="highlight neutral">0.0%</p>
+                    <p class="highlight neutral"><span class="loading"></span></p>
                     <p>Kertoo, onko hintojen nousuvauhti kiihtynyt vai hidastunut edellisestä kuukaudesta.</p>
                 </div>
                 <div class="tile">
                     <h3>12 kuukauden keskiarvo</h3>
-                    <p class="highlight positive">▲ 1.6%</p>
+                    <p class="highlight neutral"><span class="loading"></span></p>
                     <p>Keskimääräinen inflaatio viimeisten 12 kuukauden aikana. Vakaampi kuva hintakehityksestä.</p>
                 </div>
                 <div class="tile">
                     <h3>Vuoden 2025 keskiarvo</h3>
-                    <p class="highlight positive">▲ 1.8%</p>
+                    <p class="highlight neutral"><span class="loading"></span></p>
                     <p>Inflaation keskiarvo vuoden alusta tähän hetkeen. Hyödyllinen budjetointiin ja analyysiin.</p>
                 </div>
                 <div class="tile">
                     <h3>Vuosi sitten (sama kuukausi)</h3>
-                    <p class="highlight positive">▲ 0.5%</p>
+                    <p class="highlight neutral"><span class="loading"></span></p>
                     <p>Vertailu viime vuoden samaan kuukauteen näyttää, miten paljon inflaatio on muuttunut vuodessa.</p>
                 </div>
             </div>
@@ -125,12 +85,16 @@
                     <button data-range="Max">Max</button>
                 </div>
                 <div class="chart-placeholder">
-                    <canvas id="inflationChart"></canvas>
+                    <div>
+                        <div class="loading" style="margin-right: 10px; display: inline-block;"></div>
+                        Ladataan kaavioita...
+                    </div>
+                    <canvas id="inflationChart" style="display: none;"></canvas>
                 </div>
                 <div class="chart-stats">
-                    <p><span class="percentage-badge">🔵</span> <span id="inflation-min">Minimi 0.5%</span></p>
-                    <p><span class="percentage-badge">🟡</span> <span id="inflation-avg">Keskiarvo 1.6%</span></p>
-                    <p><span class="percentage-badge">🔴</span> <span id="inflation-max">Maksimi 2.3%</span></p>
+                    <p><span class="percentage-badge">🔵</span> <span id="inflation-min">Ladataan...</span></p>
+                    <p><span class="percentage-badge">🟡</span> <span id="inflation-avg">Ladataan...</span></p>
+                    <p><span class="percentage-badge">🔴</span> <span id="inflation-max">Ladataan...</span></p>
                 </div>
             </div>
 
@@ -144,12 +108,16 @@
                     <button data-range="Max">Max</button>
                 </div>
                 <div class="chart-placeholder">
-                    <canvas id="hicpChart"></canvas>
+                    <div>
+                        <div class="loading" style="margin-right: 10px; display: inline-block;"></div>
+                        Ladataan kaavioita...
+                    </div>
+                    <canvas id="hicpChart" style="display: none;"></canvas>
                 </div>
                 <div class="chart-stats">
-                    <p><span class="percentage-badge">📈</span> <span id="hicp-trend">Nousutahti +1.9%</span></p>
-                    <p><span class="percentage-badge">📊</span> <span id="hicp-value">Indeksiarvo 119.91</span></p>
-                    <p><span class="percentage-badge">📅</span> <span id="hicp-change">Vuosimuutos +2.1%</span></p>
+                    <p><span class="percentage-badge">📈</span> <span id="hicp-trend">Ladataan...</span></p>
+                    <p><span class="percentage-badge">📊</span> <span id="hicp-value">Ladataan...</span></p>
+                    <p><span class="percentage-badge">📅</span> <span id="hicp-change">Ladataan...</span></p>
                 </div>
             </div>
         </section>
