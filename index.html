@@ -47,27 +47,27 @@
             <div class="carousel-inner">
                 <div class="tile">
                     <h3>Viimeisin inflaatiolukema</h3>
-                    <p class="highlight neutral"><span class="loading"></span></p>
+                    <p class="highlight positive">▲ 1.9%</p>
                     <p>Viimeisin Eurostatin julkaisema vuosi-inflaatio. Perustuu kuluttajahintaindeksiin.</p>
                 </div>
                 <div class="tile">
                     <h3>Muutos edelliseen kuukauteen</h3>
-                    <p class="highlight neutral"><span class="loading"></span></p>
+                    <p class="highlight neutral">0.0%</p>
                     <p>Kertoo, onko hintojen nousuvauhti kiihtynyt vai hidastunut edellisestä kuukaudesta.</p>
                 </div>
                 <div class="tile">
                     <h3>12 kuukauden keskiarvo</h3>
-                    <p class="highlight neutral"><span class="loading"></span></p>
+                    <p class="highlight positive">▲ 1.6%</p>
                     <p>Keskimääräinen inflaatio viimeisten 12 kuukauden aikana. Vakaampi kuva hintakehityksestä.</p>
                 </div>
                 <div class="tile">
                     <h3>Vuoden 2025 keskiarvo</h3>
-                    <p class="highlight neutral"><span class="loading"></span></p>
+                    <p class="highlight positive">▲ 1.8%</p>
                     <p>Inflaation keskiarvo vuoden alusta tähän hetkeen. Hyödyllinen budjetointiin ja analyysiin.</p>
                 </div>
                 <div class="tile">
                     <h3>Vuosi sitten (sama kuukausi)</h3>
-                    <p class="highlight neutral"><span class="loading"></span></p>
+                    <p class="highlight positive">▲ 0.5%</p>
                     <p>Vertailu viime vuoden samaan kuukauteen näyttää, miten paljon inflaatio on muuttunut vuodessa.</p>
                 </div>
             </div>
@@ -85,16 +85,12 @@
                     <button data-range="Max">Max</button>
                 </div>
                 <div class="chart-placeholder">
-                    <div>
-                        <div class="loading" style="margin-right: 10px; display: inline-block;"></div>
-                        Ladataan kaavioita...
-                    </div>
-                    <canvas id="inflationChart" style="display: none;"></canvas>
+                    <canvas id="inflationChart"></canvas>
                 </div>
                 <div class="chart-stats">
-                    <p><span class="percentage-badge">🔵</span> <span id="inflation-min">Ladataan...</span></p>
-                    <p><span class="percentage-badge">🟡</span> <span id="inflation-avg">Ladataan...</span></p>
-                    <p><span class="percentage-badge">🔴</span> <span id="inflation-max">Ladataan...</span></p>
+                    <p><span class="percentage-badge">🔵</span> <span id="inflation-min">Minimi 0.5%</span></p>
+                    <p><span class="percentage-badge">🟡</span> <span id="inflation-avg">Keskiarvo 1.6%</span></p>
+                    <p><span class="percentage-badge">🔴</span> <span id="inflation-max">Maksimi 2.3%</span></p>
                 </div>
             </div>
 
@@ -108,16 +104,12 @@
                     <button data-range="Max">Max</button>
                 </div>
                 <div class="chart-placeholder">
-                    <div>
-                        <div class="loading" style="margin-right: 10px; display: inline-block;"></div>
-                        Ladataan kaavioita...
-                    </div>
-                    <canvas id="hicpChart" style="display: none;"></canvas>
+                    <canvas id="hicpChart"></canvas>
                 </div>
                 <div class="chart-stats">
-                    <p><span class="percentage-badge">📈</span> <span id="hicp-trend">Ladataan...</span></p>
-                    <p><span class="percentage-badge">📊</span> <span id="hicp-value">Ladataan...</span></p>
-                    <p><span class="percentage-badge">📅</span> <span id="hicp-change">Ladataan...</span></p>
+                    <p><span class="percentage-badge">📈</span> <span id="hicp-trend">Nousutahti +1.9%</span></p>
+                    <p><span class="percentage-badge">📊</span> <span id="hicp-value">Indeksiarvo 119.91</span></p>
+                    <p><span class="percentage-badge">📅</span> <span id="hicp-change">Vuosimuutos +2.1%</span></p>
                 </div>
             </div>
         </section>
