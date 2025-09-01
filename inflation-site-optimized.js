@@ -325,11 +325,207 @@ function updateCarouselTiles() {
         
         // Try to find matching metric value
         const metricKeys = Object.keys(keyMetrics);
-        const value = index < metricKeys.length ? keyMetrics[metricKeys[index]] : 0;
+        const value = index < metricKeys.length ? keyMetrics[metricKeys[index]] : null;
         
-        element.textContent = formatTileValue(value);
-        element.className = 'highlight ' + getValueClass(value);
+        if (value !== null && value !== undefined) {
+            updates.push({
+                element,
+                value: formatTileValue(value),
+                className: `highlight ${getValueClass(typeof value === 'number' ? value : 0)}`
+            });
+        } else {
+            updates.push({
+                element,
+                value: 'N/A',
+                className: 'highlight neutral'
+            });
+        }
     });
+    
+    // Apply all updates in a single batch
+    updates.forEach(update => {
+        update.element.textContent = update.value;
+        update.element.className = update.className;
+    });
+    
+    console.log(`✅ Updated ${updates.length} tiles`);
+}
+
+// Optimized chart updates with lazy loading
+function updateCharts() {
+    if (!inflationData || inflationData.length === 0) {
+        console.log('📊 No historical data available for charts');
+        return;
+    }
+    
+    const filteredData = filterDataByRange(inflationData, currentChartRange);
+    
+    // Update charts only if they exist and are visible
+    if (chartInstances.inflation) {
+        updateInflationChart(filteredData);
+    }
+    
+    if (chartInstances.hicp) {
+        updateHICPChart(filteredData);
+    }
+}
+
+// Lazy chart initialization
+function initializeCharts() {
+    performance.mark('chart-init-start');
+    
+    const chartConfig = getChartConfig();
+    
+    // Initialize Inflation Chart
+    const inflationCanvas = document.getElementById('inflationChart');
+    if (inflationCanvas && !chartInstances.inflation) {
+        hideChartLoading('inflation');
+        inflationCanvas.style.display = 'block';
+        
+        const ctx = inflationCanvas.getContext('2d');
+        chartInstances.inflation = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    data: [],
+                    borderColor: '#4ca5ba',
+                    backgroundColor: 'rgba(76, 165, 186, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#b8d4e3',
+                    pointBorderColor: '#2a7ba0',
+                    pointRadius: 3,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: chartConfig
+        });
+    }
+    
+    // Initialize HICP Chart
+    const hicpCanvas = document.getElementById('hicpChart');
+    if (hicpCanvas && !chartInstances.hicp) {
+        hideChartLoading('hicp');
+        hicpCanvas.style.display = 'block';
+        
+        const ctx = hicpCanvas.getContext('2d');
+        chartInstances.hicp = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    data: [],
+                    borderColor: '#3891a6',
+                    backgroundColor: 'rgba(56, 145, 166, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#b8d4e3',
+                    pointBorderColor: '#1e5a7d',
+                    pointRadius: 3,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                ...chartConfig,
+                scales: {
+                    ...chartConfig.scales,
+                    y: {
+                        ...chartConfig.scales.y,
+                        ticks: {
+                            ...chartConfig.scales.y.ticks,
+                            callback: function(value) {
+                                return value.toFixed(0);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    performance.mark('chart-init-end');
+    performance.measure('Chart Initialization', 'chart-init-start', 'chart-init-end');
+    
+    // Update charts with current data
+    if (inflationData.length > 0) {
+        updateCharts();
+    }
+}
+
+// Get optimized chart configuration
+function getChartConfig() {
+    return {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+            intersect: false,
+            mode: 'index'
+        },
+        plugins: {
+            legend: {
+                display: false
+            },
+            tooltip: {
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                titleColor: '#1a2847',
+                bodyColor: '#6b7280',
+                borderColor: 'rgba(42, 123, 160, 0.3)',
+                borderWidth: 1,
+                cornerRadius: 8,
+                displayColors: false,
+                padding: 12,
+                animation: {
+                    duration: 200
+                }
+            }
+        },
+        scales: {
+            x: {
+                grid: {
+                    color: 'rgba(255, 255, 255, 0.1)',
+                    drawBorder: false
+                },
+                ticks: {
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    maxRotation: 45,
+                    minRotation: 0,
+                    font: {
+                        size: window.innerWidth < 400 ? 9 : 11
+                    }
+                }
+            },
+            y: {
+                grid: {
+                    color: 'rgba(255, 255, 255, 0.1)',
+                    drawBorder: false
+                },
+                ticks: {
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    callback: function(value) {
+                        return value + '%';
+                    },
+                    font: {
+                        size: window.innerWidth < 400 ? 9 : 11
+                    }
+                }
+            }
+        },
+        animation: {
+            duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 750,
+            easing: 'easeInOutQuart'
+        },
+        layout: {
+            padding: {
+                left: 0,
+                right: 0,
+                top: 10,
+                bottom: 0
+            }
+        }
+    };
 }
 
 // Optimized chart update functions
@@ -346,7 +542,7 @@ function updateInflationChart(data) {
     updateChartStats('inflation', values);
 }
 
-function updateHicpChartFixed(data) {
+function updateHICPChart(data) {
     if (!chartInstances.hicp || !data.length) return;
     
     const labels = data.map(d => formatDateForChart(d.date));
