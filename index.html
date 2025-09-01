@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Suomen inflaation seuranta</title>
-    <link rel="stylesheet" href="inflation-site-css.css">
+    <link rel="stylesheet" href="inflation-site-optimized.css">
 </head>
 <body>
     <div class="starry-bg"></div>
@@ -29,6 +29,7 @@
                         Reaaliaikainen näkymä Suomen talouden hintakehitykseen. 
                         Seuraa inflaatiota, analysoi trendejä ja tee tietoon perustuvia päätöksiä.
                     </p>
+                    <button>Tutustu dataan</button>
                 </div>
                 <div class="hero-image">
                     <img src="https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/file_00000000fbbc6246b29f5252e8021c2a.png" 
@@ -78,38 +79,38 @@
             <div class="chart">
                 <h2>Vuosi-inflaation kehitys</h2>
                 <div class="chart-controls">
-                    <button data-range="6kk">6kk</button>
-                    <button data-range="1v">1v</button>
-                    <button data-range="3v">3v</button>
-                    <button data-range="5v" class="active">5v</button>
-                    <button data-range="Max">Max</button>
+                    <button>6kk</button>
+                    <button>1v</button>
+                    <button>3v</button>
+                    <button>5v</button>
+                    <button>Max</button>
                 </div>
                 <div class="chart-placeholder">
                     <canvas id="inflationChart"></canvas>
                 </div>
                 <div class="chart-stats">
-                    <p><span class="percentage-badge">🔵</span> <span id="inflation-min">Minimi 0.5%</span></p>
-                    <p><span class="percentage-badge">🟡</span> <span id="inflation-avg">Keskiarvo 1.6%</span></p>
-                    <p><span class="percentage-badge">🔴</span> <span id="inflation-max">Maksimi 2.3%</span></p>
+                    <p><span class="percentage-badge">🔵</span> Minimi 0.5%</p>
+                    <p><span class="percentage-badge">🟡</span> Keskiarvo 1.6%</p>
+                    <p><span class="percentage-badge">🔴</span> Maksimi 2.3%</p>
                 </div>
             </div>
 
             <div class="chart">
                 <h2>HICP-indeksi</h2>
                 <div class="chart-controls">
-                    <button data-range="6kk">6kk</button>
-                    <button data-range="1v">1v</button>
-                    <button data-range="3v">3v</button>
-                    <button data-range="5v" class="active">5v</button>
-                    <button data-range="Max">Max</button>
+                    <button>6kk</button>
+                    <button>1v</button>
+                    <button>3v</button>
+                    <button>5v</button>
+                    <button>Max</button>
                 </div>
                 <div class="chart-placeholder">
                     <canvas id="hicpChart"></canvas>
                 </div>
                 <div class="chart-stats">
-                    <p><span class="percentage-badge">📈</span> <span id="hicp-trend">Nousutahti +1.9%</span></p>
-                    <p><span class="percentage-badge">📊</span> <span id="hicp-value">Indeksiarvo 119.91</span></p>
-                    <p><span class="percentage-badge">📅</span> <span id="hicp-change">Vuosimuutos +2.1%</span></p>
+                    <p><span class="percentage-badge">📈</span> Nousutahti +1.9%</p>
+                    <p><span class="percentage-badge">📊</span> Indeksiarvo 119.91</p>
+                    <p><span class="percentage-badge">📅</span> Vuosimuutos +2.1%</p>
                 </div>
             </div>
         </section>
