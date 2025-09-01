@@ -36,7 +36,7 @@
             overflow-x: hidden;
         }
 
-        /* Optimized starry background with CSS animations */
+        /* Starry background */
         .starry-bg {
             position: fixed;
             top: 0;
@@ -69,7 +69,7 @@
             100% { transform: translateY(-350px); }
         }
 
-        /* Navigation with backdrop-filter optimization */
+        /* Navigation */
         .navbar {
             position: fixed;
             top: 0;
@@ -114,7 +114,7 @@
             color: #ffffff;
         }
 
-        /* Container and hero optimizations */
+        /* Container */
         .container {
             max-width: 1400px;
             margin: 0 auto;
@@ -123,6 +123,7 @@
             z-index: 1;
         }
 
+        /* Hero section */
         .hero-section {
             text-align: center;
             margin-bottom: 5rem;
@@ -182,117 +183,288 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Debug styles */
-        .debug-info {
-            position: fixed;
-            top: 100px;
-            right: 20px;
-            background: rgba(0,0,0,0.8);
-            color: #fff;
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            z-index: 9999;
-            max-width: 300px;
+        /* NETFLIX-STYLE CAROUSEL */
+        .carousel {
+            position: relative;
+            width: 100%;
+            margin: 3rem 0;
+            overflow: hidden;
         }
 
-        /* Basic tile and chart styles for now */
-        .carousel {
-            margin: 3rem 0;
+        .carousel-header {
+            margin-bottom: 1.5rem;
+            padding: 0 1rem;
         }
-        
+
         .carousel-header h2 {
             font-size: 1.5rem;
             font-weight: 600;
             color: var(--text-primary);
-            margin-bottom: 1.5rem;
         }
-        
+
         .carousel-inner {
             display: flex;
-            gap: 1.5rem;
             overflow-x: auto;
+            scroll-behavior: smooth;
             padding: 1rem;
+            gap: 1.5rem;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
         }
-        
+
+        .carousel-inner::-webkit-scrollbar {
+            display: none;
+        }
+
         .tile {
             flex: 0 0 300px;
+            min-width: 300px;
             background: rgba(255, 255, 255, 0.95);
             color: #1e5a7d;
             padding: 2rem;
             border-radius: 20px;
             text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(15, 41, 54, 0.3);
         }
-        
+
+        .tile:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 15px 40px rgba(15, 41, 54, 0.4);
+        }
+
         .tile h3 {
             margin: 0 0 1rem;
             font-size: 1rem;
             font-weight: 600;
+            min-height: 2.5rem;
             color: #1e5a7d;
         }
-        
+
         .tile .highlight {
-            font-size: 2rem;
+            font-size: 2.5rem;
             font-weight: 700;
             margin: 1rem 0;
+            line-height: 1;
             min-height: 3rem;
             display: flex;
             align-items: center;
             justify-content: center;
         }
-        
+
+        .tile .highlight.positive {
+            color: #10b981;
+        }
+
+        .tile .highlight.negative {
+            color: #ef4444;
+        }
+
+        .tile .highlight.neutral {
+            color: #6b7280;
+        }
+
+        .tile p:last-child {
+            margin: 0;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            color: #5a7b8c;
+        }
+
+        /* Arrow buttons */
+        .arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(36, 80, 102, 0.9);
+            color: #fff;
+            border: 1px solid rgba(76, 165, 186, 0.3);
+            font-size: 2em;
+            padding: 15px 20px;
+            cursor: pointer;
+            z-index: 10;
+            opacity: 0;
+            transition: all 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .carousel:hover .arrow {
+            opacity: 0.8;
+        }
+
+        .arrow:hover {
+            opacity: 1 !important;
+            background: rgba(42, 123, 160, 0.9);
+        }
+
+        .arrow-left {
+            left: 10px;
+        }
+
+        .arrow-right {
+            right: 10px;
+        }
+
+        /* Chart Section */
         .charts {
+            max-width: 1400px;
+            margin: 4rem auto;
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
             gap: 2rem;
-            margin: 4rem 0;
         }
-        
+
         .chart {
             background: rgba(36, 80, 102, 0.9);
+            border: 1px solid rgba(76, 165, 186, 0.2);
             border-radius: 20px;
             padding: 2rem;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(15, 41, 54, 0.4);
         }
-        
+
         .chart h2 {
+            margin: 0 0 1.5rem;
+            font-size: 1.25rem;
+            font-weight: 600;
             color: var(--text-primary);
-            margin-bottom: 1rem;
         }
-        
+
         .chart-controls {
             display: flex;
             gap: 0.5rem;
             margin-bottom: 1.5rem;
         }
-        
+
         .chart-controls button {
             padding: 0.5rem 1rem;
             background: rgba(76, 165, 186, 0.2);
             border: 1px solid rgba(76, 165, 186, 0.3);
             border-radius: 8px;
             color: rgba(255, 255, 255, 0.8);
+            font-size: 0.875rem;
             cursor: pointer;
+            transition: all 0.3s ease;
         }
-        
+
+        .chart-controls button:hover,
+        .chart-controls button.active {
+            background: rgba(42, 123, 160, 0.5);
+            border-color: rgba(42, 123, 160, 0.7);
+            color: #ffffff;
+        }
+
         .chart-placeholder {
             height: 250px;
             background: rgba(0, 0, 0, 0.2);
+            margin-bottom: 2rem;
             border-radius: 10px;
+            position: relative;
             display: flex;
             justify-content: center;
             align-items: center;
-            color: rgba(255,255,255,0.6);
         }
-        
+
+        .chart-placeholder canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .chart-stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+        }
+
+        .chart-stats p {
+            margin: 0;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .percentage-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: rgba(42, 123, 160, 0.2);
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        /* Error states */
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            text-align: center;
+            color: #ef4444;
+        }
+
+        /* Last updated */
+        .last-updated {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.875rem;
+            margin-top: 2rem;
+            padding: 1rem;
+            border-top: 1px solid rgba(76, 165, 186, 0.2);
+        }
+
+        /* Mobile Responsive */
         @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+            
             .hero-content {
                 grid-template-columns: 1fr;
             }
+            
+            .hero-text {
+                text-align: center;
+            }
+            
             .hero-image {
                 display: none;
             }
+            
             .charts {
                 grid-template-columns: 1fr;
+            }
+            
+            .tile {
+                flex: 0 0 260px;
+                min-width: 260px;
+                padding: 1.5rem;
+            }
+            
+            .arrow {
+                padding: 10px 15px;
+                font-size: 1.5em;
+            }
+        }
+
+        @media (max-width: 500px) {
+            .container {
+                padding: 100px 1rem 2rem;
+            }
+            
+            .tile {
+                flex: 0 0 240px;
+                min-width: 240px;
+            }
+            
+            .charts {
+                margin: 2rem 0;
+            }
+            
+            .chart {
+                padding: 1rem;
             }
         }
     </style>
@@ -302,14 +474,6 @@
 </head>
 <body>
     <div class="starry-bg"></div>
-    
-    <!-- Debug info -->
-    <div id="debug-info" class="debug-info">
-        <div>Status: Ladataan...</div>
-        <div id="script-status">Chart.js: Ladataan...</div>
-        <div id="data-status">Data: Ei ladattu</div>
-        <div id="error-status"></div>
-    </div>
     
     <nav class="navbar">
         <div class="nav-container">
@@ -347,6 +511,7 @@
             <div class="carousel-header">
                 <h2>Suomen inflaation keskeiset luvut</h2>
             </div>
+            <button type="button" class="arrow arrow-left" aria-label="Edelliset kohteet">‹</button>
             <div class="carousel-inner">
                 <div class="tile">
                     <h3>Viimeisin inflaatiolukema</h3>
@@ -374,6 +539,7 @@
                     <p>Vertailu viime vuoden samaan kuukauteen näyttää, miten paljon inflaatio on muuttunut vuodessa.</p>
                 </div>
             </div>
+            <button type="button" class="arrow arrow-right" aria-label="Seuraavat kohteet">›</button>
         </section>
 
         <section class="charts" id="analytiikka">
@@ -381,7 +547,7 @@
                 <h2>Vuosi-inflaation kehitys</h2>
                 <div class="chart-controls">
                     <button>6kk</button>
-                    <button>1v</button>
+                    <button class="active">1v</button>
                     <button>3v</button>
                     <button>5v</button>
                     <button>Max</button>
@@ -393,13 +559,18 @@
                     </div>
                     <canvas id="inflationChart" style="display: none;"></canvas>
                 </div>
+                <div class="chart-stats">
+                    <p><span class="percentage-badge">🔵</span> <span id="inflation-min">Ladataan...</span></p>
+                    <p><span class="percentage-badge">🟡</span> <span id="inflation-avg">Ladataan...</span></p>
+                    <p><span class="percentage-badge">🔴</span> <span id="inflation-max">Ladataan...</span></p>
+                </div>
             </div>
 
             <div class="chart">
                 <h2>HICP-indeksi</h2>
                 <div class="chart-controls">
                     <button>6kk</button>
-                    <button>1v</button>
+                    <button class="active">1v</button>
                     <button>3v</button>
                     <button>5v</button>
                     <button>Max</button>
@@ -411,76 +582,112 @@
                     </div>
                     <canvas id="hicpChart" style="display: none;"></canvas>
                 </div>
+                <div class="chart-stats">
+                    <p><span class="percentage-badge">📈</span> <span id="hicp-trend">Ladataan...</span></p>
+                    <p><span class="percentage-badge">📊</span> <span id="hicp-value">Ladataan...</span></p>
+                    <p><span class="percentage-badge">📅</span> <span id="hicp-change">Ladataan...</span></p>
+                </div>
             </div>
         </section>
     </div>
 
     <script>
-        // Debug logging
-        console.log('🚀 Page loaded, starting initialization...');
-        
-        // Update debug info
-        function updateDebug(section, message) {
-            const debugEl = document.getElementById(section);
-            if (debugEl) {
-                debugEl.textContent = section.replace('-status', '') + ': ' + message;
-            }
-            console.log(`📊 ${section}: ${message}`);
-        }
-
         // Configuration
         const CONFIG = {
             SHEET_ID: '1tj7AbW3BkzmPZUd_pfrXmaHZrgpKgYwNljSoVoAObx8',
             API_KEY: 'AIzaSyDbeAW-uO-vEHuPdSJPVQwR_l1Axc7Cq7g',
             HISTORICAL_RANGE: 'Raakadata!A:F',
-            METRICS_RANGE: 'Key Metrics!A:B'
+            METRICS_RANGE: 'Key Metrics!A:B',
+            CACHE_DURATION: 5 * 60 * 1000
         };
 
-        // Test API connectivity immediately
-        async function testAPI() {
+        // Global variables
+        let inflationData = [];
+        let keyMetrics = {};
+        let chartInstances = {};
+        let dataCache = new Map();
+        let lastFetch = 0;
+
+        // Fetch inflation data with caching
+        async function fetchInflationData() {
+            const cacheKey = 'inflation_data';
+            const now = Date.now();
+            
+            // Check cache
+            if (dataCache.has(cacheKey) && (now - lastFetch) < CONFIG.CACHE_DURATION) {
+                const cachedData = dataCache.get(cacheKey);
+                inflationData = cachedData.historical || [];
+                keyMetrics = cachedData.metrics || {};
+                updateUI();
+                return cachedData;
+            }
+
             try {
-                updateDebug('data-status', 'Testataan API...');
+                console.log('🔄 Fetching fresh data...');
                 
-                const testUrl = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.METRICS_RANGE}?key=${CONFIG.API_KEY}`;
-                console.log('🔗 Testing URL:', testUrl);
-                
-                const response = await fetch(testUrl);
-                console.log('📡 Response status:', response.status);
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('❌ API Error:', errorText);
-                    updateDebug('error-status', `API Error: ${response.status}`);
-                    updateDebug('data-status', 'API virhe!');
-                    return false;
+                const [historicalRes, metricsRes] = await Promise.all([
+                    fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.HISTORICAL_RANGE}?key=${CONFIG.API_KEY}`),
+                    fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.METRICS_RANGE}?key=${CONFIG.API_KEY}`)
+                ]);
+
+                const historicalData = historicalRes.ok ? await historicalRes.json() : null;
+                const metricsData = metricsRes.ok ? await metricsRes.json() : null;
+
+                // Process historical data
+                if (historicalData?.values?.length > 1) {
+                    inflationData = processHistoricalData(historicalData.values);
                 }
-                
-                const data = await response.json();
-                console.log('✅ API Response:', data);
-                updateDebug('data-status', `API OK, ${data.values?.length || 0} riviä`);
-                
-                // Update tiles with real data
-                if (data.values && data.values.length > 1) {
-                    updateTilesWithData(data.values);
+
+                // Process metrics data
+                if (metricsData?.values?.length > 1) {
+                    keyMetrics = processKeyMetrics(metricsData.values);
                 }
-                
-                return true;
+
+                // Cache results
+                const processedData = { historical: inflationData, metrics: keyMetrics };
+                dataCache.set(cacheKey, processedData);
+                lastFetch = now;
+
+                updateUI();
+                return processedData;
+
             } catch (error) {
-                console.error('💥 API Test failed:', error);
-                updateDebug('error-status', 'Virhe: ' + error.message);
-                updateDebug('data-status', 'Verkkovirhe!');
-                return false;
+                console.error('❌ Data fetch error:', error);
+                showErrorState(error.message);
+                return null;
             }
         }
 
-        // Update tiles with real data
-        function updateTilesWithData(rawData) {
-            console.log('🎯 Updating tiles with data:', rawData);
+        // Process historical data
+        function processHistoricalData(rawData) {
+            const headers = rawData[0];
+            const rows = rawData.slice(1);
             
-            const tiles = document.querySelectorAll('.tile .highlight');
+            const dateCol = headers.indexOf('Kuukausi');
+            const inflationCol = headers.indexOf('Inflaatio %');
+            const indexCol = headers.indexOf('Indeksi');
+            
+            const processedData = rows.map(row => {
+                const dateStr = row[dateCol] || '';
+                const inflationStr = row[inflationCol] || '';
+                const indexStr = row[indexCol] || '';
+                
+                const inflationValue = parseFloat(inflationStr.replace('%', '').replace(',', '.').trim());
+                const indexValue = parseFloat(indexStr.replace(',', '.').trim());
+                
+                return {
+                    date: dateStr,
+                    inflation: isNaN(inflationValue) ? 0 : inflationValue,
+                    hicp: isNaN(indexValue) ? 0 : indexValue
+                };
+            }).filter(item => item.date && !isNaN(item.inflation));
+            
+            return processedData.sort((a, b) => new Date(a.date + '-01') - new Date(b.date + '-01'));
+        }
+
+        // Process key metrics
+        function processKeyMetrics(rawData) {
             const metrics = {};
-            
-            // Process metrics data (skip header)
             rawData.slice(1).forEach(row => {
                 if (row.length >= 2 && row[0] && row[1]) {
                     const key = row[0].toString().trim();
@@ -488,111 +695,356 @@
                     metrics[key] = value;
                 }
             });
+            return metrics;
+        }
+
+        // Update UI
+        function updateUI() {
+            updateCarouselTiles();
+            updateCharts();
+            updateLastUpdated();
+        }
+
+        // Update carousel tiles
+        function updateCarouselTiles() {
+            const tiles = document.querySelectorAll('.tile .highlight');
+            const metricKeys = Object.keys(keyMetrics);
             
-            console.log('📊 Processed metrics:', metrics);
-            
-            // Update tiles
-            const metricKeys = Object.keys(metrics);
             tiles.forEach((tile, index) => {
                 if (index < metricKeys.length) {
                     const key = metricKeys[index];
-                    const value = metrics[key];
-                    tile.innerHTML = value;
+                    const value = keyMetrics[key];
+                    tile.textContent = value;
                     tile.className = 'highlight positive';
                 } else {
-                    tile.innerHTML = 'N/A';
+                    tile.textContent = 'N/A';
                     tile.className = 'highlight neutral';
                 }
             });
-            
-            updateDebug('data-status', `Päivitetty ${tiles.length} laatikkoa`);
         }
 
-        // Load Chart.js
-        function loadChartJS() {
-            updateDebug('script-status', 'Chart.js ladataan...');
+        // Update charts
+        function updateCharts() {
+            if (inflationData.length === 0) return;
             
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-            script.onload = () => {
-                console.log('✅ Chart.js loaded successfully');
-                updateDebug('script-status', 'Chart.js ladattu!');
+            const last12Months = inflationData.slice(-12);
+            
+            // Update inflation chart
+            if (chartInstances.inflation) {
+                const labels = last12Months.map(d => d.date.substr(5));
+                const values = last12Months.map(d => d.inflation);
                 
-                // Hide loading indicators
-                document.querySelectorAll('.chart-placeholder').forEach(placeholder => {
-                    const loadingDiv = placeholder.querySelector('div');
-                    if (loadingDiv) {
-                        loadingDiv.style.display = 'none';
+                chartInstances.inflation.data.labels = labels;
+                chartInstances.inflation.data.datasets[0].data = values;
+                chartInstances.inflation.update();
+                
+                // Update stats
+                const min = Math.min(...values);
+                const max = Math.max(...values);
+                const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
+                
+                updateElement('#inflation-min', `Minimi ${min.toFixed(1)}%`);
+                updateElement('#inflation-avg', `Keskiarvo ${avg.toFixed(1)}%`);
+                updateElement('#inflation-max', `Maksimi ${max.toFixed(1)}%`);
+            }
+
+            // Update HICP chart
+            if (chartInstances.hicp) {
+                const labels = last12Months.map(d => d.date.substr(5));
+                const values = last12Months.map(d => d.hicp);
+                
+                chartInstances.hicp.data.labels = labels;
+                chartInstances.hicp.data.datasets[0].data = values;
+                chartInstances.hicp.update();
+                
+                const latest = last12Months[last12Months.length - 1];
+                updateElement('#hicp-trend', `Nousutahti ${latest.inflation.toFixed(1)}%`);
+                updateElement('#hicp-value', `Indeksiarvo ${latest.hicp.toFixed(2)}`);
+                updateElement('#hicp-change', `Vuosimuutos ${latest.inflation.toFixed(1)}%`);
+            }
+        }
+
+        // Initialize charts
+        function initializeCharts() {
+            const chartConfig = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255, 255, 255, 0.1)', drawBorder: false },
+                        ticks: { color: 'rgba(255, 255, 255, 0.7)' }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255, 255, 255, 0.1)', drawBorder: false },
+                        ticks: { 
+                            color: 'rgba(255, 255, 255, 0.7)',
+                            callback: function(value) { return value + '%'; }
+                        }
                     }
-                    
-                    const canvas = placeholder.querySelector('canvas');
-                    if (canvas) {
-                        canvas.style.display = 'block';
-                        // Create a simple chart for testing
-                        const ctx = canvas.getContext('2d');
-                        new Chart(ctx, {
-                            type: 'line',
-                            data: {
-                                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
-                                datasets: [{
-                                    label: 'Test Data',
-                                    data: [1.5, 1.8, 1.2, 1.9, 1.6],
-                                    borderColor: '#4ca5ba',
-                                    backgroundColor: 'rgba(76, 165, 186, 0.1)',
-                                    tension: 0.4
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    legend: { display: false }
+                }
+            };
+
+            // Initialize inflation chart
+            const inflationCanvas = document.getElementById('inflationChart');
+            if (inflationCanvas) {
+                hideChartLoading(inflationCanvas);
+                const ctx = inflationCanvas.getContext('2d');
+                chartInstances.inflation = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            data: [],
+                            borderColor: '#4ca5ba',
+                            backgroundColor: 'rgba(76, 165, 186, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: chartConfig
+                });
+            }
+
+            // Initialize HICP chart
+            const hicpCanvas = document.getElementById('hicpChart');
+            if (hicpCanvas) {
+                hideChartLoading(hicpCanvas);
+                const ctx = hicpCanvas.getContext('2d');
+                chartInstances.hicp = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            data: [],
+                            borderColor: '#3891a6',
+                            backgroundColor: 'rgba(56, 145, 166, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        ...chartConfig,
+                        scales: {
+                            ...chartConfig.scales,
+                            y: {
+                                ...chartConfig.scales.y,
+                                ticks: {
+                                    ...chartConfig.scales.y.ticks,
+                                    callback: function(value) { return value.toFixed(0); }
                                 }
                             }
-                        });
+                        }
                     }
                 });
-            };
-            script.onerror = () => {
-                console.error('❌ Failed to load Chart.js');
-                updateDebug('script-status', 'Chart.js lataus epäonnistui!');
-                updateDebug('error-status', 'Chart.js ei latautunut');
-            };
-            document.head.appendChild(script);
+            }
+
+            // Update charts with current data
+            if (inflationData.length > 0) {
+                updateCharts();
+            }
+        }
+
+        // Hide chart loading indicator
+        function hideChartLoading(canvas) {
+            const placeholder = canvas.closest('.chart-placeholder');
+            const loadingDiv = placeholder.querySelector('div');
+            if (loadingDiv) {
+                loadingDiv.style.display = 'none';
+            }
+            canvas.style.display = 'block';
+        }
+
+        // Update element text
+        function updateElement(selector, text) {
+            const element = document.querySelector(selector);
+            if (element) {
+                element.textContent = text;
+            }
+        }
+
+        // Show error state
+        function showErrorState(message) {
+            console.error('💥 Error:', message);
+            
+            // Update tiles with error state
+            document.querySelectorAll('.tile .highlight').forEach(el => {
+                el.textContent = 'Virhe';
+                el.className = 'highlight negative';
+            });
+            
+            // Show error message
+            let errorElement = document.querySelector('.error-message');
+            if (!errorElement) {
+                errorElement = document.createElement('div');
+                errorElement.className = 'error-message';
+                document.querySelector('.hero-section').after(errorElement);
+            }
+            
+            errorElement.innerHTML = `
+                <strong>Tietojen lataus epäonnistui</strong><br>
+                <small>${message}</small><br>
+                <button onclick="retryDataFetch()" style="
+                    margin-top: 0.5rem;
+                    padding: 0.5rem 1rem;
+                    background: rgba(239,68,68,0.2);
+                    border: 1px solid rgba(239,68,68,0.5);
+                    border-radius: 4px;
+                    color: white;
+                    cursor: pointer;
+                ">Yritä uudelleen</button>
+            `;
+        }
+
+        // Retry data fetch
+        function retryDataFetch() {
+            const errorElement = document.querySelector('.error-message');
+            if (errorElement) errorElement.remove();
+            
+            // Clear cache and force refresh
+            dataCache.clear();
+            fetchInflationData();
+        }
+
+        // Update last updated timestamp
+        function updateLastUpdated() {
+            const now = new Date().toLocaleString('fi-FI');
+            let element = document.querySelector('.last-updated');
+            
+            if (!element) {
+                element = document.createElement('p');
+                element.className = 'last-updated';
+                document.querySelector('.container').appendChild(element);
+            }
+            
+            element.textContent = `Päivitetty: ${now}`;
+        }
+
+        // Chart time range handling
+        function setupChartControls() {
+            document.querySelectorAll('.chart-controls button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Remove active from siblings
+                    this.parentElement.querySelectorAll('button').forEach(b => {
+                        b.classList.remove('active');
+                    });
+                    
+                    // Add active to clicked button
+                    this.classList.add('active');
+                    
+                    // Update charts based on range (simplified for now)
+                    console.log('📊 Chart range changed to:', this.textContent);
+                });
+            });
+        }
+
+        // Carousel functionality
+        function setupCarousel() {
+            const carousel = document.querySelector('.carousel-inner');
+            const leftArrow = document.querySelector('.arrow-left');
+            const rightArrow = document.querySelector('.arrow-right');
+
+            if (carousel && leftArrow && rightArrow) {
+                leftArrow.addEventListener('click', () => {
+                    carousel.scrollBy({ left: -330, behavior: 'smooth' });
+                });
+
+                rightArrow.addEventListener('click', () => {
+                    carousel.scrollBy({ left: 330, behavior: 'smooth' });
+                });
+            }
         }
 
         // Navigation smooth scrolling
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({ behavior: 'smooth' });
-                }
+        function setupNavigation() {
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                });
             });
-        });
+        }
+
+        // Load Chart.js dynamically
+        function loadChartJS() {
+            return new Promise((resolve, reject) => {
+                if (typeof Chart !== 'undefined') {
+                    resolve();
+                    return;
+                }
+
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+                script.onload = () => {
+                    console.log('✅ Chart.js loaded');
+                    resolve();
+                };
+                script.onerror = () => {
+                    console.error('❌ Chart.js failed to load');
+                    reject(new Error('Chart.js failed to load'));
+                };
+                document.head.appendChild(script);
+            });
+        }
 
         // Initialize everything when DOM is ready
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log('🎬 DOM ready, initializing...');
-            updateDebug('data-status', 'Aloitetaan...');
+            console.log('🚀 Initializing application...');
             
-            // Test API first
-            const apiWorking = await testAPI();
+            // Setup UI interactions
+            setupNavigation();
+            setupCarousel();
+            setupChartControls();
             
-            // Load Chart.js regardless
-            setTimeout(() => {
-                loadChartJS();
-            }, 1000);
-            
-            // Hide debug info after 10 seconds if everything works
-            setTimeout(() => {
-                const debugEl = document.getElementById('debug-info');
-                if (debugEl && !document.getElementById('error-status').textContent) {
-                    debugEl.style.display = 'none';
-                }
-            }, 10000);
+            try {
+                // Load Chart.js
+                await loadChartJS();
+                
+                // Initialize charts
+                initializeCharts();
+                
+                // Fetch initial data
+                await fetchInflationData();
+                
+                // Set up auto-refresh every 5 minutes
+                setInterval(fetchInflationData, CONFIG.CACHE_DURATION);
+                
+                console.log('✅ Application initialized successfully');
+                
+            } catch (error) {
+                console.error('💥 Initialization failed:', error);
+                showErrorState('Sovelluksen alustus epäonnistui: ' + error.message);
+            }
         });
+
+        // Expose retry function globally
+        window.retryDataFetch = retryDataFetch;
+    </script>
+
+    <!-- Structured data for SEO -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Suomen inflaation seuranta",
+        "description": "Reaaliaikainen näkymä Suomen talouden hintakehitykseen",
+        "url": "https://jannejok.github.io/inflaatio/",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "Web browser",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "EUR"
+        }
+    }
     </script>
 </body>
 </html>
