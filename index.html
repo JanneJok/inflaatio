@@ -3,12 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suomen inflaation seuranta</title>
+    <title>Suomen inflaation seuranta - Reaaliaikainen hintakehitys</title>
+    <meta name="description" content="Seuraa Suomen inflaatiota reaaliaikaisesti. Kuluttajahintaindeksi, HICP-data, trendit ja analyysit. Päivittyvä data Eurostatilta suoraan selaimessasi.">
     
-    <!-- Critical CSS inline -->
-    <style>
-        /* Critical above-the-fold CSS */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
+    <!-- Preload critical fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" as="style">
+    
+    <!-- Favicon to prevent 404 -->
+    <link rel="icon" href="data:,">
         
         * {
             margin: 0;
@@ -546,11 +550,11 @@
             <div class="chart">
                 <h2>Vuosi-inflaation kehitys</h2>
                 <div class="chart-controls">
-                    <button>6kk</button>
-                    <button class="active">1v</button>
-                    <button>3v</button>
-                    <button>5v</button>
-                    <button>Max</button>
+                    <button data-range="6kk">6kk</button>
+                    <button data-range="1v">1v</button>
+                    <button data-range="3v">3v</button>
+                    <button data-range="5v" class="active">5v</button>
+                    <button data-range="Max">Max</button>
                 </div>
                 <div class="chart-placeholder">
                     <div>
@@ -569,11 +573,11 @@
             <div class="chart">
                 <h2>HICP-indeksi</h2>
                 <div class="chart-controls">
-                    <button>6kk</button>
-                    <button class="active">1v</button>
-                    <button>3v</button>
-                    <button>5v</button>
-                    <button>Max</button>
+                    <button data-range="6kk">6kk</button>
+                    <button data-range="1v">1v</button>
+                    <button data-range="3v">3v</button>
+                    <button data-range="5v" class="active">5v</button>
+                    <button data-range="Max">Max</button>
                 </div>
                 <div class="chart-placeholder">
                     <div>
@@ -607,6 +611,10 @@
         let chartInstances = {};
         let dataCache = new Map();
         let lastFetch = 0;
+        
+        // Chart ranges for independent control
+        let currentInflationRange = '5v';
+        let currentHicpRange = '5v';
 
         // Fetch inflation data with caching
         async function fetchInflationData() {
@@ -723,22 +731,63 @@
             });
         }
 
-        // Update charts
+        // Filter data based on time range
+        function filterDataByRange(data, range) {
+            if (!data || data.length === 0) return [];
+            if (range === 'Max') return data;
+            
+            const now = new Date();
+            const startDate = new Date();
+            
+            switch (range) {
+                case '6kk':
+                    startDate.setMonth(now.getMonth() - 6);
+                    break;
+                case '1v':
+                    startDate.setFullYear(now.getFullYear() - 1);
+                    break;
+                case '3v':
+                    startDate.setFullYear(now.getFullYear() - 3);
+                    break;
+                case '5v':
+                    startDate.setFullYear(now.getFullYear() - 5);
+                    break;
+            }
+            
+            return data.filter(d => {
+                const itemDate = new Date(d.date + '-01');
+                return itemDate >= startDate;
+            });
+        }
+
+        // Update charts with specific ranges
         function updateCharts() {
             if (inflationData.length === 0) return;
             
-            const last12Months = inflationData.slice(-12);
-            
-            // Update inflation chart
+            // Update inflation chart with its own range
             if (chartInstances.inflation) {
-                const labels = last12Months.map(d => d.date.substr(5));
-                const values = last12Months.map(d => d.inflation);
-                
-                chartInstances.inflation.data.labels = labels;
-                chartInstances.inflation.data.datasets[0].data = values;
-                chartInstances.inflation.update();
-                
-                // Update stats
+                const inflationFiltered = filterDataByRange(inflationData, currentInflationRange);
+                updateInflationChart(inflationFiltered);
+            }
+
+            // Update HICP chart with its own range
+            if (chartInstances.hicp) {
+                const hicpFiltered = filterDataByRange(inflationData, currentHicpRange);
+                updateHicpChart(hicpFiltered);
+            }
+        }
+
+        // Update inflation chart specifically
+        function updateInflationChart(data) {
+            const labels = data.map(d => d.date.substr(2)); // Show YY-MM format
+            const values = data.map(d => d.inflation);
+            
+            chartInstances.inflation.data.labels = labels;
+            chartInstances.inflation.data.datasets[0].data = values;
+            chartInstances.inflation.update();
+            
+            // Update stats
+            if (values.length > 0) {
                 const min = Math.min(...values);
                 const max = Math.max(...values);
                 const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
@@ -747,20 +796,34 @@
                 updateElement('#inflation-avg', `Keskiarvo ${avg.toFixed(1)}%`);
                 updateElement('#inflation-max', `Maksimi ${max.toFixed(1)}%`);
             }
+        }
 
-            // Update HICP chart
-            if (chartInstances.hicp) {
-                const labels = last12Months.map(d => d.date.substr(5));
-                const values = last12Months.map(d => d.hicp);
-                
-                chartInstances.hicp.data.labels = labels;
-                chartInstances.hicp.data.datasets[0].data = values;
-                chartInstances.hicp.update();
-                
-                const latest = last12Months[last12Months.length - 1];
+        // Update HICP chart specifically
+        function updateHicpChart(data) {
+            const labels = data.map(d => d.date.substr(2)); // Show YY-MM format
+            const values = data.map(d => d.hicp);
+            
+            chartInstances.hicp.data.labels = labels;
+            chartInstances.hicp.data.datasets[0].data = values;
+            chartInstances.hicp.update();
+            
+            // Update stats
+            if (data.length > 0) {
+                const latest = data[data.length - 1];
                 updateElement('#hicp-trend', `Nousutahti ${latest.inflation.toFixed(1)}%`);
                 updateElement('#hicp-value', `Indeksiarvo ${latest.hicp.toFixed(2)}`);
-                updateElement('#hicp-change', `Vuosimuutos ${latest.inflation.toFixed(1)}%`);
+                
+                // Calculate yearly change if we have enough data
+                const yearAgo = data.find(d => {
+                    const latestYear = parseInt(latest.date.split('-')[0]);
+                    const dataYear = parseInt(d.date.split('-')[0]);
+                    const latestMonth = parseInt(latest.date.split('-')[1]);
+                    const dataMonth = parseInt(d.date.split('-')[1]);
+                    return (latestYear - dataYear === 1) && (latestMonth === dataMonth);
+                });
+                
+                const yearlyChange = yearAgo ? ((latest.hicp - yearAgo.hicp) / yearAgo.hicp) * 100 : latest.inflation;
+                updateElement('#hicp-change', `Vuosimuutos ${yearlyChange.toFixed(1)}%`);
             }
         }
 
@@ -922,20 +985,49 @@
             element.textContent = `Päivitetty: ${now}`;
         }
 
-        // Chart time range handling
+        // Chart time range handling with independent controls
         function setupChartControls() {
-            document.querySelectorAll('.chart-controls button').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    // Remove active from siblings
-                    this.parentElement.querySelectorAll('button').forEach(b => {
-                        b.classList.remove('active');
+            // Get both chart control sections
+            const charts = document.querySelectorAll('.chart');
+            
+            charts.forEach((chart, chartIndex) => {
+                const controls = chart.querySelectorAll('.chart-controls button');
+                const chartType = chartIndex === 0 ? 'inflation' : 'hicp';
+                
+                controls.forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        // Remove active from siblings in this chart only
+                        this.parentElement.querySelectorAll('button').forEach(b => {
+                            b.classList.remove('active');
+                        });
+                        
+                        // Add active to clicked button
+                        this.classList.add('active');
+                        
+                        // Get the selected range
+                        const selectedRange = this.getAttribute('data-range');
+                        
+                        // Update the appropriate range variable
+                        if (chartType === 'inflation') {
+                            currentInflationRange = selectedRange;
+                            console.log('📊 Inflation chart range changed to:', selectedRange);
+                            
+                            // Update only inflation chart
+                            if (chartInstances.inflation && inflationData.length > 0) {
+                                const filteredData = filterDataByRange(inflationData, currentInflationRange);
+                                updateInflationChart(filteredData);
+                            }
+                        } else {
+                            currentHicpRange = selectedRange;
+                            console.log('📊 HICP chart range changed to:', selectedRange);
+                            
+                            // Update only HICP chart
+                            if (chartInstances.hicp && inflationData.length > 0) {
+                                const filteredData = filterDataByRange(inflationData, currentHicpRange);
+                                updateHicpChart(filteredData);
+                            }
+                        }
                     });
-                    
-                    // Add active to clicked button
-                    this.classList.add('active');
-                    
-                    // Update charts based on range (simplified for now)
-                    console.log('📊 Chart range changed to:', this.textContent);
                 });
             });
         }
@@ -973,7 +1065,7 @@
             });
         }
 
-        // Load Chart.js dynamically
+        // Load Chart.js dynamically and lazily
         function loadChartJS() {
             return new Promise((resolve, reject) => {
                 if (typeof Chart !== 'undefined') {
@@ -981,38 +1073,58 @@
                     return;
                 }
 
+                // Create script element
                 const script = document.createElement('script');
                 script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+                script.async = true;
+                script.defer = true;
+                
                 script.onload = () => {
                     console.log('✅ Chart.js loaded');
                     resolve();
                 };
+                
                 script.onerror = () => {
                     console.error('❌ Chart.js failed to load');
                     reject(new Error('Chart.js failed to load'));
                 };
+                
                 document.head.appendChild(script);
             });
+        }
+
+        // Load fonts asynchronously after page load
+        function loadFonts() {
+            const link = document.createElement('link');
+            link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap';
+            link.rel = 'stylesheet';
+            document.head.appendChild(link);
         }
 
         // Initialize everything when DOM is ready
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('🚀 Initializing application...');
             
-            // Setup UI interactions
+            // Setup UI interactions immediately
             setupNavigation();
             setupCarousel();
-            setupChartControls();
+            
+            // Load fonts after initial render
+            setTimeout(loadFonts, 100);
             
             try {
-                // Load Chart.js
-                await loadChartJS();
+                // Start data fetch immediately (don't wait for Chart.js)
+                const dataPromise = fetchInflationData();
                 
-                // Initialize charts
+                // Load Chart.js in parallel
+                const chartPromise = loadChartJS();
+                
+                // Wait for both
+                await Promise.all([dataPromise, chartPromise]);
+                
+                // Now setup everything that requires both data and charts
+                setupChartControls();
                 initializeCharts();
-                
-                // Fetch initial data
-                await fetchInflationData();
                 
                 // Set up auto-refresh every 5 minutes
                 setInterval(fetchInflationData, CONFIG.CACHE_DURATION);
