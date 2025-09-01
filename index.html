@@ -19,95 +19,102 @@
         </nav>
     </header>
 
-    <section class="hero-section">
-        <div class="hero-content">
-            <div class="hero-text">
-                <h1>Suomen inflaation seuranta</h1>
-                <p>Reaaliaikainen näkymä Suomen talouden hintakehitykseen. Seuraa inflaatiota, analysoi trendejä ja tee tietoon perustuvia päätöksiä.</p>
+    <div class="container">
+        <section class="hero-section">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1>Suomen inflaation seuranta</h1>
+                    <p>Reaaliaikainen näkymä Suomen talouden hintakehitykseen. Seuraa inflaatiota, analysoi trendejä ja tee tietoon perustuvia päätöksiä.</p>
+                </div>
+                <div class="hero-image">
+                    <!-- Placeholder for your image -->
+                    <img src="https://via.placeholder.com/300x200" alt="Inflation illustration">
+                </div>
             </div>
-            <div class="hero-image">
-                <!-- Your image here -->
-            </div>
-        </div>
-    </section>
+        </section>
 
-    <section class="carousel">
-        <h2>Suomen inflaation keskeiset luvut</h2>
-        <button class="arrow arrow-left">&lt;</button>
-        <div class="carousel-inner">
-            <div class="tile">
-                <h3>Viimeisin inflaatiolukema</h3>
-                <div class="highlight">1.9%</div>
-                <p>Viimeisin Eurostatin julkaisema vuosi-inflaatio. Perustuu kuluttajahintaindeksiin.</p>
+        <section class="carousel">
+            <div class="carousel-header">
+                <h2>Suomen inflaation keskeiset luvut</h2>
             </div>
-            <div class="tile">
-                <h3>Muutos edelliseen kuukauteen</h3>
-                <div class="highlight">0.0%</div>
-                <p>Kertoo, onko hintojen nousuvauhti kiihtynyt vai hidastunut edellisestä kuukaudesta.</p>
+            <button class="arrow arrow-left">&lt;</button>
+            <div class="carousel-inner">
+                <div class="tile">
+                    <h3>Viimeisin inflaatiolukema</h3>
+                    <div class="highlight">1.9%</div>
+                    <p>Viimeisin Eurostatin julkaisema vuosi-inflaatio. Perustuu kuluttajahintaindeksiin.</p>
+                </div>
+                <div class="tile">
+                    <h3>Muutos edelliseen kuukauteen</h3>
+                    <div class="highlight">0.0%</div>
+                    <p>Kertoo, onko hintojen nousuvauhti kiihtynyt vai hidastunut edellisestä kuukaudesta.</p>
+                </div>
+                <div class="tile">
+                    <h3>12 kuukauden keskiarvo</h3>
+                    <div class="highlight">1.6%</div>
+                    <p>Keskimääräinen inflaatio viimeisten 12 kuukauden aikana. Vakaampi kuva hintakehityksestä.</p>
+                </div>
+                <div class="tile">
+                    <h3>Vuoden 2025 keskiarvo</h3>
+                    <div class="highlight">1.8%</div>
+                    <p>Inflaation keskiarvo vuoden alusta tähän hetkeen. Hyödyllinen budjetointiin ja analyysiin.</p>
+                </div>
+                <div class="tile">
+                    <h3>Vuosi sitten (sama kuukausi)</h3>
+                    <div class="highlight">1.9%</div>
+                    <p>Vertailu viime vuoden samaan kuukauteen näyttää, miten paljon inflaatio on muuttunut vuodessa.</p>
+                </div>
             </div>
-            <div class="tile">
-                <h3>12 kuukauden keskiarvo</h3>
-                <div class="highlight">1.6%</div>
-                <p>Keskimääräinen inflaatio viimeisten 12 kuukauden aikana. Vakaampi kuva hintakehityksestä.</p>
-            </div>
-            <div class="tile">
-                <h3>Vuoden 2025 keskiarvo</h3>
-                <div class="highlight">1.8%</div>
-                <p>Inflaation keskiarvo vuoden alusta tähän hetkeen. Hyödyllinen budjetointiin ja analyysiin.</p>
-            </div>
-            <div class="tile">
-                <h3>Vuosi sitten (sama kuukausi)</h3>
-                <div class="highlight">1.9%</div>
-                <p>Vertailu viime vuoden samaan kuukauteen näyttää, miten paljon inflaatio on muuttunut vuodessa.</p>
-            </div>
-        </div>
-        <button class="arrow arrow-right">&gt;</button>
-    </section>
+            <button class="arrow arrow-right">&gt;</button>
+        </section>
 
-    <section class="charts">
-        <div class="chart">
-            <h2>Vuosi-inflaation kehitys</h2>
-            <div class="chart-controls">
-                <button data-range="6kk">6kk</button>
-                <button data-range="1v">1v</button>
-                <button data-range="3v">3v</button>
-                <button data-range="5v" class="active">5v</button>
-                <button data-range="Max">Max</button>
+        <section class="charts">
+            <div class="chart">
+                <h2>Vuosi-inflaation kehitys</h2>
+                <div class="chart-controls">
+                    <button data-range="6kk">6kk</button>
+                    <button data-range="1v">1v</button>
+                    <button data-range="3v">3v</button>
+                    <button data-range="5v" class="active">5v</button>
+                    <button data-range="Max">Max</button>
+                </div>
+                <div class="chart-placeholder">
+                    <canvas id="inflationChart"></canvas>
+                    <div>Ladataan kaavioita...</div>
+                </div>
+                <div class="chart-stats">
+                    <p>🔵 <span id="inflation-min">Ladataan...</span></p>
+                    <p>🟡 <span id="inflation-avg">Ladataan...</span></p>
+                    <p>🔴 <span id="inflation-max">Ladataan...</span></p>
+                </div>
             </div>
-            <div class="chart-placeholder">
-                <canvas id="inflationChart"></canvas>
-                <div>Ladataan kaavioita...</div>
-            </div>
-            <div class="chart-stats">
-                <p>🔵 <span id="inflation-min">Ladataan...</span></p>
-                <p>🟡 <span id="inflation-avg">Ladataan...</span></p>
-                <p>🔴 <span id="inflation-max">Ladataan...</span></p>
-            </div>
-        </div>
 
-        <div class="chart">
-            <h2>HICP-indeksi</h2>
-            <div class="chart-controls">
-                <button data-range="6kk">6kk</button>
-                <button data-range="1v">1v</button>
-                <button data-range="3v">3v</button>
-                <button data-range="5v" class="active">5v</button>
-                <button data-range="Max">Max</button>
+            <div class="chart">
+                <h2>HICP-indeksi</h2>
+                <div class="chart-controls">
+                    <button data-range="6kk">6kk</button>
+                    <button data-range="1v">1v</button>
+                    <button data-range="3v">3v</button>
+                    <button data-range="5v" class="active">5v</button>
+                    <button data-range="Max">Max</button>
+                </div>
+                <div class="chart-placeholder">
+                    <canvas id="hicpChart"></canvas>
+                    <div>Ladataan kaavioita...</div>
+                </div>
+                <div class="chart-stats">
+                    <p>📈 <span id="hicp-trend">Ladataan...</span></p>
+                    <p>📊 <span id="hicp-value">Ladataan...</span></p>
+                    <p>📅 <span id="hicp-change">Ladataan...</span></p>
+                </div>
             </div>
-            <div class="chart-placeholder">
-                <canvas id="hicpChart"></canvas>
-                <div>Ladataan kaavioita...</div>
-            </div>
-            <div class="chart-stats">
-                <p>📈 <span id="hicp-trend">Ladataan...</span></p>
-                <p>📊 <span id="hicp-value">Ladataan...</span></p>
-                <p>📅 <span id="hicp-change">Ladataan...</span></p>
-            </div>
-        </div>
-    </section>
+        </section>
+
+        <!-- Dynamic timestamp will be inserted here by JS -->
+    </div>
 
     <script src="inflation-site-optimized.js"></script>
-    <!-- If using the service worker: -->
+    <!-- Optional service worker registration -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
