@@ -9,11 +9,12 @@
     <!-- Preload critical fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" as="style">
     
     <!-- Favicon to prevent 404 -->
     <link rel="icon" href="data:,">
-        
+    
+    <!-- Critical CSS inline -->
+    <style>
         * {
             margin: 0;
             padding: 0;
@@ -477,9 +478,6 @@
             }
         }
     </style>
-
-    <!-- Favicon to prevent 404 -->
-    <link rel="icon" href="data:,">
 </head>
 <body>
     <div class="starry-bg"></div>
@@ -711,31 +709,6 @@
             return metrics;
         }
 
-        // Update UI
-        function updateUI() {
-            updateCarouselTiles();
-            updateCharts();
-            updateLastUpdated();
-        }
-
-        // Update carousel tiles
-        function updateCarouselTiles() {
-            const tiles = document.querySelectorAll('.tile .highlight');
-            const metricKeys = Object.keys(keyMetrics);
-            
-            tiles.forEach((tile, index) => {
-                if (index < metricKeys.length) {
-                    const key = metricKeys[index];
-                    const value = keyMetrics[key];
-                    tile.textContent = value;
-                    tile.className = 'highlight positive';
-                } else {
-                    tile.textContent = 'N/A';
-                    tile.className = 'highlight neutral';
-                }
-            });
-        }
-
         // Filter data based on time range
         function filterDataByRange(data, range) {
             if (!data || data.length === 0) return [];
@@ -762,6 +735,31 @@
             return data.filter(d => {
                 const itemDate = new Date(d.date + '-01');
                 return itemDate >= startDate;
+            });
+        }
+
+        // Update UI
+        function updateUI() {
+            updateCarouselTiles();
+            updateCharts();
+            updateLastUpdated();
+        }
+
+        // Update carousel tiles
+        function updateCarouselTiles() {
+            const tiles = document.querySelectorAll('.tile .highlight');
+            const metricKeys = Object.keys(keyMetrics);
+            
+            tiles.forEach((tile, index) => {
+                if (index < metricKeys.length) {
+                    const key = metricKeys[index];
+                    const value = keyMetrics[key];
+                    tile.textContent = value;
+                    tile.className = 'highlight positive';
+                } else {
+                    tile.textContent = 'N/A';
+                    tile.className = 'highlight neutral';
+                }
             });
         }
 
@@ -822,8 +820,6 @@
                 const yearAgo = data.find(d => {
                     const latestYear = parseInt(latest.date.split('-')[0]);
                     const dataYear = parseInt(d.date.split('-')[0]);
-                    const latestMonth = parseInt(latest.date.split('-')[1]);
-                    const dataMonth = parseInt(d.date.split('-')[1]);
                     return (latestYear - dataYear === 1) && (latestMonth === dataMonth);
                 });
                 
