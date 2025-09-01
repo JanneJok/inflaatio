@@ -222,7 +222,7 @@ function updateCharts() {
     if (chartInstances.hicp) {
         console.log('Updating HICP chart with range:', currentHicpRange);
         const hicpFiltered = filterDataByRange(inflationData, currentHicpRange);
-        updateHicpChart(hicpFiltered); // FIXED: Using correct function name
+        updateHicpChart(hicpFiltered);
     }
     
     console.log('✅ Charts updated');
@@ -254,7 +254,7 @@ function updateInflationChart(data) {
     }
 }
 
-// Update HICP chart - CORRECTED VERSION
+// Update HICP chart - SAFE VERSION
 function updateHicpChart(data) {
     if (!data || data.length === 0) {
         console.log('No HICP data to update');
@@ -488,7 +488,7 @@ function setupChartControls() {
                     // Update only HICP chart
                     if (chartInstances.hicp && inflationData.length > 0) {
                         const filteredData = filterDataByRange(inflationData, currentHicpRange);
-                        updateHicpChart(filteredData); // FIXED: Using correct function name
+                        updateHicpChart(filteredData);
                     }
                 }
             });
