@@ -805,19 +805,28 @@
 
         // Update charts with specific ranges
         function updateCharts() {
-            if (inflationData.length === 0) return;
+            console.log('📊 Updating charts...');
+            
+            if (inflationData.length === 0) {
+                console.log('No inflation data available');
+                return;
+            }
             
             // Update inflation chart with its own range
             if (chartInstances.inflation) {
+                console.log('Updating inflation chart with range:', currentInflationRange);
                 const inflationFiltered = filterDataByRange(inflationData, currentInflationRange);
                 updateInflationChart(inflationFiltered);
             }
 
-            // Update HICP chart with its own range
+            // Update HICP chart with its own range - USE NEW FUNCTION NAME
             if (chartInstances.hicp) {
+                console.log('Updating HICP chart with range:', currentHicpRange);
                 const hicpFiltered = filterDataByRange(inflationData, currentHicpRange);
-                updateHicpChart(hicpFiltered);
+                updateHicpChartFixed(hicpFiltered); // CHANGED TO NEW FUNCTION NAME
             }
+            
+            console.log('✅ Charts updated');
         }
 
         // Update inflation chart specifically
@@ -1065,7 +1074,7 @@
                             // Update only HICP chart
                             if (chartInstances.hicp && inflationData.length > 0) {
                                 const filteredData = filterDataByRange(inflationData, currentHicpRange);
-                                updateHicpChart(filteredData);
+                                updateHicpChartFixed(filteredData); // CHANGED TO NEW FUNCTION NAME
                             }
                         }
                     });
