@@ -598,238 +598,10 @@
         </section>
     </div>
 
-    <script>
-        // Configuration
-        const CONFIG = {
-            SHEET_ID: '1tj7AbW3BkzmPZUd_pfrXmaHZrgpKgYwNljSoVoAObx8',
-            API_KEY: 'AIzaSyDbeAW-uO-vEHuPdSJPVQwR_l1Axc7Cq7g',
-            HISTORICAL_RANGE: 'Raakadata!A:F',
-            METRICS_RANGE: 'Key Metrics!A:B',
-            CACHE_DURATION: 5 * 60 * 1000
-        };
-
-        // Global variables
-        let inflationData = [];
-        let keyMetrics = {};
-        let chartInstances = {};
-        let dataCache = new Map();
-        let lastFetch = 0;
-        
-        // Chart ranges for independent control
-        let currentInflationRange = '5v';
-        let currentHicpRange = '5v';
-
-        // Fetch inflation data with caching
-        async function fetchInflationData() {
-            const cacheKey = 'inflation_data';
-            const now = Date.now();
-            
-            // Check cache
-            if (dataCache.has(cacheKey) && (now - lastFetch) < CONFIG.CACHE_DURATION) {
-                const cachedData = dataCache.get(cacheKey);
-                inflationData = cachedData.historical || [];
-                keyMetrics = cachedData.metrics || {};
-                updateUI();
-                return cachedData;
-            }
-
-            try {
-                console.log('🔄 Fetching fresh data...');
-                
-                const [historicalRes, metricsRes] = await Promise.all([
-                    fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.HISTORICAL_RANGE}?key=${CONFIG.API_KEY}`),
-                    fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.METRICS_RANGE}?key=${CONFIG.API_KEY}`)
-                ]);
-
-                const historicalData = historicalRes.ok ? await historicalRes.json() : null;
-                const metricsData = metricsRes.ok ? await metricsRes.json() : null;
-
-                // Process historical data
-                if (historicalData?.values?.length > 1) {
-                    inflationData = processHistoricalData(historicalData.values);
-                }
-
-                // Process metrics data
-                if (metricsData?.values?.length > 1) {
-                    keyMetrics = processKeyMetrics(metricsData.values);
-                }
-
-                // Cache results
-                const processedData = { historical: inflationData, metrics: keyMetrics };
-                dataCache.set(cacheKey, processedData);
-                lastFetch = now;
-
-                updateUI();
-                return processedData;
-
-            } catch (error) {
-                console.error('❌ Data fetch error:', error);
-                showErrorState(error.message);
-                return null;
-            }
-        }
-
-        // Process historical data
-        function processHistoricalData(rawData) {
-            const headers = rawData[0];
-            const rows = rawData.slice(1);
-            
-            const dateCol = headers.indexOf('Kuukausi');
-            const inflationCol = headers.indexOf('Inflaatio %');
-            const indexCol = headers.indexOf('Indeksi');
-            
-            const processedData = rows.map(row => {
-                const dateStr = row[dateCol] || '';
-                const inflationStr = row[inflationCol] || '';
-                const indexStr = row[indexCol] || '';
-                
-                const inflationValue = parseFloat(inflationStr.replace('%', '').replace(',', '.').trim());
-                const indexValue = parseFloat(indexStr.replace(',', '.').trim());
-                
-                return {
-                    date: dateStr,
-                    inflation: isNaN(inflationValue) ? 0 : inflationValue,
-                    hicp: isNaN(indexValue) ? 0 : indexValue
-                };
-            }).filter(item => item.date && !isNaN(item.inflation));
-            
-            return processedData.sort((a, b) => new Date(a.date + '-01') - new Date(b.date + '-01'));
-        }
-
-        // Process key metrics
-        function processKeyMetrics(rawData) {
-            const metrics = {};
-            rawData.slice(1).forEach(row => {
-                if (row.length >= 2 && row[0] && row[1]) {
-                    const key = row[0].toString().trim();
-                    const value = row[1].toString().trim();
-                    metrics[key] = value;
-                }
-            });
-            return metrics;
-        }
-
-        // Filter data based on time range
-        function filterDataByRange(data, range) {
-            if (!data || data.length === 0) return [];
-            if (range === 'Max') return data;
-            
-            const now = new Date();
-            const startDate = new Date();
-            
-            switch (range) {
-                case '6kk':
-                    startDate.setMonth(now.getMonth() - 6);
-                    break;
-                case '1v':
-                    startDate.setFullYear(now.getFullYear() - 1);
-                    break;
-                case '3v':
-                    startDate.setFullYear(now.getFullYear() - 3);
-                    break;
-                case '5v':
-                    startDate.setFullYear(now.getFullYear() - 5);
-                    break;
-            }
-            
-            return data.filter(d => {
-                const itemDate = new Date(d.date + '-01');
-                return itemDate >= startDate;
-            });
-        }
-
-        // Update UI
-        function updateUI() {
-            console.log('🔄 Updating UI...');
-            
-            // Always try to update tiles from keyMetrics
-            updateCarouselTiles();
-            
-            // Only update charts if we have historical data
-            if (inflationData && inflationData.length > 0) {
-                updateCharts();
-            } else {
-                console.log('⚠️ No historical data available for charts');
-            }
-            
-            updateLastUpdated();
-        }
-
-        // Update carousel tiles
-        function updateCarouselTiles() {
-            console.log('📊 Updating tiles with metrics:', keyMetrics);
-            
-            if (!keyMetrics || Object.keys(keyMetrics).length === 0) {
-                console.log('No metrics available, skipping tile update');
-                return;
-            }
-            
-            const tiles = document.querySelectorAll('.tile .highlight');
-            const metricKeys = Object.keys(keyMetrics);
-            
-            console.log('Available metrics:', metricKeys);
-            
-            tiles.forEach((tile, index) => {
-                if (index < metricKeys.length) {
-                    const key = metricKeys[index];
-                    const value = keyMetrics[key];
-                    console.log(`Updating tile ${index + 1}: ${key} = ${value}`);
-                    
-                    tile.textContent = value;
-                    
-                    // Determine color based on value
-                    if (typeof value === 'string' && value.includes('%')) {
-                        const numValue = parseFloat(value.replace('%', '').replace(',', '.'));
-                        if (!isNaN(numValue)) {
-                            if (numValue > 0) {
-                                tile.className = 'highlight positive';
-                            } else if (numValue < 0) {
-                                tile.className = 'highlight negative';
-                            } else {
-                                tile.className = 'highlight neutral';
-                            }
-                        } else {
-                            tile.className = 'highlight neutral';
-                        }
-                    } else {
-                        tile.className = 'highlight positive';
-                    }
-                } else {
-                    tile.textContent = 'N/A';
-                    tile.className = 'highlight neutral';
-                }
-            });
-            
-            console.log('✅ Tiles updated successfully');
-        }
-
-        // Update charts with specific ranges
-        function updateCharts() {
-            console.log('📊 Updating charts...');
-            
-            if (inflationData.length === 0) {
-                console.log('No inflation data available');
-                return;
-            }
-            
-            // Update inflation chart with its own range
-            if (chartInstances.inflation) {
-                console.log('Updating inflation chart with range:', currentInflationRange);
-                const inflationFiltered = filterDataByRange(inflationData, currentInflationRange);
-                updateInflationChart(inflationFiltered);
-            }
-
-            // Update HICP chart with its own range - USE NEW FUNCTION NAME
-            if (chartInstances.hicp) {
-                console.log('Updating HICP chart with range:', currentHicpRange);
-                const hicpFiltered = filterDataByRange(inflationData, currentHicpRange);
-                updateHicpChartFixed(hicpFiltered); // CHANGED TO NEW FUNCTION NAME
-            }
-            
-            console.log('✅ Charts updated');
-        }
-
-        // Update inflation chart specifically
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="inflation-site-js.js"></script>
+</body>
+</html> inflation chart specifically
         function updateInflationChart(data) {
             const labels = data.map(d => d.date.substr(2)); // Show YY-MM format
             const values = data.map(d => d.inflation);
@@ -838,7 +610,74 @@
             chartInstances.inflation.data.datasets[0].data = values;
             chartInstances.inflation.update();
             
-            // Update stats
+                    <div class="chart-controls">
+                    <button data-range="6kk">6kk</button>
+                    <button data-range="1v">1v</button>
+                    <button data-range="3v">3v</button>
+                    <button data-range="5v" class="active">5v</button>
+                    <button data-range="Max">Max</button>
+                </div>
+                <div class="chart-placeholder">
+                    <div>
+                        <div class="loading" style="margin-right: 10px; display: inline-block;"></div>
+                        Ladataan kaavioita...
+                    </div>
+                    <canvas id="inflationChart" style="display: none;"></canvas>
+                </div>
+                <div class="chart-stats">
+                    <p><span class="percentage-badge">🔵</span> <span id="inflation-min">Ladataan...</span></p>
+                    <p><span class="percentage-badge">🟡</span> <span id="inflation-avg">Ladataan...</span></p>
+                    <p><span class="percentage-badge">🔴</span> <span id="inflation-max">Ladataan...</span></p>
+                </div>
+            </div>
+
+            <div class="chart">
+                <h2>HICP-indeksi</h2>
+                <div class="chart-controls">
+                    <button data-range="6kk">6kk</button>
+                    <button data-range="1v">1v</button>
+                    <button data-range="3v">3v</button>
+                    <button data-range="5v" class="active">5v</button>
+                    <button data-range="Max">Max</button>
+                </div>
+                <div class="chart-placeholder">
+                    <div>
+                        <div class="loading" style="margin-right: 10px; display: inline-block;"></div>
+                        Ladataan kaavioita...
+                    </div>
+                    <canvas id="hicpChart" style="display: none;"></canvas>
+                </div>
+                <div class="chart-stats">
+                    <p><span class="percentage-badge">📈</span> <span id="hicp-trend">Ladataan...</span></p>
+                    <p><span class="percentage-badge">📊</span> <span id="hicp-value">Ladataan...</span></p>
+                    <p><span class="percentage-badge">📅</span> <span id="hicp-change">Ladataan...</span></p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="inflation-site-js.js"></script>
+
+    <!-- Structured data for SEO -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Suomen inflaation seuranta",
+        "description": "Reaaliaikainen näkymä Suomen talouden hintakehitykseen",
+        "url": "https://jannejok.github.io/inflaatio/",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "Web browser",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "EUR"
+        }
+    }
+    </script>
+</body>
+</html> stats
             if (values.length > 0) {
                 const min = Math.min(...values);
                 const max = Math.max(...values);

@@ -1,387 +1,321 @@
-// Optimized JavaScript with performance improvements
 // Configuration
 const CONFIG = {
     SHEET_ID: '1tj7AbW3BkzmPZUd_pfrXmaHZrgpKgYwNljSoVoAObx8',
     API_KEY: 'AIzaSyDbeAW-uO-vEHuPdSJPVQwR_l1Axc7Cq7g',
     HISTORICAL_RANGE: 'Raakadata!A:F',
     METRICS_RANGE: 'Key Metrics!A:B',
-    CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
-    RETRY_ATTEMPTS: 3,
-    RETRY_DELAY: 1000
+    CACHE_DURATION: 5 * 60 * 1000
 };
 
-// Global variables with better memory management
+// Global variables
 let inflationData = [];
 let keyMetrics = {};
-let currentChartRange = '1v';
 let chartInstances = {};
 let dataCache = new Map();
 let lastFetch = 0;
 
-// Performance monitoring
-const performance = {
-    start: Date.now(),
-    marks: {},
-    
-    mark(name) {
-        this.marks[name] = Date.now();
-        if (typeof window !== 'undefined' && window.performance) {
-            window.performance.mark(name);
-        }
-    },
-    
-    measure(name, startMark, endMark) {
-        const start = this.marks[startMark] || this.start;
-        const end = this.marks[endMark] || Date.now();
-        const duration = end - start;
-        
-        console.log(`⏱️ ${name}: ${duration}ms`);
-        
-        if (typeof window !== 'undefined' && window.performance) {
-            window.performance.measure(name, startMark, endMark);
-        }
-        
-        return duration;
-    }
-};
+// Chart ranges for independent control
+let currentInflationRange = '5v';
+let currentHicpRange = '5v';
 
-// Optimized data fetching with caching and retry logic
-async function fetchInflationData(forceRefresh = false) {
+// Fetch inflation data with caching
+async function fetchInflationData() {
     const cacheKey = 'inflation_data';
     const now = Date.now();
     
-    // Check cache first
-    if (!forceRefresh && dataCache.has(cacheKey) && (now - lastFetch) < CONFIG.CACHE_DURATION) {
-        console.log('📦 Using cached data');
+    // Check cache
+    if (dataCache.has(cacheKey) && (now - lastFetch) < CONFIG.CACHE_DURATION) {
         const cachedData = dataCache.get(cacheKey);
-        inflationData = cachedData.historical;
-        keyMetrics = cachedData.metrics;
+        inflationData = cachedData.historical || [];
+        keyMetrics = cachedData.metrics || {};
         updateUI();
         return cachedData;
     }
-    
-    performance.mark('fetch-start');
-    
+
     try {
-        showLoadingState();
-        console.log('🔄 Fetching fresh data from Google Sheets...');
+        console.log('🔄 Fetching fresh data...');
         
-        // Use Promise.allSettled for better error handling
-        const [historicalResult, metricsResult] = await Promise.allSettled([
-            fetchWithRetry(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.HISTORICAL_RANGE}?key=${CONFIG.API_KEY}`),
-            fetchWithRetry(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.METRICS_RANGE}?key=${CONFIG.API_KEY}`)
+        const [historicalRes, metricsRes] = await Promise.all([
+            fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.HISTORICAL_RANGE}?key=${CONFIG.API_KEY}`),
+            fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.METRICS_RANGE}?key=${CONFIG.API_KEY}`)
         ]);
-        
-        // Handle partial failures gracefully
-        let historicalData = null;
-        let metricsData = null;
-        
-        if (historicalResult.status === 'fulfilled') {
-            historicalData = await historicalResult.value.json();
-        } else {
-            console.error('❌ Historical data fetch failed:', historicalResult.reason);
-        }
-        
-        if (metricsResult.status === 'fulfilled') {
-            metricsData = await metricsResult.value.json();
-        } else {
-            console.error('❌ Metrics data fetch failed:', metricsResult.reason);
-        }
-        
-        // Process data if available
-        if (historicalData?.values?.length > 0) {
+
+        const historicalData = historicalRes.ok ? await historicalRes.json() : null;
+        const metricsData = metricsRes.ok ? await metricsRes.json() : null;
+
+        // Process historical data
+        if (historicalData?.values?.length > 1) {
             inflationData = processHistoricalData(historicalData.values);
         }
-        
-        if (metricsData?.values?.length > 0) {
+
+        // Process metrics data
+        if (metricsData?.values?.length > 1) {
             keyMetrics = processKeyMetrics(metricsData.values);
         }
-        
-        // Cache the results
+
+        // Cache results
         const processedData = { historical: inflationData, metrics: keyMetrics };
         dataCache.set(cacheKey, processedData);
         lastFetch = now;
-        
-        performance.mark('fetch-end');
-        performance.measure('Data Fetch', 'fetch-start', 'fetch-end');
-        
+
         updateUI();
-        hideLoadingState();
-        
         return processedData;
-        
+
     } catch (error) {
-        console.error('💥 Error fetching data:', error);
+        console.error('❌ Data fetch error:', error);
         showErrorState(error.message);
         return null;
     }
 }
 
-// Retry mechanism with exponential backoff
-async function fetchWithRetry(url, attempts = CONFIG.RETRY_ATTEMPTS) {
-    for (let i = 0; i < attempts; i++) {
-        try {
-            const response = await fetch(url);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            return response;
-        } catch (error) {
-            console.warn(`🔄 Fetch attempt ${i + 1}/${attempts} failed:`, error.message);
-            
-            if (i === attempts - 1) {
-                throw error;
-            }
-            
-            // Exponential backoff
-            await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY * Math.pow(2, i)));
-        }
-    }
-}
-
-// Optimized data processing with better error handling
+// Process historical data
 function processHistoricalData(rawData) {
-    performance.mark('process-historical-start');
-    
-    if (!rawData || rawData.length < 2) {
-        console.warn('⚠️ Insufficient historical data');
-        return [];
-    }
-    
     const headers = rawData[0];
     const rows = rawData.slice(1);
     
-    // More robust column detection
-    const dateCol = findColumn(headers, ['kuukausi', 'date', 'month']);
-    const inflationCol = findColumn(headers, ['inflaatio %', 'inflation', 'rate']);
-    const indexCol = findColumn(headers, ['indeksi', 'index', 'hicp']);
+    const dateCol = headers.indexOf('Kuukausi');
+    const inflationCol = headers.indexOf('Inflaatio %');
+    const indexCol = headers.indexOf('Indeksi');
     
-    if (dateCol === -1 || inflationCol === -1) {
-        throw new Error('Required columns not found in historical data');
-    }
+    const processedData = rows.map(row => {
+        const dateStr = row[dateCol] || '';
+        const inflationStr = row[inflationCol] || '';
+        const indexStr = row[indexCol] || '';
+        
+        const inflationValue = parseFloat(inflationStr.replace('%', '').replace(',', '.').trim());
+        const indexValue = parseFloat(indexStr.replace(',', '.').trim());
+        
+        return {
+            date: dateStr,
+            inflation: isNaN(inflationValue) ? 0 : inflationValue,
+            hicp: isNaN(indexValue) ? 0 : indexValue
+        };
+    }).filter(item => item.date && !isNaN(item.inflation));
     
-    const processedData = rows.reduce((acc, row, index) => {
-        try {
-            const item = processDataRow(row, dateCol, inflationCol, indexCol);
-            if (item && item.date && !isNaN(item.inflation)) {
-                acc.push(item);
-            }
-        } catch (error) {
-            console.warn(`⚠️ Skipping row ${index + 2}:`, error.message);
-        }
-        return acc;
-    }, []);
-    
-    // Sort and calculate changes efficiently
-    processedData.sort((a, b) => new Date(a.date + '-01') - new Date(b.date + '-01'));
-    
-    // Calculate monthly changes in a single pass
-    for (let i = 1; i < processedData.length; i++) {
-        processedData[i].monthlyChange = processedData[i].inflation - processedData[i - 1].inflation;
-    }
-    
-    performance.mark('process-historical-end');
-    performance.measure('Historical Data Processing', 'process-historical-start', 'process-historical-end');
-    
-    console.log(`✅ Processed ${processedData.length} historical records`);
-    return processedData;
+    return processedData.sort((a, b) => new Date(a.date + '-01') - new Date(b.date + '-01'));
 }
 
-// Helper function for robust column detection
-function findColumn(headers, possibleNames) {
-    return headers.findIndex(header => 
-        possibleNames.some(name => 
-            header.toLowerCase().includes(name.toLowerCase())
-        )
-    );
-}
-
-// Helper function for processing individual data rows
-function processDataRow(row, dateCol, inflationCol, indexCol) {
-    const dateStr = row[dateCol]?.toString().trim() || '';
-    const inflationStr = row[inflationCol]?.toString().trim() || '';
-    const indexStr = indexCol !== -1 ? row[indexCol]?.toString().trim() || '' : '';
-    
-    if (!dateStr || !inflationStr) {
-        return null;
-    }
-    
-    // More robust number parsing
-    const inflationValue = parseNumericValue(inflationStr);
-    const indexValue = indexStr ? parseNumericValue(indexStr) : 0;
-    
-    return {
-        date: dateStr,
-        inflation: inflationValue,
-        hicp: indexValue,
-        monthlyChange: 0
-    };
-}
-
-// Robust numeric value parsing
-function parseNumericValue(str) {
-    if (!str) return 0;
-    
-    // Handle different formats: "1.5%", "1,5 %", "1.5", etc.
-    const cleaned = str
-        .replace(/[%\s]/g, '')  // Remove % and spaces
-        .replace(/,/g, '.')      // Replace comma with dot
-        .trim();
-    
-    const num = parseFloat(cleaned);
-    return isNaN(num) ? 0 : num;
-}
-
-// Optimized key metrics processing
+// Process key metrics
 function processKeyMetrics(rawData) {
-    performance.mark('process-metrics-start');
-    
-    if (!rawData || rawData.length < 2) {
-        console.warn('⚠️ Insufficient metrics data');
-        return {};
-    }
-    
     const metrics = {};
-    
-    // Skip header and process data rows
-    rawData.slice(1).forEach((row, index) => {
-        try {
-            if (row.length >= 2 && row[0] && row[1]) {
-                const key = row[0].toString().trim();
-                const value = parseNumericValue(row[1].toString());
-                
-                if (key && !isNaN(value)) {
-                    metrics[key] = value;
-                }
-            }
-        } catch (error) {
-            console.warn(`⚠️ Skipping metrics row ${index + 2}:`, error.message);
+    rawData.slice(1).forEach(row => {
+        if (row.length >= 2 && row[0] && row[1]) {
+            const key = row[0].toString().trim();
+            const value = row[1].toString().trim();
+            metrics[key] = value;
         }
     });
-    
-    performance.mark('process-metrics-end');
-    performance.measure('Metrics Processing', 'process-metrics-start', 'process-metrics-end');
-    
-    console.log(`✅ Processed ${Object.keys(metrics).length} key metrics`);
     return metrics;
 }
 
-// Optimized UI updates with batch DOM operations
+// Filter data based on time range
+function filterDataByRange(data, range) {
+    if (!data || data.length === 0) return [];
+    if (range === 'Max') return data;
+    
+    const now = new Date();
+    const startDate = new Date();
+    
+    switch (range) {
+        case '6kk':
+            startDate.setMonth(now.getMonth() - 6);
+            break;
+        case '1v':
+            startDate.setFullYear(now.getFullYear() - 1);
+            break;
+        case '3v':
+            startDate.setFullYear(now.getFullYear() - 3);
+            break;
+        case '5v':
+            startDate.setFullYear(now.getFullYear() - 5);
+            break;
+    }
+    
+    return data.filter(d => {
+        const itemDate = new Date(d.date + '-01');
+        return itemDate >= startDate;
+    });
+}
+
+// Update UI
 function updateUI() {
-    performance.mark('ui-update-start');
+    console.log('🔄 Updating UI...');
     
-    // Use requestAnimationFrame for smooth UI updates
-    requestAnimationFrame(() => {
-        updateCarouselTiles();
-        
-        // Only update charts if they're visible (intersection observer could be added)
-        if (isElementVisible(document.querySelector('.charts'))) {
-            updateCharts();
-        }
-        
-        updateLastUpdated();
-        
-        performance.mark('ui-update-end');
-        performance.measure('UI Update', 'ui-update-start', 'ui-update-end');
-    });
+    // Always try to update tiles from keyMetrics
+    updateCarouselTiles();
+    
+    // Only update charts if we have historical data
+    if (inflationData && inflationData.length > 0) {
+        updateCharts();
+    } else {
+        console.log('⚠️ No historical data available for charts');
+    }
+    
+    updateLastUpdated();
 }
 
-// Check if element is visible in viewport
-function isElementVisible(element) {
-    if (!element) return false;
-    
-    const rect = element.getBoundingClientRect();
-    return (
-        rect.top >= 0 &&
-        rect.left >= 0 &&
-        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
-        rect.right <= (window.innerWidth || document.documentElement.clientWidth)
-    );
-}
-
-// Optimized carousel tile updates with error handling
+// Update carousel tiles
 function updateCarouselTiles() {
+    console.log('📊 Updating tiles with metrics:', keyMetrics);
+    
     if (!keyMetrics || Object.keys(keyMetrics).length === 0) {
-        console.log('📝 No key metrics available for tiles');
+        console.log('No metrics available, skipping tile update');
         return;
     }
     
-    // Batch DOM updates
-    const updates = [];
-    const tileSelectors = [
-        '.tile:nth-child(1) .highlight',
-        '.tile:nth-child(2) .highlight', 
-        '.tile:nth-child(3) .highlight',
-        '.tile:nth-child(4) .highlight',
-        '.tile:nth-child(5) .highlight'
-    ];
+    const tiles = document.querySelectorAll('.tile .highlight');
+    const metricKeys = Object.keys(keyMetrics);
     
-    // Prepare all updates first
-    tileSelectors.forEach((selector, index) => {
-        const element = document.querySelector(selector);
-        if (!element) return;
-        
-        // Try to find matching metric value
-        const metricKeys = Object.keys(keyMetrics);
-        const value = index < metricKeys.length ? keyMetrics[metricKeys[index]] : null;
-        
-        if (value !== null && value !== undefined) {
-            updates.push({
-                element,
-                value: formatTileValue(value),
-                className: `highlight ${getValueClass(typeof value === 'number' ? value : 0)}`
-            });
+    console.log('Available metrics:', metricKeys);
+    
+    tiles.forEach((tile, index) => {
+        if (index < metricKeys.length) {
+            const key = metricKeys[index];
+            const value = keyMetrics[key];
+            console.log(`Updating tile ${index + 1}: ${key} = ${value}`);
+            
+            tile.textContent = value;
+            
+            // Determine color based on value
+            if (typeof value === 'string' && value.includes('%')) {
+                const numValue = parseFloat(value.replace('%', '').replace(',', '.'));
+                if (!isNaN(numValue)) {
+                    if (numValue > 0) {
+                        tile.className = 'highlight positive';
+                    } else if (numValue < 0) {
+                        tile.className = 'highlight negative';
+                    } else {
+                        tile.className = 'highlight neutral';
+                    }
+                } else {
+                    tile.className = 'highlight neutral';
+                }
+            } else {
+                tile.className = 'highlight positive';
+            }
         } else {
-            updates.push({
-                element,
-                value: 'N/A',
-                className: 'highlight neutral'
-            });
+            tile.textContent = 'N/A';
+            tile.className = 'highlight neutral';
         }
     });
     
-    // Apply all updates in a single batch
-    updates.forEach(update => {
-        update.element.textContent = update.value;
-        update.element.className = update.className;
-    });
-    
-    console.log(`✅ Updated ${updates.length} tiles`);
+    console.log('✅ Tiles updated successfully');
 }
 
-// Optimized chart updates with lazy loading
+// Update charts with specific ranges
 function updateCharts() {
-    if (!inflationData || inflationData.length === 0) {
-        console.log('📊 No historical data available for charts');
+    console.log('📊 Updating charts...');
+    
+    if (inflationData.length === 0) {
+        console.log('No inflation data available');
         return;
     }
     
-    const filteredData = filterDataByRange(inflationData, currentChartRange);
-    
-    // Update charts only if they exist and are visible
+    // Update inflation chart with its own range
     if (chartInstances.inflation) {
-        updateInflationChart(filteredData);
+        console.log('Updating inflation chart with range:', currentInflationRange);
+        const inflationFiltered = filterDataByRange(inflationData, currentInflationRange);
+        updateInflationChart(inflationFiltered);
     }
+
+    // Update HICP chart with its own range
+    if (chartInstances.hicp) {
+        console.log('Updating HICP chart with range:', currentHicpRange);
+        const hicpFiltered = filterDataByRange(inflationData, currentHicpRange);
+        updateHicpChart(hicpFiltered); // FIXED: Using correct function name
+    }
+    
+    console.log('✅ Charts updated');
+}
+
+// Update inflation chart specifically
+function updateInflationChart(data) {
+    if (!data || data.length === 0) {
+        console.log('No inflation data to update');
+        return;
+    }
+    
+    const labels = data.map(d => d.date.substr(2)); // Show YY-MM format
+    const values = data.map(d => d.inflation);
+    
+    chartInstances.inflation.data.labels = labels;
+    chartInstances.inflation.data.datasets[0].data = values;
+    chartInstances.inflation.update();
+    
+    // Update stats
+    if (values.length > 0) {
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
+        
+        updateElement('#inflation-min', `Minimi ${min.toFixed(1)}%`);
+        updateElement('#inflation-avg', `Keskiarvo ${avg.toFixed(1)}%`);
+        updateElement('#inflation-max', `Maksimi ${max.toFixed(1)}%`);
+    }
+}
+
+// Update HICP chart - CORRECTED VERSION
+function updateHicpChart(data) {
+    if (!data || data.length === 0) {
+        console.log('No HICP data to update');
+        return;
+    }
+    
+    console.log('Updating HICP chart with', data.length, 'data points');
+    
+    const labels = data.map(d => d.date.substr(2)); // Show YY-MM format
+    const values = data.map(d => d.hicp);
     
     if (chartInstances.hicp) {
-        updateHICPChart(filteredData);
+        chartInstances.hicp.data.labels = labels;
+        chartInstances.hicp.data.datasets[0].data = values;
+        chartInstances.hicp.update();
+        
+        // Update stats safely
+        const latest = data[data.length - 1];
+        if (latest) {
+            updateElement('#hicp-trend', `Nousutahti ${latest.inflation.toFixed(1)}%`);
+            updateElement('#hicp-value', `Indeksiarvo ${latest.hicp.toFixed(2)}`);
+            
+            // Simple yearly change - just use 12 months back if available
+            if (data.length >= 12) {
+                const twelveMonthsAgo = data[data.length - 12];
+                const yearlyChange = ((latest.hicp - twelveMonthsAgo.hicp) / twelveMonthsAgo.hicp) * 100;
+                updateElement('#hicp-change', `Vuosimuutos ${yearlyChange.toFixed(1)}%`);
+            } else {
+                updateElement('#hicp-change', `Vuosimuutos ${latest.inflation.toFixed(1)}%`);
+            }
+        }
+        
+        console.log('✅ HICP chart updated successfully');
     }
 }
 
-// Lazy chart initialization
+// Initialize charts
 function initializeCharts() {
-    performance.mark('chart-init-start');
-    
-    const chartConfig = getChartConfig();
-    
-    // Initialize Inflation Chart
+    const chartConfig = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: {
+                grid: { color: 'rgba(255, 255, 255, 0.1)', drawBorder: false },
+                ticks: { color: 'rgba(255, 255, 255, 0.7)' }
+            },
+            y: {
+                grid: { color: 'rgba(255, 255, 255, 0.1)', drawBorder: false },
+                ticks: { 
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    callback: function(value) { return value + '%'; }
+                }
+            }
+        }
+    };
+
+    // Initialize inflation chart
     const inflationCanvas = document.getElementById('inflationChart');
-    if (inflationCanvas && !chartInstances.inflation) {
-        hideChartLoading('inflation');
-        inflationCanvas.style.display = 'block';
-        
+    if (inflationCanvas) {
+        hideChartLoading(inflationCanvas);
         const ctx = inflationCanvas.getContext('2d');
         chartInstances.inflation = new Chart(ctx, {
             type: 'line',
@@ -393,23 +327,17 @@ function initializeCharts() {
                     backgroundColor: 'rgba(76, 165, 186, 0.1)',
                     borderWidth: 3,
                     tension: 0.4,
-                    fill: true,
-                    pointBackgroundColor: '#b8d4e3',
-                    pointBorderColor: '#2a7ba0',
-                    pointRadius: 3,
-                    pointHoverRadius: 6
+                    fill: true
                 }]
             },
             options: chartConfig
         });
     }
-    
-    // Initialize HICP Chart
+
+    // Initialize HICP chart
     const hicpCanvas = document.getElementById('hicpChart');
-    if (hicpCanvas && !chartInstances.hicp) {
-        hideChartLoading('hicp');
-        hicpCanvas.style.display = 'block';
-        
+    if (hicpCanvas) {
+        hideChartLoading(hicpCanvas);
         const ctx = hicpCanvas.getContext('2d');
         chartInstances.hicp = new Chart(ctx, {
             type: 'line',
@@ -421,11 +349,7 @@ function initializeCharts() {
                     backgroundColor: 'rgba(56, 145, 166, 0.1)',
                     borderWidth: 3,
                     tension: 0.4,
-                    fill: true,
-                    pointBackgroundColor: '#b8d4e3',
-                    pointBorderColor: '#1e5a7d',
-                    pointRadius: 3,
-                    pointHoverRadius: 6
+                    fill: true
                 }]
             },
             options: {
@@ -436,214 +360,31 @@ function initializeCharts() {
                         ...chartConfig.scales.y,
                         ticks: {
                             ...chartConfig.scales.y.ticks,
-                            callback: function(value) {
-                                return value.toFixed(0);
-                            }
+                            callback: function(value) { return value.toFixed(0); }
                         }
                     }
                 }
             }
         });
     }
-    
-    performance.mark('chart-init-end');
-    performance.measure('Chart Initialization', 'chart-init-start', 'chart-init-end');
-    
+
     // Update charts with current data
     if (inflationData.length > 0) {
         updateCharts();
     }
 }
 
-// Get optimized chart configuration
-function getChartConfig() {
-    return {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: {
-            intersect: false,
-            mode: 'index'
-        },
-        plugins: {
-            legend: {
-                display: false
-            },
-            tooltip: {
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                titleColor: '#1a2847',
-                bodyColor: '#6b7280',
-                borderColor: 'rgba(42, 123, 160, 0.3)',
-                borderWidth: 1,
-                cornerRadius: 8,
-                displayColors: false,
-                padding: 12,
-                animation: {
-                    duration: 200
-                }
-            }
-        },
-        scales: {
-            x: {
-                grid: {
-                    color: 'rgba(255, 255, 255, 0.1)',
-                    drawBorder: false
-                },
-                ticks: {
-                    color: 'rgba(255, 255, 255, 0.7)',
-                    maxRotation: 45,
-                    minRotation: 0,
-                    font: {
-                        size: window.innerWidth < 400 ? 9 : 11
-                    }
-                }
-            },
-            y: {
-                grid: {
-                    color: 'rgba(255, 255, 255, 0.1)',
-                    drawBorder: false
-                },
-                ticks: {
-                    color: 'rgba(255, 255, 255, 0.7)',
-                    callback: function(value) {
-                        return value + '%';
-                    },
-                    font: {
-                        size: window.innerWidth < 400 ? 9 : 11
-                    }
-                }
-            }
-        },
-        animation: {
-            duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 750,
-            easing: 'easeInOutQuart'
-        },
-        layout: {
-            padding: {
-                left: 0,
-                right: 0,
-                top: 10,
-                bottom: 0
-            }
-        }
-    };
-}
-
-// Optimized chart update functions
-function updateInflationChart(data) {
-    if (!chartInstances.inflation || !data.length) return;
-    
-    const labels = data.map(d => formatDateForChart(d.date));
-    const values = data.map(d => d.inflation);
-    
-    chartInstances.inflation.data.labels = labels;
-    chartInstances.inflation.data.datasets[0].data = values;
-    chartInstances.inflation.update('none'); // Skip animation for better performance
-    
-    updateChartStats('inflation', values);
-}
-
-function updateHICPChart(data) {
-    if (!chartInstances.hicp || !data.length) return;
-    
-    const labels = data.map(d => formatDateForChart(d.date));
-    const values = data.map(d => d.hicp);
-    
-    chartInstances.hicp.data.labels = labels;
-    chartInstances.hicp.data.datasets[0].data = values;
-    chartInstances.hicp.update('none'); // Skip animation for better performance
-    
-    updateChartStats('hicp', values, data);
-}
-
-// Rest of the utility functions (optimized)
-function filterDataByRange(data, range) {
-    if (!data || data.length === 0) return [];
-    
-    if (range === 'Max') return data;
-    
-    const now = new Date();
-    const startDate = new Date();
-    
-    const periods = {
-        '6kk': () => startDate.setMonth(now.getMonth() - 6),
-        '1v': () => startDate.setFullYear(now.getFullYear() - 1),
-        '3v': () => startDate.setFullYear(now.getFullYear() - 3),
-        '5v': () => startDate.setFullYear(now.getFullYear() - 5)
-    };
-    
-    periods[range]?.();
-    
-    return data.filter(d => {
-        const itemDate = new Date(d.date + '-01');
-        return itemDate >= startDate;
-    });
-}
-
-function formatDateForChart(dateString) {
-    const [year, month] = dateString.split('-');
-    return `${month}/${year.slice(2)}`;
-}
-
-function formatTileValue(value) {
-    if (typeof value === 'number') {
-        const symbol = value > 0 ? '▲' : value < 0 ? '▼' : '';
-        return `${symbol} ${Math.abs(value).toFixed(1)}%`;
+// Hide chart loading indicator
+function hideChartLoading(canvas) {
+    const placeholder = canvas.closest('.chart-placeholder');
+    const loadingDiv = placeholder.querySelector('div');
+    if (loadingDiv) {
+        loadingDiv.style.display = 'none';
     }
-    return value.toString();
+    canvas.style.display = 'block';
 }
 
-function getValueClass(value) {
-    if (value > 0) return 'positive';
-    if (value < 0) return 'negative';
-    return 'neutral';
-}
-
-// Loading and error state management
-function showLoadingState() {
-    document.querySelectorAll('.tile .highlight').forEach(el => {
-        if (!el.querySelector('.loading')) {
-            el.innerHTML = '<span class="loading"></span>';
-            el.className = 'highlight neutral';
-        }
-    });
-}
-
-function hideLoadingState() {
-    // Loading states are replaced when data updates
-}
-
-function hideChartLoading(chartType) {
-    const chart = document.querySelector(`[data-chart="${chartType}"]`);
-    if (chart) {
-        const loading = chart.querySelector('.chart-loading');
-        if (loading) {
-            loading.style.display = 'none';
-        }
-    }
-}
-
-function updateChartStats(chartType, values, data = null) {
-    if (!values || values.length === 0) return;
-    
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
-    
-    if (chartType === 'inflation') {
-        updateElement('#inflation-min', `Minimi ${min.toFixed(1)}%`);
-        updateElement('#inflation-avg', `Keskiarvo ${avg.toFixed(1)}%`);
-        updateElement('#inflation-max', `Maksimi ${max.toFixed(1)}%`);
-    } else if (chartType === 'hicp' && data && data.length > 0) {
-        const latest = data[data.length - 1];
-        updateElement('#hicp-trend', `Nousutahti ${latest.inflation > 0 ? '+' : ''}${latest.inflation.toFixed(1)}%`);
-        updateElement('#hicp-value', `Indeksiarvo ${latest.hicp.toFixed(2)}`);
-        
-        const yearAgo = findYearAgoData(data, latest);
-        const yearlyChange = yearAgo ? ((latest.hicp - yearAgo.hicp) / yearAgo.hicp) * 100 : 0;
-        updateElement('#hicp-change', `Vuosimuutos ${yearlyChange > 0 ? '+' : ''}${yearlyChange.toFixed(1)}%`);
-    }
-}
-
+// Update element text
 function updateElement(selector, text) {
     const element = document.querySelector(selector);
     if (element) {
@@ -651,22 +392,9 @@ function updateElement(selector, text) {
     }
 }
 
-function findYearAgoData(data, latest) {
-    const latestDateParts = latest.date.split('-');
-    const latestYear = parseInt(latestDateParts[0]);
-    const latestMonth = parseInt(latestDateParts[1]);
-    
-    return data.find(d => {
-        const dataDateParts = d.date.split('-');
-        const dataYear = parseInt(dataDateParts[0]);
-        const dataMonth = parseInt(dataDateParts[1]);
-        
-        return (latestYear - dataYear === 1) && (latestMonth === dataMonth);
-    });
-}
-
+// Show error state
 function showErrorState(message) {
-    console.error('💥 Error state:', message);
+    console.error('💥 Error:', message);
     
     // Update tiles with error state
     document.querySelectorAll('.tile .highlight').forEach(el => {
@@ -685,19 +413,29 @@ function showErrorState(message) {
     errorElement.innerHTML = `
         <strong>Tietojen lataus epäonnistui</strong><br>
         <small>${message}</small><br>
-        <button onclick="retryDataFetch()">Yritä uudelleen</button>
+        <button onclick="retryDataFetch()" style="
+            margin-top: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(239,68,68,0.2);
+            border: 1px solid rgba(239,68,68,0.5);
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+        ">Yritä uudelleen</button>
     `;
 }
 
+// Retry data fetch
 function retryDataFetch() {
     const errorElement = document.querySelector('.error-message');
     if (errorElement) errorElement.remove();
     
     // Clear cache and force refresh
     dataCache.clear();
-    fetchInflationData(true);
+    fetchInflationData();
 }
 
+// Update last updated timestamp
 function updateLastUpdated() {
     const now = new Date().toLocaleString('fi-FI');
     let element = document.querySelector('.last-updated');
@@ -711,107 +449,124 @@ function updateLastUpdated() {
     element.textContent = `Päivitetty: ${now}`;
 }
 
-// Enhanced DOM loaded event with performance monitoring
-document.addEventListener('DOMContentLoaded', () => {
-    performance.mark('dom-ready');
-    console.log('🚀 DOM loaded, initializing application...');
+// Chart time range handling with independent controls
+function setupChartControls() {
+    // Get both chart control sections
+    const charts = document.querySelectorAll('.chart');
     
-    // Carousel functionality with throttling
+    charts.forEach((chart, chartIndex) => {
+        const controls = chart.querySelectorAll('.chart-controls button');
+        const chartType = chartIndex === 0 ? 'inflation' : 'hicp';
+        
+        controls.forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Remove active from siblings in this chart only
+                this.parentElement.querySelectorAll('button').forEach(b => {
+                    b.classList.remove('active');
+                });
+                
+                // Add active to clicked button
+                this.classList.add('active');
+                
+                // Get the selected range
+                const selectedRange = this.getAttribute('data-range');
+                
+                // Update the appropriate range variable
+                if (chartType === 'inflation') {
+                    currentInflationRange = selectedRange;
+                    console.log('📊 Inflation chart range changed to:', selectedRange);
+                    
+                    // Update only inflation chart
+                    if (chartInstances.inflation && inflationData.length > 0) {
+                        const filteredData = filterDataByRange(inflationData, currentInflationRange);
+                        updateInflationChart(filteredData);
+                    }
+                } else {
+                    currentHicpRange = selectedRange;
+                    console.log('📊 HICP chart range changed to:', selectedRange);
+                    
+                    // Update only HICP chart
+                    if (chartInstances.hicp && inflationData.length > 0) {
+                        const filteredData = filterDataByRange(inflationData, currentHicpRange);
+                        updateHicpChart(filteredData); // FIXED: Using correct function name
+                    }
+                }
+            });
+        });
+    });
+}
+
+// Carousel functionality
+function setupCarousel() {
     const carousel = document.querySelector('.carousel-inner');
     const leftArrow = document.querySelector('.arrow-left');
     const rightArrow = document.querySelector('.arrow-right');
 
     if (carousel && leftArrow && rightArrow) {
-        let isScrolling = false;
-        
-        const throttledScroll = (direction) => {
-            if (isScrolling) return;
-            isScrolling = true;
-            
-            const scrollAmount = direction === 'left' ? -330 : 330;
-            carousel.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-            
-            setTimeout(() => { isScrolling = false; }, 500);
-        };
-        
-        leftArrow.addEventListener('click', () => throttledScroll('left'));
-        rightArrow.addEventListener('click', () => throttledScroll('right'));
-    }
+        leftArrow.addEventListener('click', () => {
+            carousel.scrollBy({ left: -330, behavior: 'smooth' });
+        });
 
-    // Enhanced chart time range buttons with better UX
-    document.querySelectorAll('.chart-controls button').forEach(btn => {
-        btn.addEventListener('click', function() {
-            // Remove active state from siblings
-            this.parentElement.querySelectorAll('button').forEach(b => {
-                b.classList.remove('active');
-                b.setAttribute('aria-selected', 'false');
-            });
-            
-            // Add active state to clicked button
-            this.classList.add('active');
-            this.setAttribute('aria-selected', 'true');
-            
-            // Update current range and refresh charts
-            currentChartRange = this.textContent;
-            if (inflationData.length > 0) {
-                updateCharts();
+        rightArrow.addEventListener('click', () => {
+            carousel.scrollBy({ left: 330, behavior: 'smooth' });
+        });
+    }
+}
+
+// Navigation smooth scrolling
+function setupNavigation() {
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
             }
-            
-            console.log(`📊 Chart range changed to: ${currentChartRange}`);
         });
     });
+}
 
-    // Initialize first button as active in each chart
-    document.querySelectorAll('.chart-controls').forEach(controls => {
-        const secondBtn = controls.children[1]; // Default to "1v"
-        if (secondBtn) {
-            secondBtn.classList.add('active');
-            secondBtn.setAttribute('aria-selected', 'true');
-            currentChartRange = secondBtn.textContent;
+// Initialize everything when DOM is ready
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 Initializing application...');
+    
+    // Setup UI interactions immediately
+    setupNavigation();
+    setupCarousel();
+    setupChartControls();
+    
+    try {
+        // Load Chart.js if not already loaded
+        if (typeof Chart === 'undefined') {
+            console.log('📊 Loading Chart.js...');
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
         }
-    });
-
-    // Initialize charts when Chart.js is available
-    if (typeof Chart !== 'undefined') {
+        
+        // Initialize charts
         initializeCharts();
         
-        // Initial data fetch
-        fetchInflationData();
+        // Fetch initial data
+        await fetchInflationData();
         
-        // Set up auto-refresh with exponential backoff
-        let refreshInterval = CONFIG.CACHE_DURATION;
-        const setupAutoRefresh = () => {
-            setTimeout(async () => {
-                try {
-                    await fetchInflationData();
-                    refreshInterval = CONFIG.CACHE_DURATION; // Reset on success
-                } catch (error) {
-                    refreshInterval = Math.min(refreshInterval * 2, 30 * 60 * 1000); // Max 30 min
-                }
-                setupAutoRefresh();
-            }, refreshInterval);
-        };
+        // Set up auto-refresh every 5 minutes
+        setInterval(fetchInflationData, CONFIG.CACHE_DURATION);
         
-        setupAutoRefresh();
-    } else {
-        console.warn('⚠️ Chart.js not loaded yet, charts will initialize when available');
+        console.log('✅ Application initialized successfully');
+        
+    } catch (error) {
+        console.error('💥 Initialization failed:', error);
+        showErrorState('Sovelluksen alustus epäonnistui: ' + error.message);
     }
-    
-    performance.mark('app-ready');
-    performance.measure('App Initialization', 'dom-ready', 'app-ready');
-    
-    console.log('✅ Application initialized successfully');
 });
 
-// Cleanup on page unload
-window.addEventListener('beforeunload', () => {
-    // Clear intervals and destroy chart instances
-    Object.values(chartInstances).forEach(chart => {
-        if (chart && typeof chart.destroy === 'function') {
-            chart.destroy();
-        }
-    });
-    
-    // Clear caches
-    dataCache.clear();
-});
+// Expose retry function globally
+window.retryDataFetch = retryDataFetch;
