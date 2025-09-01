@@ -740,27 +740,67 @@
 
         // Update UI
         function updateUI() {
+            console.log('🔄 Updating UI...');
+            
+            // Always try to update tiles from keyMetrics
             updateCarouselTiles();
-            updateCharts();
+            
+            // Only update charts if we have historical data
+            if (inflationData && inflationData.length > 0) {
+                updateCharts();
+            } else {
+                console.log('⚠️ No historical data available for charts');
+            }
+            
             updateLastUpdated();
         }
 
         // Update carousel tiles
         function updateCarouselTiles() {
+            console.log('📊 Updating tiles with metrics:', keyMetrics);
+            
+            if (!keyMetrics || Object.keys(keyMetrics).length === 0) {
+                console.log('No metrics available, skipping tile update');
+                return;
+            }
+            
             const tiles = document.querySelectorAll('.tile .highlight');
             const metricKeys = Object.keys(keyMetrics);
+            
+            console.log('Available metrics:', metricKeys);
             
             tiles.forEach((tile, index) => {
                 if (index < metricKeys.length) {
                     const key = metricKeys[index];
                     const value = keyMetrics[key];
+                    console.log(`Updating tile ${index + 1}: ${key} = ${value}`);
+                    
                     tile.textContent = value;
-                    tile.className = 'highlight positive';
+                    
+                    // Determine color based on value
+                    if (typeof value === 'string' && value.includes('%')) {
+                        const numValue = parseFloat(value.replace('%', '').replace(',', '.'));
+                        if (!isNaN(numValue)) {
+                            if (numValue > 0) {
+                                tile.className = 'highlight positive';
+                            } else if (numValue < 0) {
+                                tile.className = 'highlight negative';
+                            } else {
+                                tile.className = 'highlight neutral';
+                            }
+                        } else {
+                            tile.className = 'highlight neutral';
+                        }
+                    } else {
+                        tile.className = 'highlight positive';
+                    }
                 } else {
                     tile.textContent = 'N/A';
                     tile.className = 'highlight neutral';
                 }
             });
+            
+            console.log('✅ Tiles updated successfully');
         }
 
         // Update charts with specific ranges
