@@ -1,3 +1,18 @@
+// Configuration for Google Sheets
+const CONFIG = {
+    SHEET_ID: '1tj7AbW3BkzmPZUd_pfrXmaHZrgpKgYwNljSoVoAObx8',
+    API_KEY: 'AIzaSyDbeAW-uO-vEHuPdSJPVQwR_l1Axc7Cq7g',
+    HISTORICAL_RANGE: 'Raakadata!A:F',
+    METRICS_RANGE: 'Key Metrics!A:B',
+    CACHE_DURATION: 5 * 60 * 1000
+};
+
+// Global variables
+let inflationData = [];
+let keyMetrics = {};
+let dataCache = new Map();
+let lastFetch = 0;
+
 document.addEventListener('DOMContentLoaded', () => {
     // Store chart instances globally for updates
     let inflationChart = null;
@@ -140,9 +155,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize first button as active in each chart
     document.querySelectorAll('.chart-controls').forEach(controls => {
-        const maxBtn = Array.from(controls.querySelectorAll('button')).find(btn => btn.textContent === 'Max');
-        if (maxBtn) {
-            maxBtn.classList.add('active');
+        const defaultBtn = Array.from(controls.querySelectorAll('button')).find(btn => btn.textContent === '5v');
+        if (defaultBtn) {
+            defaultBtn.classList.add('active');
         }
     });
 
@@ -284,65 +299,193 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Global function to be called when Google Sheets data is loaded
-    // This preserves your existing Google Sheets data fetching logic
-    window.updateInflationChart = function(labels, data) {
-        console.log('Updating inflation chart with Google Sheets data');
+    // Fetch and process Google Sheets data
+    async function fetchInflationData() {
+        const cacheKey = 'inflation_data';
+        const now = Date.now();
         
-        if (!inflationChart) {
-            console.log('Inflation chart not initialized yet');
+        // Check cache
+        if (dataCache.has(cacheKey) && (now - lastFetch) < CONFIG.CACHE_DURATION) {
+            const cachedData = dataCache.get(cacheKey);
+            inflationData = cachedData.historical || [];
+            keyMetrics = cachedData.metrics || {};
+            updateChartsWithData();
+            return cachedData;
+        }
+
+        try {
+            console.log('🔄 Fetching data from Google Sheets...');
+            
+            const [historicalRes, metricsRes] = await Promise.all([
+                fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.HISTORICAL_RANGE}?key=${CONFIG.API_KEY}`),
+                fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.METRICS_RANGE}?key=${CONFIG.API_KEY}`)
+            ]);
+
+            const historicalData = historicalRes.ok ? await historicalRes.json() : null;
+            const metricsData = metricsRes.ok ? await metricsRes.json() : null;
+
+            // Process historical data
+            if (historicalData?.values?.length > 1) {
+                inflationData = processHistoricalData(historicalData.values);
+            }
+
+            // Process metrics data
+            if (metricsData?.values?.length > 1) {
+                keyMetrics = processKeyMetrics(metricsData.values);
+                updateTiles();
+            }
+
+            // Cache results
+            const processedData = { historical: inflationData, metrics: keyMetrics };
+            dataCache.set(cacheKey, processedData);
+            lastFetch = now;
+
+            // Update charts with fetched data
+            updateChartsWithData();
+            
+            return processedData;
+
+        } catch (error) {
+            console.error('❌ Data fetch error:', error);
+            return null;
+        }
+    }
+
+    // Process historical data from Google Sheets
+    function processHistoricalData(rawData) {
+        const headers = rawData[0];
+        const rows = rawData.slice(1);
+        
+        const dateCol = headers.indexOf('Kuukausi');
+        const inflationCol = headers.indexOf('Inflaatio %');
+        const indexCol = headers.indexOf('Indeksi');
+        
+        const processedData = rows.map(row => {
+            const dateStr = row[dateCol] || '';
+            const inflationStr = row[inflationCol] || '';
+            const indexStr = row[indexCol] || '';
+            
+            const inflationValue = parseFloat(inflationStr.replace('%', '').replace(',', '.').trim());
+            const indexValue = parseFloat(indexStr.replace(',', '.').trim());
+            
+            return {
+                date: dateStr,
+                inflation: isNaN(inflationValue) ? 0 : inflationValue,
+                hicp: isNaN(indexValue) ? 0 : indexValue
+            };
+        }).filter(item => item.date && !isNaN(item.inflation));
+        
+        return processedData.sort((a, b) => new Date(a.date + '-01') - new Date(b.date + '-01'));
+    }
+
+    // Process key metrics
+    function processKeyMetrics(rawData) {
+        const metrics = {};
+        rawData.slice(1).forEach(row => {
+            if (row.length >= 2 && row[0] && row[1]) {
+                const key = row[0].toString().trim();
+                const value = row[1].toString().trim();
+                metrics[key] = value;
+            }
+        });
+        return metrics;
+    }
+
+    // Update tiles with metrics
+    function updateTiles() {
+        if (!keyMetrics || Object.keys(keyMetrics).length === 0) return;
+        
+        const tiles = document.querySelectorAll('.tile .highlight');
+        const metricKeys = Object.keys(keyMetrics);
+        
+        tiles.forEach((tile, index) => {
+            if (index < metricKeys.length) {
+                const value = keyMetrics[metricKeys[index]];
+                tile.textContent = value;
+                
+                // Determine color based on value
+                if (typeof value === 'string' && value.includes('%')) {
+                    const numValue = parseFloat(value.replace('%', '').replace(',', '.'));
+                    if (!isNaN(numValue)) {
+                        if (numValue > 0) {
+                            tile.className = 'highlight positive';
+                        } else if (numValue < 0) {
+                            tile.className = 'highlight negative';
+                        } else {
+                            tile.className = 'highlight neutral';
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Update charts with fetched data
+    function updateChartsWithData() {
+        if (!inflationData || inflationData.length === 0) {
+            console.log('No data to update charts');
             return;
         }
-        
-        // Store the full data
-        fullInflationData = {
-            labels: labels,
-            datasets: [{
-                data: data,
-                borderColor: '#4ca5ba',
-                backgroundColor: 'rgba(76, 165, 186, 0.1)',
-                borderWidth: 3,
-                tension: 0.4,
-                fill: true,
-                pointBackgroundColor: '#b8d4e3',
-                pointBorderColor: '#2a7ba0',
-                pointRadius: 4,
-                pointHoverRadius: 6
-            }]
-        };
-        
-        // Update chart with full data (Max view by default)
-        inflationChart.data = fullInflationData;
-        inflationChart.update();
-    };
+
+        console.log('📊 Updating charts with', inflationData.length, 'data points');
+
+        // Prepare data for charts
+        const labels = inflationData.map(d => d.date.substr(2)); // YY-MM format
+        const inflationValues = inflationData.map(d => d.inflation);
+        const hicpValues = inflationData.map(d => d.hicp);
+
+        // Update inflation chart
+        if (inflationChart) {
+            fullInflationData = {
+                labels: labels,
+                datasets: [{
+                    data: inflationValues,
+                    borderColor: '#4ca5ba',
+                    backgroundColor: 'rgba(76, 165, 186, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#b8d4e3',
+                    pointBorderColor: '#2a7ba0',
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            };
+
+            // Apply current filter (default 5v)
+            const activeBtn = document.querySelector('#analytiikka .chart:first-child .chart-controls button.active');
+            const range = activeBtn ? activeBtn.textContent : '5v';
+            updateChart(inflationChart, fullInflationData, range);
+        }
+
+        // Update HICP chart
+        if (hicpChart) {
+            fullHicpData = {
+                labels: labels,
+                datasets: [{
+                    data: hicpValues,
+                    borderColor: '#3891a6',
+                    backgroundColor: 'rgba(56, 145, 166, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#b8d4e3',
+                    pointBorderColor: '#1e5a7d',
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            };
+
+            // Apply current filter (default 5v)
+            const activeBtn = document.querySelector('#analytiikka .chart:last-child .chart-controls button.active');
+            const range = activeBtn ? activeBtn.textContent : '5v';
+            updateChart(hicpChart, fullHicpData, range);
+        }
+    }
+
+    // Fetch data on load
+    fetchInflationData();
     
-    window.updateHicpChart = function(labels, data) {
-        console.log('Updating HICP chart with Google Sheets data');
-        
-        if (!hicpChart) {
-            console.log('HICP chart not initialized yet');
-            return;
-        }
-        
-        // Store the full data
-        fullHicpData = {
-            labels: labels,
-            datasets: [{
-                data: data,
-                borderColor: '#3891a6',
-                backgroundColor: 'rgba(56, 145, 166, 0.1)',
-                borderWidth: 3,
-                tension: 0.4,
-                fill: true,
-                pointBackgroundColor: '#b8d4e3',
-                pointBorderColor: '#1e5a7d',
-                pointRadius: 4,
-                pointHoverRadius: 6
-            }]
-        };
-        
-        // Update chart with full data (Max view by default)
-        hicpChart.data = fullHicpData;
-        hicpChart.update();
-    };
+    // Set up auto-refresh every 5 minutes
+    setInterval(fetchInflationData, CONFIG.CACHE_DURATION);
 });
