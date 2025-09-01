@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (carousel && leftArrow && rightArrow) {
         leftArrow.addEventListener('click', () => {
-            carousel.scrollBy({ left: -330, behavior: 'smooth' }); // Adjusted to tile width (300px) + gap (1.5rem ≈ 24px)
+            carousel.scrollBy({ left: -330, behavior: 'smooth' });
         });
 
         rightArrow.addEventListener('click', () => {
@@ -28,67 +28,96 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Initialize first button as active in each chart
-    document.querySelectorAll('.chart-controls').forEach(controls => {
-        const firstBtn = controls.querySelector('button');
-        if (firstBtn) {
-            firstBtn.classList.add('active');
-        }
-    });
-
     // Initialize Chart.js charts if available
     if (typeof Chart !== 'undefined') {
         initializeCharts();
     }
 });
 
-function initializeCharts() {
-    // Full historical data for both charts
+async function initializeCharts() {
+    // Fetch full historical data from Google Sheets
+    try {
+        // Replace with your actual Google Sheets URL
+        const response = await fetch('https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/gviz/tq?tqx=out:csv');
+        const csvData = await response.text();
+        
+        // Parse CSV data
+        const { fullInflationData, fullHICPData } = parseHistoricalData(csvData);
+
+        setupCharts(fullInflationData, fullHICPData);
+    } catch (error) {
+        console.error('Error fetching historical data:', error);
+        
+        // Fallback to hardcoded data if fetch fails
+        const fullInflationData = {
+            labels: [
+                '1997-01', '1997-07', '1998-01', '1998-07', 
+                '1999-01', '1999-07', '2000-01', '2000-07',
+                // ... continue with full historical data
+                '2024-01', '2024-07', '2025-01'
+            ],
+            data: [
+                1.4, 1.2, 1.5, 1.3, 
+                1.6, 1.4, 1.7, 1.5,
+                // ... continue with full historical inflation data
+                2.0, 1.8, 1.9
+            ]
+        };
+
+        const fullHICPData = {
+            labels: [
+                '1997-01', '1997-07', '1998-01', '1998-07', 
+                '1999-01', '1999-07', '2000-01', '2000-07',
+                // ... continue with full historical data
+                '2024-01', '2024-07', '2025-01'
+            ],
+            data: [
+                100.5, 101.0, 101.5, 102.0, 
+                102.5, 103.0, 103.5, 104.0,
+                // ... continue with full historical HICP data
+                119.0, 119.6, 119.9
+            ]
+        };
+
+        setupCharts(fullInflationData, fullHICPData);
+    }
+}
+
+function parseHistoricalData(csvData) {
+    // Implement CSV parsing logic
+    // This is a placeholder - you'll need to adjust based on your actual CSV structure
+    const rows = csvData.split('\n').map(row => row.split(','));
+    
     const fullInflationData = {
-        labels: [
-            '2020-01', '2020-04', '2020-07', '2020-10', 
-            '2021-01', '2021-04', '2021-07', '2021-10', 
-            '2022-01', '2022-04', '2022-07', '2022-10', 
-            '2023-01', '2023-04', '2023-07', '2023-10', 
-            '2024-01', '2024-04', '2024-07', '2024-10', 
-            '2025-01'
-        ],
-        data: [
-            1.1, 0.5, 0.4, 0.8, 
-            1.4, 1.9, 2.1, 2.6, 
-            5.2, 7.1, 8.4, 9.1, 
-            8.5, 6.3, 5.0, 3.5, 
-            2.5, 2.0, 1.8, 1.9, 
-            1.9
-        ]
+        labels: [],
+        data: []
     };
 
     const fullHICPData = {
-        labels: [
-            '2020-01', '2020-04', '2020-07', '2020-10', 
-            '2021-01', '2021-04', '2021-07', '2021-10', 
-            '2022-01', '2022-04', '2022-07', '2022-10', 
-            '2023-01', '2023-04', '2023-07', '2023-10', 
-            '2024-01', '2024-04', '2024-07', '2024-10', 
-            '2025-01'
-        ],
-        data: [
-            104.5, 104.2, 104.0, 104.3, 
-            105.1, 105.6, 106.2, 106.8, 
-            110.2, 112.5, 114.7, 116.3, 
-            115.0, 116.0, 117.0, 118.0, 
-            118.5, 119.0, 119.3, 119.6, 
-            119.9
-        ]
+        labels: [],
+        data: []
     };
 
+    // Assuming CSV has columns: Date, Inflation, HICP
+    rows.forEach((row, index) => {
+        if (index > 0) { // Skip header
+            fullInflationData.labels.push(row[0]);
+            fullInflationData.data.push(parseFloat(row[1]));
+            
+            fullHICPData.labels.push(row[0]);
+            fullHICPData.data.push(parseFloat(row[2]));
+        }
+    });
+
+    return { fullInflationData, fullHICPData };
+}
+
+function setupCharts(fullInflationData, fullHICPData) {
     const chartConfig = {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            legend: {
-                display: false
-            },
+            legend: { display: false },
             tooltip: {
                 backgroundColor: 'rgba(255, 255, 255, 0.95)',
                 titleColor: '#1a2847',
@@ -141,38 +170,52 @@ function initializeCharts() {
         }
     };
 
-    // Global chart instances to update
-    let inflationChart, hicpChart;
-
     // Function to get chart data for different time ranges
     function getChartDataRange(data, timeRange) {
-        const getRangeStartIndex = (range) => {
-            switch(range) {
-                case '6kk': return data.labels.length - 6;
-                case '1v': return data.labels.length - 12;
-                case '3v': return data.labels.length - 36;
-                case '5v': return data.labels.length - 60;
-                default: return 0; // Max/full range
-            }
+        const yearsToShow = {
+            '6kk': 0.5,
+            '1v': 1,
+            '3v': 3,
+            '5v': 5,
+            'Max': Infinity
         };
 
-        const startIndex = getRangeStartIndex(timeRange);
-        return {
-            labels: data.labels.slice(startIndex),
-            data: data.data.slice(startIndex)
+        const currentDate = new Date('2025-01-01');
+        const years = yearsToShow[timeRange];
+        
+        // Filter data based on time range
+        const filteredData = {
+            labels: [],
+            data: []
         };
+
+        for (let i = 0; i < data.labels.length; i++) {
+            const dataDate = new Date(data.labels[i]);
+            const diffYears = (currentDate - dataDate) / (1000 * 60 * 60 * 24 * 365.25);
+            
+            if (diffYears <= years) {
+                filteredData.labels.push(data.labels[i]);
+                filteredData.data.push(data.data[i]);
+            }
+        }
+
+        return filteredData;
     }
 
     // Initialize Inflation Chart
     const inflationCanvas = document.getElementById('inflationChart');
     if (inflationCanvas) {
         const inflationCtx = inflationCanvas.getContext('2d');
-        inflationChart = new Chart(inflationCtx, {
+        
+        // Default to 5 years of data
+        const inflationRangeData = getChartDataRange(fullInflationData, '5v');
+        
+        const inflationChart = new Chart(inflationCtx, {
             type: 'line',
             data: {
-                labels: fullInflationData.labels,
+                labels: inflationRangeData.labels,
                 datasets: [{
-                    data: fullInflationData.data,
+                    data: inflationRangeData.data,
                     borderColor: '#4ca5ba',
                     backgroundColor: 'rgba(76, 165, 186, 0.1)',
                     borderWidth: 3,
@@ -186,12 +229,34 @@ function initializeCharts() {
             },
             options: chartConfig
         });
+
+        // Chart controls for Inflation
+        const inflationControls = document.querySelectorAll('#inflationChart + .chart-controls button');
+        inflationControls.forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Remove active class from siblings
+                inflationControls.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                const selectedRange = this.textContent;
+                const rangeData = getChartDataRange(fullInflationData, selectedRange);
+
+                inflationChart.data.labels = rangeData.labels;
+                inflationChart.data.datasets[0].data = rangeData.data;
+                inflationChart.update();
+            });
+        });
+
+        // Set '5v' as default active
+        inflationControls[3].classList.add('active');
     }
 
     // Initialize HICP Chart
     const hicpCanvas = document.getElementById('hicpChart');
     if (hicpCanvas) {
         const hicpCtx = hicpCanvas.getContext('2d');
+        
+        // Modify chart config for HICP (different y-axis)
         const hicpChartConfig = {
             ...chartConfig,
             scales: {
@@ -208,12 +273,15 @@ function initializeCharts() {
             }
         };
 
-        hicpChart = new Chart(hicpCtx, {
+        // Default to 5 years of data
+        const hicpRangeData = getChartDataRange(fullHICPData, '5v');
+        
+        const hicpChart = new Chart(hicpCtx, {
             type: 'line',
             data: {
-                labels: fullHICPData.labels,
+                labels: hicpRangeData.labels,
                 datasets: [{
-                    data: fullHICPData.data,
+                    data: hicpRangeData.data,
                     borderColor: '#3891a6',
                     backgroundColor: 'rgba(56, 145, 166, 0.1)',
                     borderWidth: 3,
@@ -227,43 +295,25 @@ function initializeCharts() {
             },
             options: hicpChartConfig
         });
-    }
 
-    // Add click event listeners to chart controls
-    document.querySelectorAll('.chart-controls').forEach(controlsContainer => {
-        const buttons = controlsContainer.querySelectorAll('button');
-        const chartId = controlsContainer.closest('.chart').querySelector('canvas').id;
-
-        buttons.forEach(btn => {
+        // Chart controls for HICP
+        const hicpControls = document.querySelectorAll('#hicpChart + .chart-controls button');
+        hicpControls.forEach(btn => {
             btn.addEventListener('click', function() {
                 // Remove active class from siblings
-                buttons.forEach(b => b.classList.remove('active'));
+                hicpControls.forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
 
-                // Get selected range
                 const selectedRange = this.textContent;
-                console.log(`📊 ${chartId} chart range changed to: ${selectedRange}`);
+                const rangeData = getChartDataRange(fullHICPData, selectedRange);
 
-                // Determine which chart to update
-                let chart, data;
-                if (chartId === 'inflationChart') {
-                    chart = inflationChart;
-                    data = fullInflationData;
-                } else if (chartId === 'hicpChart') {
-                    chart = hicpChart;
-                    data = fullHICPData;
-                }
-
-                if (chart && data) {
-                    // Get filtered data
-                    const filteredData = getChartDataRange(data, selectedRange);
-
-                    // Update chart data
-                    chart.data.labels = filteredData.labels;
-                    chart.data.datasets[0].data = filteredData.data;
-                    chart.update();
-                }
+                hicpChart.data.labels = rangeData.labels;
+                hicpChart.data.datasets[0].data = rangeData.data;
+                hicpChart.update();
             });
         });
-    });
+
+        // Set '5v' as default active
+        hicpControls[3].classList.add('active');
+    }
 }
