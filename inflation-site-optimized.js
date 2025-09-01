@@ -1,9 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Store chart instances and data globally
+    // Store chart instances globally for updates
     let inflationChart = null;
     let hicpChart = null;
-    let inflationData = null;
-    let hicpData = null;
+    let fullInflationData = null;
+    let fullHicpData = null;
     
     // Carousel functionality
     const carousel = document.querySelector('.carousel-inner');
@@ -36,7 +36,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Function to filter data based on time range
     function filterDataByRange(data, range) {
-        if (!data || !data.labels || !data.datasets) return null;
+        if (!data || !data.labels || !data.datasets) {
+            console.log('No data available to filter');
+            return null;
+        }
         
         const totalPoints = data.labels.length;
         let pointsToShow;
@@ -74,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Function to update chart with filtered data
     function updateChart(chart, fullData, range) {
         if (!chart || !fullData) {
-            console.log('Chart or data not available');
+            console.log('Chart or data not available for update');
             return;
         }
         
@@ -101,10 +104,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const range = this.textContent;
                 console.log('📊 Inflation chart range changed to:', range);
                 
-                if (inflationChart && inflationData) {
-                    updateChart(inflationChart, inflationData, range);
+                if (inflationChart && fullInflationData) {
+                    updateChart(inflationChart, fullInflationData, range);
                 } else {
-                    console.log('Inflation chart or data not yet initialized');
+                    console.log('Waiting for inflation data from Google Sheets...');
                 }
             });
         });
@@ -126,10 +129,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const range = this.textContent;
                 console.log('📈 HICP chart range changed to:', range);
                 
-                if (hicpChart && hicpData) {
-                    updateChart(hicpChart, hicpData, range);
+                if (hicpChart && fullHicpData) {
+                    updateChart(hicpChart, fullHicpData, range);
                 } else {
-                    console.log('HICP chart or data not yet initialized');
+                    console.log('Waiting for HICP data from Google Sheets...');
                 }
             });
         });
@@ -183,7 +186,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         minRotation: 45,
                         font: {
                             size: window.innerWidth < 400 ? 9 : 11
-                        }
+                        },
+                        autoSkip: true,
+                        maxTicksLimit: window.innerWidth < 768 ? 6 : 12
                     }
                 },
                 y: {
@@ -212,80 +217,54 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        // Initialize Inflation Chart with sample data
+        // Initialize empty Inflation Chart - will be populated with Google Sheets data
         const inflationCanvas = document.getElementById('inflationChart');
         if (inflationCanvas) {
             const inflationCtx = inflationCanvas.getContext('2d');
             
-            // Store full data
-            inflationData = {
-                labels: ['2020-01', '2020-04', '2020-07', '2020-10', 
-                        '2021-01', '2021-04', '2021-07', '2021-10',
-                        '2022-01', '2022-04', '2022-07', '2022-10',
-                        '2023-01', '2023-04', '2023-07', '2023-10', 
-                        '2024-01', '2024-04', '2024-07', '2024-10', 
-                        '2025-01'],
-                datasets: [{
-                    data: [1.0, 0.5, 0.2, 0.3,
-                          0.9, 1.5, 2.2, 3.1,
-                          4.5, 6.2, 7.9, 8.8,
-                          8.5, 6.3, 5.0, 3.5, 
-                          2.5, 2.0, 1.8, 1.9, 
-                          1.9],
-                    borderColor: '#4ca5ba',
-                    backgroundColor: 'rgba(76, 165, 186, 0.1)',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    fill: true,
-                    pointBackgroundColor: '#b8d4e3',
-                    pointBorderColor: '#2a7ba0',
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                }]
-            };
-            
             inflationChart = new Chart(inflationCtx, {
                 type: 'line',
-                data: inflationData,
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        borderColor: '#4ca5ba',
+                        backgroundColor: 'rgba(76, 165, 186, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#b8d4e3',
+                        pointBorderColor: '#2a7ba0',
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
                 options: chartConfig
             });
         }
 
-        // Initialize HICP Chart with sample data
+        // Initialize empty HICP Chart - will be populated with Google Sheets data
         const hicpCanvas = document.getElementById('hicpChart');
         if (hicpCanvas) {
             const hicpCtx = hicpCanvas.getContext('2d');
             
-            // Store full data
-            hicpData = {
-                labels: ['2020-01', '2020-04', '2020-07', '2020-10', 
-                        '2021-01', '2021-04', '2021-07', '2021-10',
-                        '2022-01', '2022-04', '2022-07', '2022-10',
-                        '2023-01', '2023-04', '2023-07', '2023-10', 
-                        '2024-01', '2024-04', '2024-07', '2024-10', 
-                        '2025-01'],
-                datasets: [{
-                    data: [103, 103.2, 103.1, 103.3,
-                          104, 104.8, 106, 107.5,
-                          108, 110, 112, 114,
-                          115, 116, 117, 118, 
-                          118.5, 119, 119.3, 119.6, 
-                          119.9],
-                    borderColor: '#3891a6',
-                    backgroundColor: 'rgba(56, 145, 166, 0.1)',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    fill: true,
-                    pointBackgroundColor: '#b8d4e3',
-                    pointBorderColor: '#1e5a7d',
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                }]
-            };
-            
             hicpChart = new Chart(hicpCtx, {
                 type: 'line',
-                data: hicpData,
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        borderColor: '#3891a6',
+                        backgroundColor: 'rgba(56, 145, 166, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#b8d4e3',
+                        pointBorderColor: '#1e5a7d',
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
                 options: {
                     ...chartConfig,
                     scales: {
@@ -305,21 +284,65 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Function to update charts with Google Sheets data
-    // This will be called when Google Sheets data is loaded
-    window.updateChartsWithGoogleData = function(inflationDataFromSheets, hicpDataFromSheets) {
-        console.log('Updating charts with Google Sheets data');
+    // Global function to be called when Google Sheets data is loaded
+    // This preserves your existing Google Sheets data fetching logic
+    window.updateInflationChart = function(labels, data) {
+        console.log('Updating inflation chart with Google Sheets data');
         
-        if (inflationDataFromSheets && inflationChart) {
-            inflationData = inflationDataFromSheets;
-            inflationChart.data = inflationData;
-            inflationChart.update();
+        if (!inflationChart) {
+            console.log('Inflation chart not initialized yet');
+            return;
         }
         
-        if (hicpDataFromSheets && hicpChart) {
-            hicpData = hicpDataFromSheets;
-            hicpChart.data = hicpData;
-            hicpChart.update();
+        // Store the full data
+        fullInflationData = {
+            labels: labels,
+            datasets: [{
+                data: data,
+                borderColor: '#4ca5ba',
+                backgroundColor: 'rgba(76, 165, 186, 0.1)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#b8d4e3',
+                pointBorderColor: '#2a7ba0',
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        };
+        
+        // Update chart with full data (Max view by default)
+        inflationChart.data = fullInflationData;
+        inflationChart.update();
+    };
+    
+    window.updateHicpChart = function(labels, data) {
+        console.log('Updating HICP chart with Google Sheets data');
+        
+        if (!hicpChart) {
+            console.log('HICP chart not initialized yet');
+            return;
         }
+        
+        // Store the full data
+        fullHicpData = {
+            labels: labels,
+            datasets: [{
+                data: data,
+                borderColor: '#3891a6',
+                backgroundColor: 'rgba(56, 145, 166, 0.1)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#b8d4e3',
+                pointBorderColor: '#1e5a7d',
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        };
+        
+        // Update chart with full data (Max view by default)
+        hicpChart.data = fullHicpData;
+        hicpChart.update();
     };
 });
