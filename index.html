@@ -3,133 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Inflaatio Suomessa ja Euroopassa: ajantasaiset luvut, selkeät graafit ja käytännön selitykset. Lue, mikä inflaatio on, mistä se johtuu ja miten se vaikuttaa arkeesi." />
     <title>Suomen inflaation seuranta</title>
     <link rel="stylesheet" href="inflation-site-optimized.css">
+    
+    <!-- Inline styles for improved contrast and accessibility -->
     <style>
-        /* Info banner styles - lisätty inline jotta ei rikota alkuperäistä CSS:ää */
-        .info-banner {
-            background: linear-gradient(135deg, rgba(56, 145, 166, 0.15) 0%, rgba(42, 123, 160, 0.1) 100%);
-            border: 1px solid rgba(76, 165, 186, 0.3);
-            border-radius: 16px;
-            padding: 1.5rem;
-            margin: 3rem auto 4rem;
-            max-width: 1200px;
-            backdrop-filter: blur(10px);
-            position: relative;
-            overflow: hidden;
+        /* Fix contrast issues for tile highlights */
+        .tile .highlight.positive {
+            color: #059669; /* Darker green for better contrast */
+            font-weight: 800;
         }
         
-        .info-banner::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, #3891a6, #4ca5ba);
-            border-radius: 16px 16px 0 0;
+        .tile .highlight.negative {
+            color: #dc2626; /* Darker red for better contrast */
+            font-weight: 800;
         }
         
-        .info-banner-content {
-            display: flex;
-            align-items: flex-start;
-            gap: 1rem;
+        .tile .highlight.neutral {
+            color: #374151; /* Darker gray for better contrast */
+            font-weight: 800;
         }
         
-        .info-icon {
-            flex-shrink: 0;
-            width: 24px;
-            height: 24px;
-            background: rgba(76, 165, 186, 0.2);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-top: 0.25rem;
-        }
-        
-        .info-icon::after {
-            content: 'ℹ';
-            color: #4ca5ba;
-            font-weight: bold;
-            font-size: 16px;
-        }
-        
-        .info-text {
-            flex: 1;
-        }
-        
-        .info-title {
-            font-size: 1rem;
-            font-weight: 600;
-            color: #4ca5ba;
-            margin: 0 0 0.5rem 0;
-            letter-spacing: 0.3px;
-        }
-        
-        .info-description {
-            color: rgba(255, 255, 255, 0.85);
-            font-size: 0.95rem;
-            line-height: 1.6;
-            margin: 0;
-        }
-        
-        .info-example {
-            background: rgba(76, 165, 186, 0.1);
-            border-left: 3px solid #4ca5ba;
-            padding: 0.75rem 1rem;
-            margin: 1rem 0 0 0;
-            border-radius: 0 8px 8px 0;
-        }
-        
-        .info-example p {
-            margin: 0;
-            font-size: 0.9rem;
-            color: rgba(255, 255, 255, 0.9);
-        }
-        
-        .data-comparison {
-            display: inline-flex;
-            gap: 0.75rem;
-            margin-top: 0.5rem;
-        }
-        
-        .data-point {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
+        /* Improve contrast for tile text */
+        .tile p {
+            color: #374151; /* Darker text for better contrast on white background */
             font-weight: 500;
         }
         
-        .hicp-data {
-            color: #10b981;
+        .tile h3 {
+            color: #1f2937; /* Even darker for headings */
+            font-weight: 700;
         }
         
-        .cpi-data {
-            color: #f59e0b;
-        }
-
-        /* Mobile responsive */
-        @media (max-width: 768px) {
-            .info-banner {
-                margin: 2rem 1rem 3rem;
-                padding: 1.25rem;
-            }
-            
-            .info-banner-content {
-                flex-direction: column;
-                gap: 0.75rem;
-            }
-            
-            .info-icon {
-                align-self: flex-start;
-            }
-            
-            .data-comparison {
-                flex-direction: column;
-                gap: 0.5rem;
-            }
+        /* Ensure proper heading hierarchy styling */
+        .info-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.75rem;
         }
     </style>
 </head>
@@ -156,6 +68,7 @@
                         Reaaliaikainen näkymä Suomen talouden hintakehitykseen. 
                         Seuraa inflaatiota, analysoi trendejä ja tee tietoon perustuvia päätöksiä.
                     </p>
+                    <button>Tutustu dataan</button>
                 </div>
                 <div class="hero-image">
                     <img src="https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/file_00000000fbbc6246b29f5252e8021c2a.png" 
@@ -166,20 +79,23 @@
             </div>
         </section>
 
-        <!-- UUSI INFO BANNER - lisätty hero-osion jälkeen -->
-        <div class="info-banner">
-            <div class="info-banner-content">
-                <div class="info-icon"></div>
-                <div class="info-text">
-                    <h3 class="info-title">Tietoa laskentamenetelmästä</h3>
-                    <p class="info-description">
+        <!-- Info Banner - KRIITTINEN ELEMENTTI hero:n jälkeen -->
+        <div class="info-banner" style="background: linear-gradient(135deg, rgba(56, 145, 166, 0.15) 0%, rgba(42, 123, 160, 0.1) 100%); border: 1px solid rgba(76, 165, 186, 0.3); border-radius: 16px; padding: 1.5rem; margin: 3rem auto 4rem; max-width: 1200px; backdrop-filter: blur(10px); position: relative; overflow: hidden;">
+            <div style="content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #3891a6, #4ca5ba); border-radius: 16px 16px 0 0;"></div>
+            <div class="info-banner-content" style="display: flex; align-items: flex-start; gap: 1rem;">
+                <div class="info-icon" style="flex-shrink: 0; width: 24px; height: 24px; background: rgba(76, 165, 186, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-top: 0.25rem;">
+                    <span style="color: #4ca5ba; font-weight: bold; font-size: 16px;">ℹ</span>
+                </div>
+                <div class="info-text" style="flex: 1;">
+                    <h2 class="info-title" style="font-size: 1rem; font-weight: 600; color: #4ca5ba; margin: 0 0 0.5rem 0; letter-spacing: 0.3px;">Tietoa laskentamenetelmästä</h2>
+                    <p class="info-description" style="color: rgba(255, 255, 255, 0.85); font-size: 0.95rem; line-height: 1.6; margin: 0;">
                         Sivuston inflaatiolaskenta eroaa Tilastokeskuksen luvuista, koska käytämme Eurostatin HICP-indeksiä, kun taas Tilastokeskus raportoi kansallista CPI-indeksiä. Ero johtuu mm. asuntokustannusten (esim. lainakorot) sisällyttämisestä CPI:hen, mutta ei HICP:hen.
                     </p>
-                    <div class="info-example">
-                        <p><strong>Esimerkki heinäkuu 2025:</strong></p>
-                        <div class="data-comparison">
-                            <span class="data-point hicp-data">HICP: 1,9%</span>
-                            <span class="data-point cpi-data">CPI: 0,2%</span>
+                    <div class="info-example" style="background: rgba(76, 165, 186, 0.1); border-left: 3px solid #4ca5ba; padding: 0.75rem 1rem; margin: 1rem 0 0 0; border-radius: 0 8px 8px 0;">
+                        <p style="margin: 0; font-size: 0.9rem; color: rgba(255, 255, 255, 0.9);"><strong>Esimerkki heinäkuu 2025:</strong></p>
+                        <div class="data-comparison" style="display: inline-flex; gap: 0.75rem; margin-top: 0.5rem;">
+                            <span class="data-point hicp-data" style="background: rgba(255, 255, 255, 0.1); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: 500; color: #10b981;">HICP: 1,9%</span>
+                            <span class="data-point cpi-data" style="background: rgba(255, 255, 255, 0.1); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: 500; color: #f59e0b;">CPI: 0,2%</span>
                         </div>
                     </div>
                 </div>
@@ -225,11 +141,11 @@
             <div class="chart">
                 <h2>Vuosi-inflaation kehitys</h2>
                 <div class="chart-controls">
-                    <button>6kk</button>
-                    <button>1v</button>
-                    <button>3v</button>
-                    <button>5v</button>
-                    <button>Max</button>
+                    <button data-range="6kk">6kk</button>
+                    <button data-range="1v">1v</button>
+                    <button data-range="3v">3v</button>
+                    <button data-range="5v">5v</button>
+                    <button data-range="max">Max</button>
                 </div>
                 <div class="chart-placeholder">
                     <canvas id="inflationChart"></canvas>
@@ -244,11 +160,11 @@
             <div class="chart">
                 <h2>HICP-indeksi</h2>
                 <div class="chart-controls">
-                    <button>6kk</button>
-                    <button>1v</button>
-                    <button>3v</button>
-                    <button>5v</button>
-                    <button>Max</button>
+                    <button data-range="6kk">6kk</button>
+                    <button data-range="1v">1v</button>
+                    <button data-range="3v">3v</button>
+                    <button data-range="5v">5v</button>
+                    <button data-range="max">Max</button>
                 </div>
                 <div class="chart-placeholder">
                     <canvas id="hicpChart"></canvas>
@@ -258,6 +174,21 @@
                     <p><span class="percentage-badge">📊</span> Indeksiarvo 119.91</p>
                     <p><span class="percentage-badge">📅</span> Vuosimuutos +2.1%</p>
                 </div>
+            </div>
+        </section>
+
+        <!-- Added proper heading hierarchy section -->
+        <section id="tietoa">
+            <h2>Tietoa inflaatiosta</h2>
+            <div class="info-content">
+                <h3 class="info-title">Mikä on inflaatio?</h3>
+                <p>Inflaatio tarkoittaa yleistä hintatason nousua taloudessa. Se mitataan kuluttajahintaindeksillä (HICP), joka seuraa tavallisten kulutustavaroiden ja palveluiden hintakehitystä.</p>
+                
+                <h3 class="info-title">Miten inflaatio vaikuttaa arkeen?</h3>
+                <p>Inflaatio vähentää rahan ostovoimaa - sama rahasumma ostaa vähemmän tavaraa kuin ennen. Kohtuullinen inflaatio (noin 2%) on kuitenkin merkki terveestä talouskasvusta.</p>
+                
+                <h3 class="info-title">Laskentamenetelmästä</h3>
+                <p>Inflaatioluvut perustuvat Eurostat-tilastoviraston julkaisemiin tietoihin. HICP-indeksi laskee keskimääräistä hintamuutosta kuluttajakorissa, joka sisältää ruoan, asumisen, liikenteen ja muut arkiset menot.</p>
             </div>
         </section>
     </div>
