@@ -538,3 +538,15 @@ async function fetchThroughProxy(range) {
     // Set up auto-refresh every 5 minutes
     setInterval(fetchInflationData, CONFIG.CACHE_DURATION);
 });
+
+// Header scroll-animaatio
+window.addEventListener('scroll', () => {
+    const navbar = document.querySelector('.navbar');
+    const scrolled = window.scrollY > 50;
+    
+    if (scrolled) {
+        navbar.classList.add('scrolled');
+    } else {
+        navbar.classList.remove('scrolled');
+    }
+});
