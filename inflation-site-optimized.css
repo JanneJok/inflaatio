@@ -538,18 +538,7 @@ body {
     margin-top: -20px; /* Poistaa välin headeriin */
 }
     
-    /* Tumma overlay tekstin luettavuuden parantamiseksi */
-    .hero-text::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(15, 41, 54, 0.7);
-        border-radius: 20px;
-        z-index: -1;
-    }
+
     
     /* Varmista että teksti on overlay:n päällä */
     .hero-title,
