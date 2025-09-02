@@ -35,8 +35,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(to bottom, #0f2936 0%, #1e5a7d 50%, #245066 100%);
-    z-index: -2;
+    background: linear-gradient(to bottom, #20618bd4 0%, #1e5a7d 50%, #245066 100%);
     overflow: hidden;
 }
 
@@ -393,8 +392,7 @@ body {
 }
 
 .chart {
-    background: rgba(36, 80, 102, 0.9);
-    border: 1px solid rgba(76, 165, 186, 0.2);
+    background: rgb(36 80 102 / 0%);    border: 1px solid rgba(76, 165, 186, 0.2);
     border-radius: 20px;
     padding: 2rem;
     backdrop-filter: blur(10px);
