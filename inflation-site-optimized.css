@@ -72,6 +72,54 @@ body {
     backdrop-filter: blur(10px);
     z-index: 1000;
     border-bottom: 1px solid rgba(76, 165, 186, 0.2);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateY(0);
+}
+
+/* Scrollatessa lisättävä luokka */
+.navbar.scrolled {
+    padding: 1rem 2rem;
+    background: rgba(15, 41, 54, 0.95);
+    backdrop-filter: blur(15px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid rgba(76, 165, 186, 0.4);
+}
+
+.nav-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.navbar.scrolled .logo {
+    font-size: 1.3rem;
+    color: rgba(255, 255, 255, 1);
+}
+
+.nav-links {
+    display: flex;
+    gap: 2rem;
+    list-style: none;
+}
+
+.nav-links a {
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    font-size: 0.95rem;
+    transition: color 0.3s ease;
+}
+
+.nav-links a:hover {
+    color: #ffffff;
 }
 
 .nav-container {
@@ -476,17 +524,19 @@ body {
         grid-template-columns: 1fr;
     }
     
-    .hero-text {
-        text-align: center;
-        background-image: url('https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/file_00000000fbbc6246b29f5252e8021c2a.png');
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        padding: 3rem 2rem;
-        border-radius: 20px;
-        position: relative;
-        z-index: 1;
-    }
+.hero-text {
+    text-align: center;
+    background-image: url('https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/file_00000000fbbc6246b29f5252e8021c2a.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: rgba(15, 41, 54, 0.8); /* Sama väri kuin header */
+    padding: 3rem 2rem;
+    border-radius: 0 0 20px 20px; /* Vain alareunaan pyöristys */
+    position: relative;
+    z-index: 1;
+    margin-top: -20px; /* Poistaa välin headeriin */
+}
     
     /* Tumma overlay tekstin luettavuuden parantamiseksi */
     .hero-text::before {
