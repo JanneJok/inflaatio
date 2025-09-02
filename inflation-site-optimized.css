@@ -122,37 +122,6 @@ body {
     color: #ffffff;
 }
 
-.nav-container {
-    max-width: 1400px;
-    margin: 0 auto;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.logo {
-    font-size: 1.5rem;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-}
-
-.nav-links {
-    display: flex;
-    gap: 2rem;
-    list-style: none;
-}
-
-.nav-links a {
-    color: rgba(255, 255, 255, 0.8);
-    text-decoration: none;
-    font-size: 0.95rem;
-    transition: color 0.3s ease;
-}
-
-.nav-links a:hover {
-    color: #ffffff;
-}
-
 /* Main container */
 .container {
     max-width: 1400px;
@@ -440,7 +409,8 @@ body {
 }
 
 .chart {
-    background: rgb(36 80 102 / 0%);    border: 1px solid rgba(76, 165, 186, 0.2);
+    background: rgb(36 80 102 / 0%);
+    border: 1px solid rgba(76, 165, 186, 0.2);
     border-radius: 20px;
     padding: 2rem;
     backdrop-filter: blur(10px);
@@ -524,19 +494,20 @@ body {
         grid-template-columns: 1fr;
     }
     
-.hero-text {
-    text-align: center;
-    background-image: url('https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/file_00000000fbbc6246b29f5252e8021c2a.png');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-color: rgba(15, 41, 54, 0.8); /* Sama väri kuin header */
-    padding: 3rem 2rem;
-    border-radius: 0 0 20px 20px; /* Vain alareunaan pyöristys */
-    position: relative;
-    z-index: 1;
-    margin-top: -20px; /* Poistaa välin headeriin */
-}
+    .hero-text {
+        text-align: center;
+        background-image: url('https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/file_00000000fbbc6246b29f5252e8021c2a.png');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-color: rgba(15, 41, 54, 0.8);
+        padding: 3rem 2rem;
+        border-radius: 0;
+        position: relative;
+        z-index: 1;
+        margin: -90px -2rem 0 -2rem;
+        padding-top: 120px;
+    }
     
     /* Tumma overlay tekstin luettavuuden parantamiseksi */
     .hero-text::before {
@@ -547,7 +518,7 @@ body {
         right: 0;
         bottom: 0;
         background: rgba(15, 41, 54, 0.7);
-        border-radius: 0 0 20px 20px; /* Vain alareunaan pyöristys */
+        border-radius: 0;
         z-index: -1;
     }
     
