@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initializeCharts();
     }
 
-    function initializeCharts() {
+function initializeCharts() {
         const chartConfig = {
             responsive: true,
             maintainAspectRatio: false,
@@ -298,38 +298,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // PROXY FETCH FUNKTIOT (KORVATTU OSIO)
-    // Secure fetch through proxy server
+    // JSONP fetchThroughProxy-funktio
     async function fetchThroughProxy(range) {
-    try {
-        // HUOM: Ei /api/sheets polkua!
-        const url = `${CONFIG.PROXY_BASE_URL}?range=${encodeURIComponent(range)}`;
-        console.log(`🔄 Fetching through proxy: ${range}`);
-        
-        const response = await fetch(url, {
-            method: 'GET'
+        return new Promise((resolve, reject) => {
+            try {
+                const callbackName = 'jsonp_callback_' + Math.random().toString(36).substr(2, 9);
+                const url = `${CONFIG.PROXY_BASE_URL}?range=${encodeURIComponent(range)}&callback=${callbackName}`;
+                
+                console.log(`🔄 Fetching through JSONP proxy: ${range}`);
+                
+                // Create callback function
+                window[callbackName] = function(data) {
+                    // Cleanup
+                    document.head.removeChild(script);
+                    delete window[callbackName];
+                    
+                    if (data.success) {
+                        resolve(data.data);
+                    } else {
+                        reject(new Error(data.error || 'Unknown error'));
+                    }
+                };
+                
+                // Create script tag
+                const script = document.createElement('script');
+                script.src = url;
+                script.onerror = function() {
+                    document.head.removeChild(script);
+                    delete window[callbackName];
+                    reject(new Error('Failed to load script'));
+                };
+                
+                // Add to DOM
+                document.head.appendChild(script);
+                
+            } catch (error) {
+                console.error(`Error fetching range ${range}:`, error);
+                reject(error);
+            }
         });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(`Proxy error ${response.status}: ${errorData.error || 'Unknown error'}`);
-        }
-
-        const result = await response.json();
-        
-        if (!result.success) {
-            throw new Error(result.error || 'Proxy returned unsuccessful response');
-        }
-
-        return result.data;
-
-    } catch (error) {
-        console.error(`Error fetching range ${range}:`, error);
-        throw error;
     }
-}
 
-    // Fetch and process Google Sheets data (PÄIVITETTY FUNKTIO)
+    // Fetch and process Google Sheets data
     async function fetchInflationData() {
         const cacheKey = 'inflation_data';
         const now = Date.now();
