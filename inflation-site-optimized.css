@@ -478,6 +478,36 @@ body {
     
     .hero-text {
         text-align: center;
+        background-image: url('https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/file_00000000fbbc6246b29f5252e8021c2a.png');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        padding: 3rem 2rem;
+        border-radius: 20px;
+        position: relative;
+        z-index: 1;
+    }
+    
+    /* Tumma overlay tekstin luettavuuden parantamiseksi */
+    .hero-text::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(15, 41, 54, 0.7);
+        border-radius: 20px;
+        z-index: -1;
+    }
+    
+    /* Varmista että teksti on overlay:n päällä */
+    .hero-title,
+    .hero-subtitle,
+    .hero-text button {
+        position: relative;
+        z-index: 2;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
     }
     
     /* Hide hero image on mobile */
