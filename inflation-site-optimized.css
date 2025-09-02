@@ -496,43 +496,38 @@ body {
         grid-template-columns: 1fr;
     }
     
-.hero-text {
-    text-align: center;
-    background-image: url('https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/file_00000000fbbc6246b29f5252e8021c2a.png');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-color: rgba(15, 41, 54, 0.8);
-    padding: 3rem 2rem;
-    position: relative;
-    z-index: 1;
-    margin: -90px -2rem 0 -2rem;
-    padding-top: 120px;
-}
-
-.hero-text::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(15, 41, 54, 0.7);
-    z-index: -1;
-}
-
-/* Uusi elementti pyöristetyille kulmille */
-.hero-text::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 2rem;  /* Alkaa 2rem sisältä */
-    right: 2rem; /* Päättyy 2rem sisältä */
-    height: 40px;
-    background: rgba(15, 41, 54, 0.7);
-    border-radius: 0 0 20px 20px;
-    z-index: -1;
-}
+    .hero-text {
+        text-align: center;
+        background-image: url('https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/file_00000000fbbc6246b29f5252e8021c2a.png');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-color: rgba(15, 41, 54, 0.8);
+        padding: 3rem 0rem;
+        position: relative;
+        z-index: 1;
+        margin: -90px 0 0 0;
+        padding-top: 120px;
+        border-radius: 0 0 20px 20px;
+    }
+    
+    .hero-text::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(15, 41, 54, 0.7);
+        z-index: -1;
+        border-radius: 0 0 20px 20px;
+    }
+    
+    /* Lisää padding takaisin tekstille */
+    .hero-title,
+    .hero-subtitle {
+        padding: 0 2rem;
+    }
     
     /* Varmista että teksti on overlay:n päällä */
     .hero-title,
