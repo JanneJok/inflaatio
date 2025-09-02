@@ -301,36 +301,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // PROXY FETCH FUNKTIOT (KORVATTU OSIO)
     // Secure fetch through proxy server
     async function fetchThroughProxy(range) {
-        try {
-            const url = `${CONFIG.PROXY_BASE_URL}/api/sheets?range=${encodeURIComponent(range)}`;
-            console.log(`🔄 Fetching through proxy: ${range}`);
-            
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'omit'
-            });
+    try {
+        // HUOM: Ei /api/sheets polkua!
+        const url = `${CONFIG.PROXY_BASE_URL}?range=${encodeURIComponent(range)}`;
+        console.log(`🔄 Fetching through proxy: ${range}`);
+        
+        const response = await fetch(url, {
+            method: 'GET'
+        });
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(`Proxy error ${response.status}: ${errorData.error || 'Unknown error'}`);
-            }
-
-            const result = await response.json();
-            
-            if (!result.success) {
-                throw new Error(result.error || 'Proxy returned unsuccessful response');
-            }
-
-            return result.data;
-
-        } catch (error) {
-            console.error(`Error fetching range ${range}:`, error);
-            throw error;
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`Proxy error ${response.status}: ${errorData.error || 'Unknown error'}`);
         }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Proxy returned unsuccessful response');
+        }
+
+        return result.data;
+
+    } catch (error) {
+        console.error(`Error fetching range ${range}:`, error);
+        throw error;
     }
+}
 
     // Fetch and process Google Sheets data (PÄIVITETTY FUNKTIO)
     async function fetchInflationData() {
