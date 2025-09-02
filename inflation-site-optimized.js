@@ -1,7 +1,6 @@
-// Configuration for Google Sheets
+// Configuration for proxy server (MUUTETTU OSIO - korvaa CONFIG)
 const CONFIG = {
-    SHEET_ID: '1tj7AbW3BkzmPZUd_pfrXmaHZrgpKgYwNljSoVoAObx8',
-    API_KEY: 'AIzaSyDbeAW-uO-vEHuPdSJPVQwR_l1Axc7Cq7g',
+    PROXY_BASE_URL: 'https://your-proxy-app.vercel.app', // Päivitä oikea URL deployment jälkeen
     HISTORICAL_RANGE: 'Raakadata!A:F',
     METRICS_RANGE: 'Key Metrics!A:B',
     CACHE_DURATION: 5 * 60 * 1000
@@ -299,7 +298,41 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Fetch and process Google Sheets data
+    // PROXY FETCH FUNKTIOT (KORVATTU OSIO)
+    // Secure fetch through proxy server
+    async function fetchThroughProxy(range) {
+        try {
+            const url = `${CONFIG.PROXY_BASE_URL}/api/sheets?range=${encodeURIComponent(range)}`;
+            console.log(`🔄 Fetching through proxy: ${range}`);
+            
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'omit'
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`Proxy error ${response.status}: ${errorData.error || 'Unknown error'}`);
+            }
+
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.error || 'Proxy returned unsuccessful response');
+            }
+
+            return result.data;
+
+        } catch (error) {
+            console.error(`Error fetching range ${range}:`, error);
+            throw error;
+        }
+    }
+
+    // Fetch and process Google Sheets data (PÄIVITETTY FUNKTIO)
     async function fetchInflationData() {
         const cacheKey = 'inflation_data';
         const now = Date.now();
@@ -314,24 +347,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            console.log('🔄 Fetching data from Google Sheets...');
+            console.log('🔄 Fetching data through secure proxy...');
             
-            const [historicalRes, metricsRes] = await Promise.all([
-                fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.HISTORICAL_RANGE}?key=${CONFIG.API_KEY}`),
-                fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${CONFIG.METRICS_RANGE}?key=${CONFIG.API_KEY}`)
+            // Fetch through proxy server instead of direct API calls
+            const [historicalData, metricsData] = await Promise.all([
+                fetchThroughProxy(CONFIG.HISTORICAL_RANGE),
+                fetchThroughProxy(CONFIG.METRICS_RANGE)
             ]);
 
-            const historicalData = historicalRes.ok ? await historicalRes.json() : null;
-            const metricsData = metricsRes.ok ? await metricsRes.json() : null;
-
             // Process historical data
-            if (historicalData?.values?.length > 1) {
-                inflationData = processHistoricalData(historicalData.values);
+            if (historicalData?.length > 1) {
+                inflationData = processHistoricalData(historicalData);
             }
 
             // Process metrics data
-            if (metricsData?.values?.length > 1) {
-                keyMetrics = processKeyMetrics(metricsData.values);
+            if (metricsData?.length > 1) {
+                keyMetrics = processKeyMetrics(metricsData);
                 updateTiles();
             }
 
@@ -343,15 +374,45 @@ document.addEventListener('DOMContentLoaded', () => {
             // Update charts with fetched data
             updateChartsWithData();
             
+            console.log('✅ Data loaded successfully through proxy');
             return processedData;
 
         } catch (error) {
             console.error('❌ Data fetch error:', error);
+            showErrorMessage('Tietojen lataaminen epäonnistui. Tarkista verkkoyhteytesi.');
             return null;
         }
     }
 
-    // Process historical data from Google Sheets
+    // Show error message to user (UUSI FUNKTIO)
+    function showErrorMessage(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.textContent = message;
+        errorDiv.style.cssText = `
+            position: fixed;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            z-index: 1001;
+            backdrop-filter: blur(10px);
+        `;
+        
+        document.body.appendChild(errorDiv);
+        
+        // Remove after 5 seconds
+        setTimeout(() => {
+            if (errorDiv.parentNode) {
+                errorDiv.parentNode.removeChild(errorDiv);
+            }
+        }, 5000);
+    }
+
+    // Process historical data from Google Sheets (EI MUUTOKSIA)
     function processHistoricalData(rawData) {
         const headers = rawData[0];
         const rows = rawData.slice(1);
@@ -378,7 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return processedData.sort((a, b) => new Date(a.date + '-01') - new Date(b.date + '-01'));
     }
 
-    // Process key metrics
+    // Process key metrics (EI MUUTOKSIA)
     function processKeyMetrics(rawData) {
         const metrics = {};
         rawData.slice(1).forEach(row => {
@@ -391,7 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return metrics;
     }
 
-    // Update tiles with metrics
+    // Update tiles with metrics (EI MUUTOKSIA)
     function updateTiles() {
         if (!keyMetrics || Object.keys(keyMetrics).length === 0) return;
         
@@ -420,7 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Update charts with fetched data
+    // Update charts with fetched data (EI MUUTOKSIA)
     function updateChartsWithData() {
         if (!inflationData || inflationData.length === 0) {
             console.log('No data to update charts');

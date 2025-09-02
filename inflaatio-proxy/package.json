@@ -1,0 +1,16 @@
+{
+  "name": "inflaatio-proxy",
+  "version": "1.0.0",
+  "description": "Proxy server for Google Sheets API",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel"
+  },
+  "dependencies": {
+    "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
