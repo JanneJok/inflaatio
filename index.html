@@ -1,18 +1,148 @@
-<!DOCTYPE html>
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
 <html lang="fi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Inflaatio Suomessa ja Euroopassa: ajantasaiset luvut, selkeät graafit ja käytännön selitykset. Lue, mikä inflaatio on, mistä se johtuu ja miten se vaikuttaa arkeesi." />
     <title>Suomen inflaation seuranta</title>
+    <meta name="description" content="Inflaatio Suomessa ja Euroopassa: ajantasaiset luvut, kaaviot ja analyysit. Seuraa HICP-indeksiä ja kuluttajahintoja reaaliajassa.">
     
-    <!-- Preload critical resources for faster loading -->
+    <!-- 🚀 SPEED OPTIMIZATION: DNS prefetch ja resource preloads -->
+    <link rel="dns-prefetch" href="//fonts.googleapis.com">
+    <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" as="style">
-    <link rel="preload" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" as="script">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
     
-    <link rel="stylesheet" href="inflation-site-optimized.css">
+    <!-- 🚀 CRITICAL CSS: Above-the-fold sisältö -->
+    <style>
+        /* Critical CSS - Above the fold sisältö */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --gradient-primary: linear-gradient(135deg, #1e5a7d 0%, #2a7ba0 100%);
+            --dark-bg: #0f2936;
+            --text-primary: #ffffff;
+            --text-secondary: #b8d4e3;
+            --teal-primary: #2a7ba0;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--dark-bg);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        /* Starry background optimized */
+        .starry-bg {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(to bottom, #0f2936 0%, #1e5a7d 50%, #245066 100%);
+            z-index: -2; overflow: hidden;
+            will-change: transform; /* Prevent layout thrashing */
+        }
+        .starry-bg::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background-image: 
+                radial-gradient(1px 1px at 20% 30%, white, transparent),
+                radial-gradient(1px 1px at 60% 70%, rgba(255, 255, 255, 0.9), transparent);
+            background-size: 350px 350px, 400px 400px;
+            animation: stars-up 90s linear infinite; opacity: 0.8;
+            will-change: transform;
+        }
+        @keyframes stars-up { 0% { transform: translateY(0); } 100% { transform: translateY(-350px); } }
+        
+        /* Navbar critical */
+        .navbar {
+            position: fixed; top: 0; left: 0; right: 0; padding: 1.5rem 2rem;
+            background: rgba(15, 41, 54, 0.8); backdrop-filter: blur(10px);
+            z-index: 1000; border-bottom: 1px solid rgba(76, 165, 186, 0.2);
+        }
+        .nav-container {
+            max-width: 1400px; margin: 0 auto; display: flex;
+            justify-content: space-between; align-items: center;
+        }
+        .logo { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.5px; }
+        .nav-links { display: flex; gap: 2rem; list-style: none; }
+        .nav-links a {
+            color: rgba(255, 255, 255, 0.8); text-decoration: none;
+            font-size: 0.95rem; transition: color 0.3s ease;
+        }
+        
+        /* Container critical */
+        .container {
+            max-width: 1400px; margin: 0 auto; padding: 120px 2rem 4rem;
+            position: relative; z-index: 1;
+        }
+        
+        /* Hero section critical */
+        .hero-content {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 4rem;
+            align-items: center; max-width: 1200px; margin: 0 auto;
+        }
+        .hero-text { text-align: left; }
+        .hero-title {
+            font-size: clamp(2.5rem, 5vw, 3.5rem); font-weight: 700;
+            margin-bottom: 1rem; letter-spacing: -1px;
+        }
+        .hero-subtitle {
+            color: rgba(255, 255, 255, 0.7); font-size: 1.1rem; line-height: 1.6;
+        }
+        .hero-image { display: flex; justify-content: center; align-items: center; }
+        .hero-image img {
+            width: 100%; max-width: 500px; height: auto; border-radius: 20px;
+            will-change: transform; /* Image optimization */
+        }
+        
+        /* Mobile responsive critical */
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .hero-content { grid-template-columns: 1fr; }
+            .hero-text { text-align: center; }
+            .hero-image { display: none; }
+        }
+    </style>
+    
+    <!-- 🚀 FALLBACK: Load full CSS asynchronously -->
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap"></noscript>
+    <link rel="stylesheet" href="inflation-site-css.css">
 </head>
 <body>
     <div class="starry-bg"></div>
@@ -37,32 +167,61 @@
                         Reaaliaikainen näkymä Suomen talouden hintakehitykseen. 
                         Seuraa inflaatiota, analysoi trendejä ja tee tietoon perustuvia päätöksiä.
                     </p>
+                    <button>Tutustu dataan</button>
                 </div>
                 <div class="hero-image">
                     <img src="https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/file_00000000fbbc6246b29f5252e8021c2a.png" 
                          alt="Financial growth illustration" 
+                         width="500" 
+                         height="300"
                          loading="lazy"
                          onerror="this.style.display='none'">
                 </div>
             </div>
         </section>
 
-        <!-- Info Banner - KRIITTINEN ELEMENTTI hero:n jälkeen -->
-        <div class="info-banner">
-            <div class="info-banner-content">
-                <div class="info-icon">
-                    <span>ℹ</span>
-                </div>
+        <!-- 🚀 INFOBANNERI (dokumentaation mukaan kriittinen) -->
+        <div class="info-banner" style="
+            background: rgba(56, 145, 166, 0.1);
+            border: 1px solid rgba(56, 145, 166, 0.3);
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 3rem 0;
+            backdrop-filter: blur(10px);
+        ">
+            <div class="info-banner-content" style="display: flex; gap: 1.5rem; align-items: flex-start;">
+                <div class="info-icon" style="
+                    width: 48px; height: 48px; min-width: 48px;
+                    background: rgba(56, 145, 166, 0.2);
+                    border-radius: 50%;
+                    display: flex; align-items: center; justify-content: center;
+                    font-size: 1.5rem;
+                "ℹ️</div>
                 <div class="info-text">
-                    <h2 class="info-title">Tietoa laskentamenetelmästä</h2>
-                    <p class="info-description">
-                        Sivuston inflaatiolaskenta eroaa Tilastokeskuksen luvuista, koska käytämme Eurostatin HICP-indeksiä, kun taas Tilastokeskus raportoi kansallista CPI-indeksiä. Ero johtuu mm. asuntokustannusten (esim. lainakorot) sisällyttämisestä CPI:hen, mutta ei HICP:hen.
+                    <h2 class="info-title" style="
+                        font-size: 1.25rem; font-weight: 600;
+                        margin-bottom: 0.75rem; color: var(--text-primary);
+                    ">Tietoa laskentamenetelmästä</h2>
+                    <p class="info-description" style="
+                        color: var(--text-secondary); line-height: 1.6;
+                        margin-bottom: 1rem;
+                    ">
+                        Sivuston inflaatiolaskenta eroaa Tilastokeskuksen luvuista, koska käytämme Eurostatin HICP-indeksiä 
+                        yhteensopivuuden vuoksi EU:n kanssa. HICP mittaa kuluttajahintoja hieman eri tavalla kuin kansallinen CPI.
                     </p>
                     <div class="info-example">
-                        <p><strong>Esimerkki heinäkuu 2025:</strong></p>
-                        <div class="data-comparison">
-                            <span class="data-point hicp-data">HICP: 1,9%</span>
-                            <span class="data-point cpi-data">CPI: 0,2%</span>
+                        <p style="color: var(--text-secondary); margin-bottom: 0.5rem;"><strong>Esimerkki heinäkuu 2025:</strong></p>
+                        <div class="data-comparison" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                            <span class="data-point hicp-data" style="
+                                background: rgba(56, 145, 166, 0.2);
+                                padding: 0.25rem 0.75rem; border-radius: 8px;
+                                font-size: 0.875rem; font-weight: 600;
+                            ">HICP: 1,9%</span>
+                            <span class="data-point cpi-data" style="
+                                background: rgba(158, 158, 158, 0.2);
+                                padding: 0.25rem 0.75rem; border-radius: 8px;
+                                font-size: 0.875rem; font-weight: 600;
+                            ">CPI: 0,2%</span>
                         </div>
                     </div>
                 </div>
@@ -143,23 +302,10 @@
                 </div>
             </div>
         </section>
-
-        <section id="tietoa">
-            <h2>Tietoa inflaatiosta</h2>
-            <div class="info-content">
-                <h3>Mikä on inflaatio?</h3>
-                <p>Inflaatio tarkoittaa yleistä hintatason nousua taloudessa. Se mitataan kuluttajahintaindeksillä (HICP), joka seuraa tavallisten kulutustavaroiden ja palveluiden hintakehitystä.</p>
-                
-                <h3>Miten inflaatio vaikuttaa arkeen?</h3>
-                <p>Inflaatio vähentää rahan ostovoimaa - sama rahasumma ostaa vähemmän tavaraa kuin ennen. Kohtuullinen inflaatio (noin 2%) on kuitenkin merkki terveestä talouskasvusta.</p>
-                
-                <h3>Laskentamenetelmästä</h3>
-                <p>Inflaatioluvut perustuvat Eurostat-tilastoviraston julkaisemiin tietoihin. HICP-indeksi laskee keskimääräistä hintamuutosta kuluttajakorissa, joka sisältää ruoan, asumisen, liikenteen ja muut arkiset menot.</p>
-            </div>
-        </section>
     </div>
 
-    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script defer src="inflation-site-optimized.js"></script>
+    <!-- 🚀 SPEED OPTIMIZATION: Scripts deferred for better performance -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+    <script src="inflation-site-js.js" defer></script>
 </body>
 </html>
