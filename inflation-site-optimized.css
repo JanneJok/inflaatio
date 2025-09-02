@@ -71,18 +71,18 @@ body {
     background: rgba(15, 41, 54, 0.8);
     backdrop-filter: blur(10px);
     z-index: 1000;
-    border-bottom: 1px solid rgba(76, 165, 186, 0.2);
+    border-bottom: 0px solid rgba(76, 165, 186, 0.2);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     transform: translateY(0);
 }
 
 /* Scrollatessa lisättävä luokka */
 .navbar.scrolled {
-    padding: 1rem 2rem;
+    padding: 1.2rem 2rem;
     background: rgba(15, 41, 54, 0.95);
     backdrop-filter: blur(15px);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    border-bottom: 1px solid rgba(76, 165, 186, 0.4);
+    border-bottom: 0px solid rgba(76, 165, 186, 0.4);
 }
 
 .nav-container {
@@ -101,7 +101,7 @@ body {
 }
 
 .navbar.scrolled .logo {
-    font-size: 1.3rem;
+    font-size: 1.4rem;
     color: rgba(255, 255, 255, 1);
 }
 
@@ -502,7 +502,7 @@ body {
         background-repeat: no-repeat;
         background-color: rgba(15, 41, 54, 0.8);
         padding: 3rem 2rem;
-        border-radius: 0;
+        border-radius: 0 0 20px 20px;
         position: relative;
         z-index: 1;
         margin: -90px -2rem 0 -2rem;
@@ -518,7 +518,7 @@ body {
         right: 0;
         bottom: 0;
         background: rgba(15, 41, 54, 0.7);
-        border-radius: 0;
+        border-radius: 0 0 20px 20px;
         z-index: -1;
     }
     
