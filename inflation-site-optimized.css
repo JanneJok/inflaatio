@@ -160,6 +160,109 @@ body {
     border-radius: 20px;
 }
 
+/* Info Banner - siirretty inline-tyyleistä keskitetysti CSS:ään */
+.info-banner {
+    background: linear-gradient(135deg, rgba(56, 145, 166, 0.15) 0%, rgba(42, 123, 160, 0.1) 100%);
+    border: 1px solid rgba(76, 165, 186, 0.3);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin: 3rem auto 4rem;
+    max-width: 1200px;
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+}
+
+.info-banner::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #3891a6, #4ca5ba);
+    border-radius: 16px 16px 0 0;
+}
+
+.info-banner-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.info-icon {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    background: rgba(76, 165, 186, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0.25rem;
+}
+
+.info-icon span {
+    color: #4ca5ba;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.info-text {
+    flex: 1;
+}
+
+.info-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #4ca5ba;
+    margin: 0 0 0.5rem 0;
+    letter-spacing: 0.3px;
+}
+
+.info-description {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.info-example {
+    background: rgba(76, 165, 186, 0.1);
+    border-left: 3px solid #4ca5ba;
+    padding: 0.75rem 1rem;
+    margin: 1rem 0 0 0;
+    border-radius: 0 8px 8px 0;
+}
+
+.info-example p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.data-comparison {
+    display: inline-flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.data-point {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.hicp-data {
+    color: #10b981;
+}
+
+.cpi-data {
+    color: #f59e0b;
+}
+
 /* NETFLIX-STYLE CAROUSEL */
 .carousel {
     position: relative;
@@ -216,33 +319,34 @@ body {
     font-size: 1rem;
     font-weight: 600;
     min-height: 2.5rem;
-    color: #1e5a7d;
+    color: #1e5a7d; /* Matching site theme */
 }
 
 .tile .highlight {
     font-size: 2.5rem;
-    font-weight: 700;
+    font-weight: 800; /* Increased for better contrast */
     margin: 1rem 0;
     line-height: 1;
 }
 
 .tile .highlight.positive {
-    color: #10b981;
+    color: #059669; /* Darker green for better contrast */
 }
 
 .tile .highlight.negative {
-    color: #ef4444;
+    color: #dc2626; /* Darker red for better contrast */
 }
 
 .tile .highlight.neutral {
-    color: #6b7280;
+    color: #374151; /* Darker gray for better contrast */
 }
 
 .tile p {
     margin: 0;
     font-size: 0.875rem;
     line-height: 1.5;
-    color: #5a7b8c;
+    color: #2c5f79; /* Darker teal matching site theme */
+    font-weight: 500;
 }
 
 /* Arrow buttons */
@@ -381,6 +485,26 @@ body {
     /* Hide hero image on mobile */
     .hero-image {
         display: none;
+    }
+    
+    /* Info banner mobile responsive */
+    .info-banner {
+        margin: 2rem 1rem 3rem;
+        padding: 1.25rem;
+    }
+    
+    .info-banner-content {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .info-icon {
+        align-self: flex-start;
+    }
+    
+    .data-comparison {
+        flex-direction: column;
+        gap: 0.5rem;
     }
     
     .charts {
