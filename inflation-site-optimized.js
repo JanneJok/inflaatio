@@ -1,6 +1,7 @@
 // Configuration for proxy server (MUUTETTU OSIO - korvaa CONFIG)
 const CONFIG = {
-    PROXY_BASE_URL: 'https://script.google.com/macros/s/AKfycbznAkSnDUS-VG0lwLhywjpZhJGE_z-z4SohajkhlP45YYudBODbUOtzKOAH-w9hlejW/exec', // Päivitä oikea URL deployment jälkeen
+    SHEET_ID: '1tj7AbW3BkzmPZUd_pfrXmaHZrgpKgYwNljSoVoAObx8',
+    API_KEY: 'AIzaSyDbeAW-uO-vEHuPdSJPVQwR_l1Axc7Cq7g',
     HISTORICAL_RANGE: 'Raakadata!A:F',
     METRICS_RANGE: 'Key Metrics!A:B',
     CACHE_DURATION: 5 * 60 * 1000
@@ -299,45 +300,25 @@ function initializeCharts() {
     }
 
     // JSONP fetchThroughProxy-funktio
-    async function fetchThroughProxy(range) {
-        return new Promise((resolve, reject) => {
-            try {
-                const callbackName = 'jsonp_callback_' + Math.random().toString(36).substr(2, 9);
-                const url = `${CONFIG.PROXY_BASE_URL}?range=${encodeURIComponent(range)}&callback=${callbackName}`;
-                
-                console.log(`🔄 Fetching through JSONP proxy: ${range}`);
-                
-                // Create callback function
-                window[callbackName] = function(data) {
-                    // Cleanup
-                    document.head.removeChild(script);
-                    delete window[callbackName];
-                    
-                    if (data.success) {
-                        resolve(data.data);
-                    } else {
-                        reject(new Error(data.error || 'Unknown error'));
-                    }
-                };
-                
-                // Create script tag
-                const script = document.createElement('script');
-                script.src = url;
-                script.onerror = function() {
-                    document.head.removeChild(script);
-                    delete window[callbackName];
-                    reject(new Error('Failed to load script'));
-                };
-                
-                // Add to DOM
-                document.head.appendChild(script);
-                
-            } catch (error) {
-                console.error(`Error fetching range ${range}:`, error);
-                reject(error);
-            }
-        });
+async function fetchThroughProxy(range) {
+    try {
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}?key=${CONFIG.API_KEY}`;
+        console.log(`🔄 Fetching directly from Google Sheets: ${range}`);
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error(`Google Sheets API error: ${response.status}`);
+        }
+
+        const result = await response.json();
+        return result.values || [];
+
+    } catch (error) {
+        console.error(`Error fetching range ${range}:`, error);
+        throw error;
     }
+}
 
     // Fetch and process Google Sheets data
     async function fetchInflationData() {
