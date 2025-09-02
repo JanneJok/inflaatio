@@ -1,6 +1,6 @@
 // Configuration for proxy server (MUUTETTU OSIO - korvaa CONFIG)
 const CONFIG = {
-    PROXY_BASE_URL: 'https://your-proxy-app.vercel.app', // Päivitä oikea URL deployment jälkeen
+    PROXY_BASE_URL: 'https://script.google.com/macros/s/AKfycbznAkSnDUS-VG0lwLhywjpZhJGE_z-z4SohajkhlP45YYudBODbUOtzKOAH-w9hlejW/exec', // Päivitä oikea URL deployment jälkeen
     HISTORICAL_RANGE: 'Raakadata!A:F',
     METRICS_RANGE: 'Key Metrics!A:B',
     CACHE_DURATION: 5 * 60 * 1000
