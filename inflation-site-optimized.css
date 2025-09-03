@@ -22,7 +22,7 @@
 body {
     font-family: 'Inter', sans-serif;
     background: #1e587d;
-    color: var(--text-primary);
+    color: rgba(255, 255, 255, 0.85);
     line-height: 1.5;
     min-height: 100vh;
     overflow-x: hidden;
@@ -159,10 +159,11 @@ body {
     font-weight: 700;
     margin-bottom: 1rem;
     letter-spacing: -1px;
+    color: rgba(255, 255, 255, 0.85);
 }
 
 .hero-subtitle {
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(255, 255, 255, 0.85);
     font-size: 1.1rem;
     line-height: 1.6;
 }
@@ -372,7 +373,7 @@ body {
 /* Arrow buttons */
 .arrow {
     position: absolute;
-    top: 50%;
+    top: calc(50% + 40px); /* +40px kompensoi carousel-headerin */
     transform: translateY(-50%);
     background: rgba(36, 80, 102, 0.9);
     color: #fff;
@@ -439,7 +440,7 @@ body {
     background: rgba(76, 165, 186, 0.2);
     border: 1px solid rgba(76, 165, 186, 0.3);
     border-radius: 8px;
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.85);
     font-size: 0.875rem;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -447,8 +448,8 @@ body {
 
 .chart-controls button:hover,
 .chart-controls button.active {
-    background: rgba(42, 123, 160, 0.5);
-    border-color: rgba(42, 123, 160, 0.7);
+    background: rgb(42, 123, 160);
+    border-color: rgb(42, 123, 160);
     color: #ffffff;
 }
 
@@ -597,6 +598,10 @@ body {
     
     .chart {
         padding: 0.5rem;
+    }
+
+    .arrow {
+       display: none;
     }
     
     /* Ensure hero image stays hidden on smaller mobile screens too */
