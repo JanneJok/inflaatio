@@ -795,22 +795,22 @@ body {
     bottom: 0;
     background-image: url('https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/footer.webp');
     background-size: cover;
-    background-position: center bottom;
+    background-position: center center; /* Muutettu center bottom -> center center */
     background-repeat: no-repeat;
     mask: linear-gradient(
         to bottom,
         transparent 0%,
-        transparent 40%,
-        rgba(255, 255, 255, 0.2) 60%,
-        rgba(255, 255, 255, 0.6) 80%,
-        white 100%
+        rgba(255, 255, 255, 0.1) 20%,    /* Alkaa näkyä aikaisemmin */
+        rgba(255, 255, 255, 0.4) 40%,    /* Näkyy selkeästi */
+        rgba(255, 255, 255, 0.8) 70%,    /* Lähes täysin näkyvä */
+        white 100%                       /* Täysin näkyvä alhaalla */
     );
     -webkit-mask: linear-gradient(
         to bottom,
         transparent 0%,
-        transparent 40%,
-        rgba(255, 255, 255, 0.2) 60%,
-        rgba(255, 255, 255, 0.6) 80%,
+        rgba(255, 255, 255, 0.1) 20%,
+        rgba(255, 255, 255, 0.4) 40%,
+        rgba(255, 255, 255, 0.8) 70%,
         white 100%
     );
     z-index: 2;
