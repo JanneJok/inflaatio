@@ -615,6 +615,16 @@ body {
     max-width: 1200px;
     margin: 5rem auto;
     padding: 0 2rem;
+    position: relative;
+    z-index: 5;
+    background: linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgba(30, 88, 125, 0.95) 20%,
+        rgba(30, 88, 125, 1) 100%
+    );
+    padding-bottom: 150px; /* Lisätilaa footerin päälle */
+}
 }
 
 .tietoa-container {
@@ -751,11 +761,11 @@ body {
 /* FOOTER STYLES */
 .site-footer {
     position: relative;
-    margin-top: -100px; /* Negatiivinen marginaali nostaa footeria ylös */
+    margin-top: -200px; /* Enemmän päällekkäisyyttä */
     background: #1e5a7d;
     overflow: hidden;
     min-height: 600px; /* Kasvatettu korkeutta */
-    z-index: 10; /* Varmistaa että footer on muiden päällä */
+    z-index: 1; /* Footerin kuva taustakerros */
 }
 
 .footer-background {
@@ -780,11 +790,10 @@ body {
     bottom: 0;
     background: linear-gradient(
         to bottom,
-        #1e587d 0%,                    /* Yläosa: sivuston taustaväri */
-        rgba(30, 88, 125, 0.8) 30%,    /* Liukuma alkaa */
-        rgba(30, 88, 125, 0.4) 60%,    /* Kuva alkaa näkyä */
-        rgba(30, 88, 125, 0.1) 85%,    /* Kuva näkyy hyvin */
-        transparent 100%               /* Alaosa: täysin läpinäkyvä */
+        rgba(31, 93, 130, 0.98) 0%,
+        rgba(31, 93, 130, 0.7) 40%,
+        rgba(31, 93, 130, 0.3) 70%,
+        transparent 100%
     );
     z-index: 2;
 }
