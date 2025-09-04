@@ -780,9 +780,11 @@ body {
     bottom: 0;
     background: linear-gradient(
         to bottom,
-        rgba(30, 90, 125, 0.1) 0%,   /* Hyvin läpinäkyvä ylhäällä */
-        rgba(30, 90, 125, 0.3) 50%,  /* Vähän tummempi keskellä */
-        rgba(30, 90, 125, 0.8) 100%  /* Tummempi alhaalla tekstin luettavuuden vuoksi */
+        #1e587d 0%,                    /* Yläosa: sivuston taustaväri */
+        rgba(30, 88, 125, 0.8) 30%,    /* Liukuma alkaa */
+        rgba(30, 88, 125, 0.4) 60%,    /* Kuva alkaa näkyä */
+        rgba(30, 88, 125, 0.1) 85%,    /* Kuva näkyy hyvin */
+        transparent 100%               /* Alaosa: täysin läpinäkyvä */
     );
     z-index: 2;
 }
