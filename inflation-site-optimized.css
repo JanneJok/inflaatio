@@ -675,7 +675,7 @@ body {
 .info-card h3 {
     font-size: 1.4rem;
     font-weight: 600;
-    color: #4ca5ba;
+    color: rgba(255, 255, 255, 0.85);
     margin: 0 0 1rem 0;
     display: flex;
     align-items: center;
