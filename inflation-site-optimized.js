@@ -1,10 +1,17 @@
-// Configuration for proxy server (MUUTETTU OSIO - korvaa CONFIG)
+// Configuration for proxy server
 const CONFIG = {
     SHEET_ID: '1tj7AbW3BkzmPZUd_pfrXmaHZrgpKgYwNljSoVoAObx8',
     API_KEY: 'AIzaSyDbeAW-uO-vEHuPdSJPVQwR_l1Axc7Cq7g',
     HISTORICAL_RANGE: 'Raakadata!A:F',
     METRICS_RANGE: 'Key Metrics!A:B',
     CACHE_DURATION: 5 * 60 * 1000
+};
+
+// EmailJS configuration
+const EMAILJS_CONFIG = {
+    SERVICE_ID: 'service_nnxux1e',
+    TEMPLATE_ID: 'template_evci98f',
+    PUBLIC_KEY: 'EV6UX6GIPG231yXUd'
 };
 
 // Global variables
@@ -14,6 +21,9 @@ let dataCache = new Map();
 let lastFetch = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize EmailJS
+    emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
+    
     // Store chart instances globally for updates
     let inflationChart = null;
     let hicpChart = null;
@@ -246,7 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initializeCharts();
     }
 
-function initializeCharts() {
+    function initializeCharts() {
         const chartConfig = {
             responsive: true,
             maintainAspectRatio: false,
@@ -380,25 +390,25 @@ function initializeCharts() {
     }
 
     // JSONP fetchThroughProxy-funktio
-async function fetchThroughProxy(range) {
-    try {
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}?key=${CONFIG.API_KEY}`;
-        console.log(`📄 Fetching directly from Google Sheets: ${range}`);
-        
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-            throw new Error(`Google Sheets API error: ${response.status}`);
+    async function fetchThroughProxy(range) {
+        try {
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}?key=${CONFIG.API_KEY}`;
+            console.log(`📄 Fetching directly from Google Sheets: ${range}`);
+            
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error(`Google Sheets API error: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return result.values || [];
+
+        } catch (error) {
+            console.error(`Error fetching range ${range}:`, error);
+            throw error;
         }
-
-        const result = await response.json();
-        return result.values || [];
-
-    } catch (error) {
-        console.error(`Error fetching range ${range}:`, error);
-        throw error;
     }
-}
 
     // Fetch and process Google Sheets data
     async function fetchInflationData() {
@@ -452,7 +462,7 @@ async function fetchThroughProxy(range) {
         }
     }
 
-    // Show error message to user (UUSI FUNKTIO)
+    // Show error message to user
     function showErrorMessage(message) {
         const errorDiv = document.createElement('div');
         errorDiv.className = 'error-message';
@@ -480,7 +490,7 @@ async function fetchThroughProxy(range) {
         }, 5000);
     }
 
-    // Process historical data from Google Sheets (EI MUUTOKSIA)
+    // Process historical data from Google Sheets
     function processHistoricalData(rawData) {
         const headers = rawData[0];
         const rows = rawData.slice(1);
@@ -507,7 +517,7 @@ async function fetchThroughProxy(range) {
         return processedData.sort((a, b) => new Date(a.date + '-01') - new Date(b.date + '-01'));
     }
 
-    // Process key metrics (EI MUUTOKSIA)
+    // Process key metrics
     function processKeyMetrics(rawData) {
         const metrics = {};
         rawData.slice(1).forEach(row => {
@@ -520,7 +530,7 @@ async function fetchThroughProxy(range) {
         return metrics;
     }
 
-    // Update tiles with metrics (EI MUUTOKSIA)
+    // Update tiles with metrics
     function updateTiles() {
         if (!keyMetrics || Object.keys(keyMetrics).length === 0) return;
         
@@ -549,7 +559,7 @@ async function fetchThroughProxy(range) {
         });
     }
 
-    // Update charts with fetched data (EI MUUTOKSIA)
+    // Update charts with fetched data
     function updateChartsWithData() {
         if (!inflationData || inflationData.length === 0) {
             console.log('No data to update charts');
@@ -658,25 +668,22 @@ async function handleContactSubmit(e) {
     btnLoading.style.display = 'inline';
     
     try {
-        // Decode the encrypted email (simple ROT13-like encryption)
-        const encryptedEmail = "wnaar.wbxryn@yvir.sv"; // inflaatio@gmail.com encoded
-        const emailAddress = decodeEmail(encryptedEmail);
+        // Send email via EmailJS
+        const templateParams = {
+            from_name: userName,
+            message: userMessage,
+            reply_to: 'ei-vastausta@sivusto.fi'
+        };
         
-        // Create email content
-        const subject = `Viesti inflaatiosivustolta: ${userName}`;
-        const body = `Lähettäjä: ${userName}\n\nViesti:\n${userMessage}\n\n---\nLähetetty inflaatiosivustolta`;
+        await emailjs.send(
+            EMAILJS_CONFIG.SERVICE_ID,
+            EMAILJS_CONFIG.TEMPLATE_ID,
+            templateParams
+        );
         
-        // Create mailto link
-        const mailtoLink = `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        
-        // Open email client
-        window.location.href = mailtoLink;
-        
-        // Show success message after a short delay
-        setTimeout(() => {
-            form.style.display = 'none';
-            successDiv.style.display = 'block';
-        }, 1000);
+        // Show success message
+        form.style.display = 'none';
+        successDiv.style.display = 'block';
         
     } catch (error) {
         console.error('Virhe viestin lähetyksessä:', error);
@@ -687,13 +694,4 @@ async function handleContactSubmit(e) {
         btnText.style.display = 'inline';
         btnLoading.style.display = 'none';
     }
-}
-
-// Simple email decoding function (ROT13-like)
-function decodeEmail(encoded) {
-    return encoded.replace(/[a-zA-Z]/g, function(c) {
-        return String.fromCharCode(
-            (c <= 'Z' ? 90 : 122) >= (c = c.charCodeAt(0) + 13) ? c : c - 26
-        );
-    });
 }
