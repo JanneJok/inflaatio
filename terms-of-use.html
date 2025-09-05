@@ -7,6 +7,210 @@
     <title>Käyttöehdot - Suomen inflaation seuranta</title>
     <link rel="stylesheet" href="inflation-site-optimized.css">
     <link rel="stylesheet" href="terms-of-use.css">
+    
+    <style>
+    /* Modal styles added inline */
+    .contact-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .contact-modal.show {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .modal-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(15, 41, 54, 0.8);
+        backdrop-filter: blur(10px);
+    }
+
+    .modal-content {
+        position: relative;
+        background: rgba(36, 80, 102, 0.95);
+        border: 1px solid rgba(76, 165, 186, 0.3);
+        border-radius: 20px;
+        max-width: 500px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        backdrop-filter: blur(20px);
+        box-shadow: 0 20px 40px rgba(15, 41, 54, 0.5);
+        transform: scale(0.9);
+        transition: transform 0.3s ease;
+    }
+
+    .contact-modal.show .modal-content {
+        transform: scale(1);
+    }
+
+    .modal-header {
+        padding: 2rem 2rem 1rem;
+        border-bottom: 1px solid rgba(76, 165, 186, 0.2);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header h2 {
+        color: var(--text-primary);
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 2rem;
+        cursor: pointer;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 5px;
+        transition: all 0.3s ease;
+    }
+
+    .modal-close:hover {
+        color: #ffffff;
+        background: rgba(76, 165, 186, 0.2);
+    }
+
+    .modal-body {
+        padding: 2rem;
+    }
+
+    .modal-description {
+        color: var(--text-secondary);
+        margin-bottom: 2rem;
+        line-height: 1.6;
+    }
+
+    .contact-form {
+        display: block;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(76, 165, 186, 0.3);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        box-sizing: border-box;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: rgba(76, 165, 186, 0.7);
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .form-group input::placeholder,
+    .form-group textarea::placeholder {
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    .submit-btn {
+        width: 100%;
+        padding: 1rem 2rem;
+        background: linear-gradient(135deg, #2a7ba0 0%, #4ca5ba 100%);
+        border: none;
+        border-radius: 10px;
+        color: white;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .submit-btn:hover:not(:disabled) {
+        background: linear-gradient(135deg, #1e5a7d 0%, #3891a6 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(42, 123, 160, 0.4);
+    }
+
+    .submit-btn:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    .btn-loading {
+        display: none;
+    }
+
+    .contact-success {
+        text-align: center;
+        display: none;
+    }
+
+    .success-icon {
+        background: #10b981;
+        color: white;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        font-size: 2rem;
+        font-weight: bold;
+    }
+
+    .contact-success h3 {
+        color: var(--text-primary);
+        margin: 0;
+        font-size: 1.25rem;
+    }
+
+    @media (max-width: 768px) {
+        .modal-content {
+            width: 95%;
+            margin: 1rem;
+        }
+        
+        .modal-header,
+        .modal-body {
+            padding: 1.5rem;
+        }
+    }
+    </style>
 </head>
 <body>
     <!-- Starry background from main site -->
@@ -255,7 +459,6 @@
         </div>
     </div>
 
-
     <!-- FOOTER SECTION -->
 <footer class="site-footer">
     <div class="footer-background"></div>
@@ -346,26 +549,183 @@
     </div>
 </div>
 
-
+    <!-- EmailJS -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    
     <script>
-        // Navigation between sections
-        document.querySelectorAll('.term-nav-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                // Remove active from all buttons and sections
-                document.querySelectorAll('.term-nav-btn').forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.term-section').forEach(s => s.classList.remove('active'));
-                
-                // Add active to clicked button and corresponding section
-                this.classList.add('active');
-                const sectionId = this.dataset.section;
-                document.getElementById(sectionId).classList.add('active');
+        // EmailJS configuration
+        const EMAILJS_CONFIG = {
+            SERVICE_ID: 'service_nnxux1e',
+            TEMPLATE_ID: 'template_evci98f',
+            PUBLIC_KEY: 'EV6UX6GIPG231yXUd'
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize EmailJS
+            emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
+
+            // Navigation between sections
+            document.querySelectorAll('.term-nav-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Remove active from all buttons and sections
+                    document.querySelectorAll('.term-nav-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.term-section').forEach(s => s.classList.remove('active'));
+                    
+                    // Add active to clicked button and corresponding section
+                    this.classList.add('active');
+                    const sectionId = this.dataset.section;
+                    document.getElementById(sectionId).classList.add('active');
+                });
             });
+
+            // Cookie settings button (placeholder)
+            document.querySelector('.cookie-settings-btn')?.addEventListener('click', function() {
+                alert('Evästeasetukset-toiminto tulossa pian!');
+            });
+
+            // Modal functionality
+            const contactModal = document.getElementById('contactModal');
+            const contactModalBtn = document.getElementById('contactModalBtn');
+            const modalClose = document.getElementById('modalClose');
+            const modalOverlay = document.getElementById('modalOverlay');
+            const contactForm = document.getElementById('contactForm');
+
+            // Open modal
+            if (contactModalBtn) {
+                contactModalBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    openModal();
+                });
+            }
+
+            // Close modal
+            if (modalClose) {
+                modalClose.addEventListener('click', closeModal);
+            }
+
+            if (modalOverlay) {
+                modalOverlay.addEventListener('click', closeModal);
+            }
+
+            // Close modal on Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && contactModal && contactModal.classList.contains('show')) {
+                    closeModal();
+                }
+            });
+
+            function openModal() {
+                if (contactModal) {
+                    contactModal.style.display = 'flex';
+                    setTimeout(() => {
+                        contactModal.classList.add('show');
+                    }, 10);
+                    document.body.style.overflow = 'hidden';
+                }
+            }
+
+            function closeModal() {
+                if (contactModal) {
+                    contactModal.classList.remove('show');
+                    setTimeout(() => {
+                        contactModal.style.display = 'none';
+                        document.body.style.overflow = '';
+                        // Reset form if needed
+                        resetContactForm();
+                    }, 300);
+                }
+            }
+
+            function resetContactForm() {
+                const form = document.getElementById('contactForm');
+                const successDiv = document.getElementById('contactSuccess');
+                
+                if (form && successDiv) {
+                    form.style.display = 'block';
+                    form.reset();
+                    successDiv.style.display = 'none';
+                    
+                    // Reset button state
+                    const submitBtn = form.querySelector('.submit-btn');
+                    const btnText = submitBtn ? submitBtn.querySelector('.btn-text') : null;
+                    const btnLoading = submitBtn ? submitBtn.querySelector('.btn-loading') : null;
+                    
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        if (btnText) btnText.style.display = 'inline';
+                        if (btnLoading) btnLoading.style.display = 'none';
+                    }
+                }
+            }
+
+            // Contact form submission handler
+            if (contactForm) {
+                contactForm.addEventListener('submit', handleContactSubmit);
+            }
         });
 
-        // Cookie settings button (placeholder)
-        document.querySelector('.cookie-settings-btn')?.addEventListener('click', function() {
-            alert('Evästeasetukset-toiminto tulossa pian!');
-        });
+        // Contact form submission handler
+        async function handleContactSubmit(e) {
+            e.preventDefault();
+            
+            const form = e.target;
+            const submitBtn = form.querySelector('.submit-btn');
+            const btnText = submitBtn.querySelector('.btn-text');
+            const btnLoading = submitBtn.querySelector('.btn-loading');
+            const successDiv = document.getElementById('contactSuccess');
+            
+            // Get form data
+            const formData = new FormData(form);
+            const userName = formData.get('userName').trim();
+            const userEmail = formData.get('userEmail').trim();
+            const userMessage = formData.get('userMessage').trim();
+            
+            // Validate
+            if (!userName || !userEmail || !userMessage) {
+                alert('Täytä kaikki vaaditut kentät.');
+                return;
+            }
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline';
+            
+            try {
+                // Send email via EmailJS
+                const templateParams = {
+                    from_name: userName,
+                    from_email: userEmail,
+                    message: userMessage,
+                    reply_to: userEmail
+                };
+                
+                await emailjs.send(
+                    EMAILJS_CONFIG.SERVICE_ID,
+                    EMAILJS_CONFIG.TEMPLATE_ID,
+                    templateParams
+                );
+                
+                // Show success message
+                form.style.display = 'none';
+                successDiv.style.display = 'block';
+
+                // Hide prompt text when message is sent
+                const contactPrompt = document.getElementById('contact-prompt');
+                if (contactPrompt) {
+                    contactPrompt.style.display = 'none';
+                }
+                
+            } catch (error) {
+                console.error('Virhe viestin lähetyksessä:', error);
+                alert('Viestin lähetyksessä tapahtui virhe. Yritä uudelleen.');
+                
+                // Reset button state
+                submitBtn.disabled = false;
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+            }
+        }
     </script>
 </body>
 </html>
