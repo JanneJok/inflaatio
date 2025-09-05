@@ -659,7 +659,7 @@ async function handleContactSubmit(e) {
     
     try {
         // Decode the encrypted email (simple ROT13-like encryption)
-        const encryptedEmail = "vasvynnglv@tznvy.pbz"; // inflaatio@gmail.com encoded
+        const encryptedEmail = "wnaar.wbxryn@yvir.sv"; // inflaatio@gmail.com encoded
         const emailAddress = decodeEmail(encryptedEmail);
         
         // Create email content
