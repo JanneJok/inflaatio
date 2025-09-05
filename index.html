@@ -269,5 +269,30 @@
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script defer src="inflation-site-optimized.js"></script>
+
+<script>
+console.log('=== COOKIE DEBUG START ===');
+console.log('Document ready state:', document.readyState);
+console.log('CookieConsent available:', typeof CookieConsent);
+console.log('cookie-consent.js loaded:', !!window.CookieConsent);
+
+// Yritä luoda banneri manuaalisesti
+setTimeout(() => {
+    console.log('After timeout - CookieConsent:', typeof CookieConsent);
+    if (typeof CookieConsent === 'undefined') {
+        console.error('❌ cookie-consent.js EI LATAUTUNUT!');
+        // Luo test-banneri
+        const testBanner = document.createElement('div');
+        testBanner.innerHTML = '🍪 TEST: Cookie script ei latautunut';
+        testBanner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:red;color:white;padding:1rem;z-index:9999;text-align:center;';
+        document.body.appendChild(testBanner);
+    } else {
+        console.log('✅ CookieConsent loaded successfully');
+    }
+}, 1000);
+console.log('=== COOKIE DEBUG END ===');
+</script>
+
+
 </body>
 </html>
