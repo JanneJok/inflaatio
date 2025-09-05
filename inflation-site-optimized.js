@@ -684,6 +684,13 @@ async function handleContactSubmit(e) {
         // Show success message
         form.style.display = 'none';
         successDiv.style.display = 'block';
+
+
+        // Piilota kysymysteksti kun viesti on lähetetty
+        const contactPrompt = document.getElementById('contact-prompt');
+        if (contactPrompt) {
+            contactPrompt.style.display = 'none';
+        }
         
     } catch (error) {
         console.error('Virhe viestin lähetyksessä:', error);
