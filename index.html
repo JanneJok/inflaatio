@@ -219,42 +219,48 @@
     </div>
 </footer>
 
-    <!-- Contact Modal Popup -->
-    <div class="contact-modal" id="contactModal">
-        <div class="modal-overlay" id="modalOverlay"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Ota yhteyttä</h2>
-                <button class="modal-close" id="modalClose">&times;</button>
-            </div>
+<!-- Contact Modal Popup -->
+<div class="contact-modal" id="contactModal">
+    <div class="modal-overlay" id="modalOverlay"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Ota yhteyttä</h2>
+            <button class="modal-close" id="modalClose">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+            <p class="modal-description" id="contact-prompt">Onko sinulla kysyttävää inflaatiodatasta tai ehdotuksia sivuston kehittämiseen? Lähetä viesti!</p>
             
-            <div class="modal-body">
-                <p class="modal-description" id="contact-prompt">Onko sinulla kysyttävää inflaatiodatasta tai ehdotuksia sivuston kehittämiseen? Lähetä viesti!</p>
-                
-                <form class="contact-form" id="contactForm">
-                    <div class="form-group">
-                        <label for="userName">Nimi *</label>
-                        <input type="text" id="userName" name="userName" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="userMessage">Viesti *</label>
-                        <textarea id="userMessage" name="userMessage" rows="5" required placeholder="Kerro mitä haluat kysyä tai ehdottaa..."></textarea>
-                    </div>
-                    
-                    <button type="submit" class="submit-btn">
-                        <span class="btn-text">Lähetä viesti</span>
-                        <span class="btn-loading" style="display: none;">Lähetetään...</span>
-                    </button>
-                </form>
-                
-                <div class="contact-success" id="contactSuccess" style="display: none;">
-                    <div class="success-icon">✓</div>
-                    <h3>Kiitos viestistäsi!</h3>
+            <form class="contact-form" id="contactForm">
+                <div class="form-group">
+                    <label for="userName">Nimi *</label>
+                    <input type="text" id="userName" name="userName" required>
                 </div>
+                
+                <div class="form-group">
+                    <label for="userEmail">Sähköposti *</label>
+                    <input type="email" id="userEmail" name="userEmail" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="userMessage">Viesti *</label>
+                    <textarea id="userMessage" name="userMessage" rows="5" required placeholder="Kerro mitä haluat kysyä tai ehdottaa..."></textarea>
+                </div>
+                
+                <button type="submit" class="submit-btn">
+                    <span class="btn-text">Lähetä viesti</span>
+                    <span class="btn-loading" style="display: none;">Lähetetään...</span>
+                </button>
+            </form>
+            
+            <div class="contact-success" id="contactSuccess" style="display: none;">
+                <div class="success-icon">✓</div>
+                <h3>Kiitos viestistäsi!</h3>
             </div>
         </div>
     </div>
+</div>
+
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script defer src="inflation-site-optimized.js"></script>

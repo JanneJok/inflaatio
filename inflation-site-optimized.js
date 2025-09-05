@@ -654,10 +654,11 @@ async function handleContactSubmit(e) {
     // Get form data
     const formData = new FormData(form);
     const userName = formData.get('userName').trim();
+    const userEmail = formData.get('userEmail').trim();
     const userMessage = formData.get('userMessage').trim();
     
     // Validate
-    if (!userName || !userMessage) {
+    if (!userName || !userEmail || !userMessage) {
         alert('Täytä kaikki vaaditut kentät.');
         return;
     }
@@ -671,8 +672,9 @@ async function handleContactSubmit(e) {
         // Send email via EmailJS
         const templateParams = {
             from_name: userName,
+            from_email: userEmail,
             message: userMessage,
-            reply_to: 'ei-vastausta@sivusto.fi'
+            reply_to: userEmail
         };
         
         await emailjs.send(
