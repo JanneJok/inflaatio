@@ -13,6 +13,7 @@
     <link rel="preload" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" as="script">
     
     <link rel="stylesheet" href="inflation-site-optimized.css">
+    <link rel="stylesheet" href="cookie-consent.css">
 </head>
 <body>
     <div class="starry-bg"></div>
@@ -200,7 +201,7 @@
                         <h4>Yhteystiedot</h4>
                         <ul>
                             <li><a href="#" id="contactModalBtn">Ota yhteyttä</a></li>
-                            <li><a href="#">Tietosuoja</a></li>
+                            <li><a href="#" onclick="CookieConsent.showCookieSettings()">Evästeasetukset</a></li>
                             <li><a href="terms-of-use.html">Käyttöehdot</a></li>
                         </ul>
                     </div>
@@ -261,6 +262,10 @@
     </div>
 </div>
 
+    <!-- Cookie Consent - Ladataan ensimmäisenä -->
+    <script src="cookie-consent.js"></script>
+    
+    <!-- EmailJS ja muut scriptit -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script defer src="inflation-site-optimized.js"></script>

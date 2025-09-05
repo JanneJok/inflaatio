@@ -7,6 +7,7 @@
     <title>Käyttöehdot - Suomen inflaation seuranta</title>
     <link rel="stylesheet" href="inflation-site-optimized.css">
     <link rel="stylesheet" href="terms-of-use.css">
+    <link rel="stylesheet" href="cookie-consent.css">
     
     <style>
     /* Modal styles added inline */
@@ -288,7 +289,7 @@
                 <div class="section-card">
                     <h2 class="section-title">4. Vastuunrajoitus</h2>
                     <div class="section-content">
-                        <p>Palvelu tarjotaan "sellaisenaan". Emme takaa palvelun keskeytymätöntä tai virheetöntä toimintaa. Emme ole vastuussa välittömistä tai välillisistä vahingoista, jotka johtuvat palvelun käytöstä.</p>
+                        <p>Palvelu tarjotaan "sellaisenaan". Emme takaa palvelun keskeytymätöntä tai virheettömätä toimintaa. Emme ole vastuussa välittömistä tai välillisistä vahingoista, jotka johtuvat palvelun käytöstä.</p>
                     </div>
                 </div>
 
@@ -347,7 +348,7 @@
                         <ul class="styled-list">
                             <li>Palvelun toiminnan varmistaminen (oikeutettu etu)</li>
                             <li>Käyttökokemuksen parantaminen (suostumus)</li>
-                            <li>Tilastollinen analysointi (suostumus analytiikkaevästeisiin)</li>
+                            <li>Tilastollinen analysointi (suostumus analytiikkaevästeitä)</li>
                             <li>Väärinkäytösten estäminen (oikeutettu etu)</li>
                         </ul>
                         <p><strong>Säilytysaika:</strong> Google Analytics -dataa säilytetään enintään 26 kuukautta.</p>
@@ -416,8 +417,8 @@
                 <div class="section-card">
                     <h2 class="section-title">Evästeiden hallinta</h2>
                     <div class="section-content">
-                        <p>Voit hallita evästeitä selaimen asetuksista sekä sivustomme evästeasetusten kautta. Voit peruuttaa suostumuksesi milloin tahansa.</p>
-                        <button class="cookie-settings-btn">Hallitse evästeasetuksia</button>
+                        <p>Voit hallita evästeitä selaimen asetuksista sekä sivustomme evästeasetustenfrom kautta. Voit peruuttaa suostumuksesi milloin tahansa.</p>
+                        <button class="cookie-settings-btn" onclick="CookieConsent.showCookieSettings()">Hallitse evästeasetuksia</button>
                     </div>
                 </div>
             </section>
@@ -488,7 +489,7 @@
                         <h4>Yhteystiedot</h4>
                         <ul>
                             <li><a href="#" id="contactModalBtn">Ota yhteyttä</a></li>
-                            <li><a href="#">Tietosuoja</a></li>
+                            <li><a href="#" onclick="CookieConsent.showCookieSettings()">Evästeasetukset</a></li>
                             <li><a href="terms-of-use.html">Käyttöehdot</a></li>
                         </ul>
                     </div>
@@ -549,6 +550,9 @@
     </div>
 </div>
 
+    <!-- Cookie Consent - Ladataan ensimmäisenä -->
+    <script src="cookie-consent.js"></script>
+    
     <!-- EmailJS -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     
@@ -576,11 +580,6 @@
                     const sectionId = this.dataset.section;
                     document.getElementById(sectionId).classList.add('active');
                 });
-            });
-
-            // Cookie settings button (placeholder)
-            document.querySelector('.cookie-settings-btn')?.addEventListener('click', function() {
-                alert('Evästeasetukset-toiminto tulossa pian!');
             });
 
             // Modal functionality
@@ -630,7 +629,6 @@
                     setTimeout(() => {
                         contactModal.style.display = 'none';
                         document.body.style.overflow = '';
-                        // Reset form if needed
                         resetContactForm();
                     }, 300);
                 }
@@ -645,7 +643,6 @@
                     form.reset();
                     successDiv.style.display = 'none';
                     
-                    // Reset button state
                     const submitBtn = form.querySelector('.submit-btn');
                     const btnText = submitBtn ? submitBtn.querySelector('.btn-text') : null;
                     const btnLoading = submitBtn ? submitBtn.querySelector('.btn-loading') : null;
