@@ -49,6 +49,86 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Modal functionality
+    const contactModal = document.getElementById('contactModal');
+    const contactModalBtn = document.getElementById('contactModalBtn');
+    const modalClose = document.getElementById('modalClose');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const contactForm = document.getElementById('contactForm');
+
+    // Open modal
+    if (contactModalBtn) {
+        contactModalBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            openModal();
+        });
+    }
+
+    // Close modal
+    if (modalClose) {
+        modalClose.addEventListener('click', closeModal);
+    }
+
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', closeModal);
+    }
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && contactModal && contactModal.classList.contains('show')) {
+            closeModal();
+        }
+    });
+
+    function openModal() {
+        if (contactModal) {
+            contactModal.style.display = 'flex';
+            setTimeout(() => {
+                contactModal.classList.add('show');
+            }, 10);
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    function closeModal() {
+        if (contactModal) {
+            contactModal.classList.remove('show');
+            setTimeout(() => {
+                contactModal.style.display = 'none';
+                document.body.style.overflow = '';
+                // Reset form if needed
+                resetContactForm();
+            }, 300);
+        }
+    }
+
+    function resetContactForm() {
+        const form = document.getElementById('contactForm');
+        const successDiv = document.getElementById('contactSuccess');
+        
+        if (form && successDiv) {
+            form.style.display = 'block';
+            form.reset();
+            successDiv.style.display = 'none';
+            
+            // Reset button state
+            const submitBtn = form.querySelector('.submit-btn');
+            const btnText = submitBtn ? submitBtn.querySelector('.btn-text') : null;
+            const btnLoading = submitBtn ? submitBtn.querySelector('.btn-loading') : null;
+            
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                if (btnText) btnText.style.display = 'inline';
+                if (btnLoading) btnLoading.style.display = 'none';
+            }
+        }
+    }
+
+    // Contact form submission handler
+    if (contactForm) {
+        contactForm.addEventListener('submit', handleContactSubmit);
+    }
+
     // Function to filter data based on time range
     function filterDataByRange(data, range) {
         if (!data || !data.labels || !data.datasets) {
@@ -303,7 +383,7 @@ function initializeCharts() {
 async function fetchThroughProxy(range) {
     try {
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}?key=${CONFIG.API_KEY}`;
-        console.log(`🔄 Fetching directly from Google Sheets: ${range}`);
+        console.log(`📄 Fetching directly from Google Sheets: ${range}`);
         
         const response = await fetch(url);
         
@@ -335,7 +415,7 @@ async function fetchThroughProxy(range) {
         }
 
         try {
-            console.log('🔄 Fetching data through secure proxy...');
+            console.log('📄 Fetching data through secure proxy...');
             
             // Fetch through proxy server instead of direct API calls
             const [historicalData, metricsData] = await Promise.all([
@@ -537,15 +617,83 @@ async function fetchThroughProxy(range) {
     
     // Set up auto-refresh every 5 minutes
     setInterval(fetchInflationData, CONFIG.CACHE_DURATION);
-    // Header scroll-animaatio
-window.addEventListener('scroll', () => {
-    const navbar = document.querySelector('.navbar');
-    const scrolled = window.scrollY > 50;
     
-    if (scrolled) {
-        navbar.classList.add('scrolled');
-    } else {
-        navbar.classList.remove('scrolled');
+    // Header scroll-animaatio
+    window.addEventListener('scroll', () => {
+        const navbar = document.querySelector('.navbar');
+        const scrolled = window.scrollY > 50;
+        
+        if (scrolled) {
+            navbar.classList.add('scrolled');
+        } else {
+            navbar.classList.remove('scrolled');
+        }
+    });
+});
+
+// Contact form submission handler
+async function handleContactSubmit(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const submitBtn = form.querySelector('.submit-btn');
+    const btnText = submitBtn.querySelector('.btn-text');
+    const btnLoading = submitBtn.querySelector('.btn-loading');
+    const successDiv = document.getElementById('contactSuccess');
+    
+    // Get form data
+    const formData = new FormData(form);
+    const userName = formData.get('userName').trim();
+    const userMessage = formData.get('userMessage').trim();
+    
+    // Validate
+    if (!userName || !userMessage) {
+        alert('Täytä kaikki vaaditut kentät.');
+        return;
     }
-});
-});
+    
+    // Show loading state
+    submitBtn.disabled = true;
+    btnText.style.display = 'none';
+    btnLoading.style.display = 'inline';
+    
+    try {
+        // Decode the encrypted email (simple ROT13-like encryption)
+        const encryptedEmail = "vasvynnglv@tznvy.pbz"; // inflaatio@gmail.com encoded
+        const emailAddress = decodeEmail(encryptedEmail);
+        
+        // Create email content
+        const subject = `Viesti inflaatiosivustolta: ${userName}`;
+        const body = `Lähettäjä: ${userName}\n\nViesti:\n${userMessage}\n\n---\nLähetetty inflaatiosivustolta`;
+        
+        // Create mailto link
+        const mailtoLink = `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        
+        // Open email client
+        window.location.href = mailtoLink;
+        
+        // Show success message after a short delay
+        setTimeout(() => {
+            form.style.display = 'none';
+            successDiv.style.display = 'block';
+        }, 1000);
+        
+    } catch (error) {
+        console.error('Virhe viestin lähetyksessä:', error);
+        alert('Viestin lähetyksessä tapahtui virhe. Yritä uudelleen.');
+        
+        // Reset button state
+        submitBtn.disabled = false;
+        btnText.style.display = 'inline';
+        btnLoading.style.display = 'none';
+    }
+}
+
+// Simple email decoding function (ROT13-like)
+function decodeEmail(encoded) {
+    return encoded.replace(/[a-zA-Z]/g, function(c) {
+        return String.fromCharCode(
+            (c <= 'Z' ? 90 : 122) >= (c = c.charCodeAt(0) + 13) ? c : c - 26
+        );
+    });
+}
