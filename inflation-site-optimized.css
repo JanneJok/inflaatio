@@ -17,15 +17,25 @@
     --teal-primary: #2a7ba0;
     --teal-dark: #1e5a7d;
     --teal-light: #4ca5ba;
+    
+    /* GLOBAALIT FONTTI JA VÄRI MÄÄRITYKSET */
+    --site-font: 'Inter', sans-serif;
+    --site-text-color: rgba(255, 255, 255, 0.8);
 }
 
 body {
-    font-family: 'Inter', sans-serif;
+    font-family: var(--site-font);
     background: #1e587d;
-    color: rgba(255, 255, 255, 0.85);
+    color: var(--site-text-color);
     line-height: 1.5;
     min-height: 100vh;
     overflow-x: hidden;
+}
+
+/* GLOBAALI FONTTI JA VÄRI - kaikille elementeille */
+*, *::before, *::after {
+    font-family: inherit;
+    color: inherit;
 }
 
 /* Starry background */
@@ -159,11 +169,9 @@ body {
     font-weight: 700;
     margin-bottom: 1rem;
     letter-spacing: -1px;
-    color: rgba(255, 255, 255, 0.85);
 }
 
 .hero-subtitle {
-    color: rgba(255, 255, 255, 0.85);
     font-size: 1.1rem;
     line-height: 1.6;
 }
@@ -242,7 +250,6 @@ body {
 }
 
 .info-description {
-    color: rgba(255, 255, 255, 0.85);
     font-size: 0.95rem;
     line-height: 1.6;
     margin: 0;
@@ -259,7 +266,6 @@ body {
 .info-example p {
     margin: 0;
     font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.9);
 }
 
 .data-comparison {
@@ -625,17 +631,11 @@ body {
 .tietoa-header {
     text-align: center;
     margin-bottom: 3rem;
-    color: rgba(255, 255, 255, 0.85);
-
 }
 
 .tietoa-header h2 {
     font-size: 2.5rem;
     font-weight: 700;
-    background: linear-gradient(135deg, #4ca5ba 0%, #3891a6 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
     margin-bottom: 1rem;
     letter-spacing: -0.5px;
 }
@@ -677,7 +677,6 @@ body {
 .info-card h3 {
     font-size: 1.4rem;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.85);
     margin: 0 0 1rem 0;
     display: flex;
     align-items: center;
@@ -694,7 +693,6 @@ body {
 }
 
 .info-card p {
-    color: rgba(255, 255, 255, 0.85);
     font-size: 1rem;
     line-height: 1.7;
     margin: 0;
@@ -954,48 +952,6 @@ body {
 
 .footer-source a:hover {
     color: rgba(255, 255, 255, 1);
-}
-
-/* Footer Mobile Responsive */
-@media (max-width: 768px) {
-    .footer-grid {
-        grid-template-columns: 1fr;
-        gap: 3rem;
-    }
-    
-    .footer-links {
-        grid-template-columns: 1fr;
-        gap: 2rem;
-    }
-    
-    .footer-bottom {
-        flex-direction: column;
-        text-align: center;
-        gap: 1rem;
-    }
-    
-    .footer-content {
-        padding: 3rem 0 2rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .footer-container {
-        padding: 0 1rem;
-    }
-    
-    .footer-brand h3 {
-        font-size: 1.5rem;
-    }
-    
-    .footer-social a {
-        width: 36px;
-        height: 36px;
-    }
-    
-    .site-footer {
-        min-height: 350px;
-    }
 }
 
 /* Footer Mobile Responsive */
