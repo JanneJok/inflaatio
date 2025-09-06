@@ -304,22 +304,22 @@
 }
 
 /* KRIITTINEN: Checked state - tämä liikuttaa toggleria */
-input:checked + .toggle-slider {
+input:checked + .toggle-label .toggle-slider {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
     border-color: #10b981 !important;
 }
 
-input:checked + .toggle-slider:before {
+input:checked + .toggle-label .toggle-slider:before {
     transform: translateX(24px) !important;
 }
 
 /* Disabled state */
-input:disabled + .toggle-slider {
+input:disabled + .toggle-label .toggle-slider {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
-input:disabled + .toggle-slider:before {
+input:disabled + .toggle-label .toggle-slider:before {
     opacity: 0.7;
 }
 
