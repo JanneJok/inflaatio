@@ -6,7 +6,7 @@ class CookieConsent {
         this.COOKIE_NAME = 'inflaatio_cookie_consent';
         this.ANALYTICS_ACCEPTED = 'analytics_accepted';
         this.COOKIE_DURATION = 365; // päivää
-        this.GA_MEASUREMENT_ID = 'G-XXXXXXXXXX'; // Korvaa oikealla Google Analytics ID:llä
+        this.GA_MEASUREMENT_ID = 'G-Y6YW3W445P'; // Korvaa oikealla Google Analytics ID:llä
         
         this.init();
     }
