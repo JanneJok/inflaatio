@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+
+# Sitemap sijainti
+Sitemap: https://inflaatio.fi/sitemap.xml
+
+# Suositellut crawl-asetukset
+Crawl-delay: 1
+
+# Salli tärkeimmät hakukoneet
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
