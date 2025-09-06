@@ -215,7 +215,36 @@ class CookieConsent {
             this.saveSettings();
         });
         
+        // KORJAUS: Aseta nykyinen cookie-tila checkboxeihin
+        setTimeout(() => {
+            this.setCurrentCookieStates(modal);
+        }, 50);
+        
         return modal;
+    }
+
+    // UUSI FUNKTIO: Asettaa checkboxien tilan nykyisten cookie-asetusten mukaan
+    setCurrentCookieStates(modal) {
+        const consent = this.getCookieConsent();
+        const analyticsCheckbox = modal.querySelector('#analyticsCookies');
+        
+        console.log('Setting cookie states. Current consent:', consent);
+        
+        if (analyticsCheckbox) {
+            // Aseta analytics checkbox nykyisen suostumuksen mukaan
+            analyticsCheckbox.checked = consent && consent.analytics;
+            console.log('Analytics checkbox set to:', analyticsCheckbox.checked);
+            
+            // Pakota CSS:n päivitys lisäämällä/poistamalla checked attribuutti
+            if (analyticsCheckbox.checked) {
+                analyticsCheckbox.setAttribute('checked', 'checked');
+            } else {
+                analyticsCheckbox.removeAttribute('checked');
+            }
+            
+            // Trigger change event jotta CSS päivittyy varmasti
+            analyticsCheckbox.dispatchEvent(new Event('change'));
+        }
     }
 
     hideSettingsModal() {
@@ -255,6 +284,8 @@ class CookieConsent {
     saveSettings() {
         const analyticsCheckbox = document.getElementById('analyticsCookies');
         const analyticsAccepted = analyticsCheckbox ? analyticsCheckbox.checked : false;
+        
+        console.log('Saving settings. Analytics accepted:', analyticsAccepted);
         
         const consent = this.setCookieConsent({
             analytics: analyticsAccepted
