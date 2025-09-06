@@ -3,9 +3,9 @@
     "short_name": "Inflaatio",
     "icons": [
         {
-            "src": "favicon-32x32.png",
+            "src": "favicon.webp",
             "sizes": "32x32",
-            "type": "image/png"
+            "type": "image/webp"
         }
     ],
     "theme_color": "#1e5a7d",
