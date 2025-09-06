@@ -1,0 +1,14 @@
+{
+    "name": "Suomen Inflaation Seuranta",
+    "short_name": "Inflaatio",
+    "icons": [
+        {
+            "src": "favicon-32x32.png",
+            "sizes": "32x32",
+            "type": "image/png"
+        }
+    ],
+    "theme_color": "#1e5a7d",
+    "background_color": "#0f2936",
+    "display": "standalone"
+}
