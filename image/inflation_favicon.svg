@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <!-- Gold/brass gradient for outer ring -->
+    <radialGradient id="goldRing" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" style="stop-color:#ffd700;stop-opacity:1" />
+      <stop offset="40%" style="stop-color:#daa520;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#b8860b;stop-opacity:1" />
+    </radialGradient>
+    
+    <!-- Silver gradient for center -->
+    <radialGradient id="silverCenter" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" style="stop-color:#f8f8ff;stop-opacity:1" />
+      <stop offset="40%" style="stop-color:#dcdcdc;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c0c0c0;stop-opacity:1" />
+    </radialGradient>
+    
+    <!-- Shadow gradient -->
+    <radialGradient id="coinShadow" cx="50%" cy="50%" r="50%">
+      <stop offset="70%" style="stop-color:#000000;stop-opacity:0" />
+      <stop offset="100%" style="stop-color:#000000;stop-opacity:0.3" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Background with slight shadow -->
+  <circle cx="16" cy="16" r="15.5" fill="url(#coinShadow)" opacity="0.3"/>
+  
+  <!-- Outer gold ring -->
+  <circle cx="16" cy="16" r="15" fill="url(#goldRing)" stroke="#996515" stroke-width="0.5"/>
+  
+  <!-- Inner silver circle -->
+  <circle cx="16" cy="16" r="10" fill="url(#silverCenter)" stroke="#a9a9a9" stroke-width="0.3"/>
+  
+  <!-- Euro symbol "€" in center -->
+  <text x="16" y="20" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#666666">€</text>
+  
+  <!-- Small stars around the edge (simplified) -->
+  <g fill="#b8860b" opacity="0.8">
+    <circle cx="16" cy="4" r="0.8"/>
+    <circle cx="24" cy="8" r="0.8"/>
+    <circle cx="28" cy="16" r="0.8"/>
+    <circle cx="24" cy="24" r="0.8"/>
+    <circle cx="16" cy="28" r="0.8"/>
+    <circle cx="8" cy="24" r="0.8"/>
+    <circle cx="4" cy="16" r="0.8"/>
+    <circle cx="8" cy="8" r="0.8"/>
+  </g>
+  
+  <!-- Subtle highlight for 3D effect -->
+  <ellipse cx="13" cy="11" rx="4" ry="2" fill="rgba(255,255,255,0.3)" transform="rotate(-45 13 11)"/>
+</svg>
