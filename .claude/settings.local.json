@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx cleancss-cli:*)",
+      "Bash(npx clean-css-cli:*)",
+      "Bash(powershell -Command \"(Get-Item ''c:\\Users\\janne\\Documents\\GitHub\\inflaatio\\inflation-site-optimized.min.css'').Length\")",
+      "Bash(npx terser:*)",
+      "Bash(powershell:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
