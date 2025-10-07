@@ -59,18 +59,20 @@
         }
 
         /* Critical above-the-fold styles - CLS optimized */
-        body{margin:0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0e27;color:#fff;line-height:1.6}
+        body{margin:0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#1e587d;color:#fff;line-height:1.6;min-height:100vh;overflow-x:hidden}
+        .starry-bg{position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(to bottom,#20618bd4 0,#1e5a7d 50%,#245066 100%);overflow:hidden;z-index:0}
         .navbar{position:fixed;top:0;width:100%;background:rgba(10,14,39,0.95);backdrop-filter:blur(10px);z-index:1000;box-shadow:0 2px 10px rgba(0,0,0,0.3);height:70px}
 
-        /* Hero section - prevent layout shift */
-        .hero-section{padding:120px 20px 60px;text-align:center;min-height:600px}
-        .hero-content{display:flex;align-items:center;justify-content:space-between;gap:3rem;max-width:1200px;margin:0 auto}
-        .hero-image{flex:0 0 500px;max-width:500px}
-        .hero-image img{width:100%;height:auto;aspect-ratio:1536/1024;display:block}
-        .hero-title{font-size:3rem;font-weight:700;margin:0 0 1.5rem 0;line-height:1.2}
-        .hero-subtitle{font-size:1.2rem;line-height:1.6;color:rgba(255,255,255,0.85);margin:0}
+        /* Hero section - prevent layout shift with explicit dimensions */
+        .hero-section{padding:120px 20px 60px;text-align:center;min-height:600px;margin:0;width:100%;position:relative}
+        .hero-content{display:flex;align-items:center;justify-content:space-between;gap:3rem;max-width:1200px;margin:0 auto;min-height:400px}
+        .hero-text{flex:1;text-align:left;min-height:200px}
+        .hero-image{flex:0 0 500px;max-width:500px;width:500px;height:333px;overflow:hidden}
+        .hero-image img{width:100%;height:100%;object-fit:cover;aspect-ratio:1536/1024;display:block}
+        .hero-title{font-size:3rem;font-weight:700;margin:0 0 1.5rem 0;line-height:1.2;min-height:3.6rem}
+        .hero-subtitle{font-size:1.2rem;line-height:1.6;color:rgba(255,255,255,0.85);margin:0;min-height:4.8rem}
 
-        .container{max-width:1200px;margin:0 auto;padding:20px}
+        .container{max-width:1400px;margin:0 auto;padding:120px 2rem 4rem;position:relative;z-index:1}
 
         /* Cookie consent - reserve space to prevent CLS */
         body{padding-bottom:0}
@@ -79,6 +81,14 @@
         .cookie-banner-content{display:flex;align-items:center;justify-content:space-between;gap:2rem;max-width:1200px;margin:0 auto}
         .cookie-btn{padding:0.75rem 1.5rem;border:none;border-radius:8px;font-size:0.9rem;font-weight:500;cursor:pointer;white-space:nowrap}
         .cookie-btn-accept{background:#10b981;color:white;box-shadow:0 4px 12px rgba(16,185,129,0.3)}
+
+        /* Responsive - prevent mobile CLS */
+        @media (max-width:768px){
+            .hero-content{flex-direction:column;min-height:auto}
+            .hero-text{text-align:center;min-height:auto}
+            .hero-image{display:none}
+            .hero-title{font-size:2.5rem}
+        }
     </style>
 
     <!-- Load minified CSS asynchronously -->
@@ -428,69 +438,15 @@
     </div>
 </div>
 
-    <!-- Scripts optimized for performance with lazy loading -->
+    <!-- Scripts optimized for performance -->
     <script defer src="cookie-consent.js"></script>
 
-    <!-- Lazy load Chart.js only when charts section is visible -->
-    <script>
-        let chartJsLoaded = false;
-        let emailJsLoaded = false;
+    <!-- Load Chart.js and EmailJS with defer for better performance -->
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 
-        // Lazy load Chart.js when user scrolls to charts section
-        function loadChartJs() {
-            if (chartJsLoaded) return;
-            chartJsLoaded = true;
-
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-            script.onload = function() {
-                // Load main JS after Chart.js is ready
-                const mainScript = document.createElement('script');
-                mainScript.src = 'inflation-site-optimized.min.js?v=1.4';
-                document.body.appendChild(mainScript);
-            };
-            document.body.appendChild(script);
-        }
-
-        // Lazy load EmailJS when contact modal is opened
-        function loadEmailJs() {
-            if (emailJsLoaded) return;
-            emailJsLoaded = true;
-
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
-            document.body.appendChild(script);
-        }
-
-        // Observe charts section
-        document.addEventListener('DOMContentLoaded', function() {
-            const chartsSection = document.getElementById('analytiikka');
-            const contactModalBtn = document.getElementById('contactModalBtn');
-
-            if (chartsSection) {
-                const observer = new IntersectionObserver((entries) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            loadChartJs();
-                            observer.disconnect();
-                        }
-                    });
-                }, { rootMargin: '200px' });
-
-                observer.observe(chartsSection);
-            }
-
-            // Load EmailJS when contact button is clicked
-            if (contactModalBtn) {
-                contactModalBtn.addEventListener('click', loadEmailJs, { once: true });
-            }
-
-            // Fallback: load Chart.js after 5 seconds if not scrolled
-            setTimeout(function() {
-                if (!chartJsLoaded) loadChartJs();
-            }, 5000);
-        });
-    </script>
+    <!-- Main application script -->
+    <script defer src="inflation-site-optimized.min.js?v=1.4"></script>
 
 
 </body>
