@@ -447,27 +447,36 @@
                 if (chartJsLoaded) return;
                 chartJsLoaded = true;
 
+                console.log('🔄 Loading Chart.js...');
+
                 const script = document.createElement('script');
                 script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+
                 script.onload = function() {
+                    console.log('✅ Chart.js loaded, waiting for initCharts...');
+
                     // Wait for window.initCharts to be available
-                    function tryInitCharts(attempts) {
-                        if (attempts === 0) {
-                            console.error('window.initCharts not available after Chart.js load');
-                            return;
-                        }
+                    var attempts = 0;
+                    var maxAttempts = 50;
 
-                        if (window.initCharts) {
+                    var interval = setInterval(function() {
+                        attempts++;
+
+                        if (window.initCharts && typeof Chart !== 'undefined') {
+                            clearInterval(interval);
+                            console.log('🚀 Calling window.initCharts()');
                             window.initCharts();
-                        } else {
-                            setTimeout(function() {
-                                tryInitCharts(attempts - 1);
-                            }, 50);
+                        } else if (attempts >= maxAttempts) {
+                            clearInterval(interval);
+                            console.error('❌ Failed: window.initCharts=' + typeof window.initCharts + ', Chart=' + typeof Chart);
                         }
-                    }
-
-                    tryInitCharts(20); // Try for 1 second (20 * 50ms)
+                    }, 50);
                 };
+
+                script.onerror = function() {
+                    console.error('❌ Failed to load Chart.js');
+                };
+
                 document.head.appendChild(script);
             }
 
