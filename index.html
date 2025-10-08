@@ -434,12 +434,67 @@
     <!-- Scripts optimized for performance -->
     <script defer src="cookie-consent.js"></script>
 
-    <!-- Load Chart.js and EmailJS with defer for better performance -->
-    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <!-- Lazy load Chart.js when charts section becomes visible -->
+    <script>
+        let chartJsLoaded = false;
+        let emailJsLoaded = false;
+
+        function loadChartJs() {
+            if (chartJsLoaded) return;
+            chartJsLoaded = true;
+
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+            script.onload = function() {
+                // Initialize charts after Chart.js loads
+                if (window.initCharts) window.initCharts();
+            };
+            document.head.appendChild(script);
+        }
+
+        function loadEmailJs() {
+            if (emailJsLoaded) return;
+            emailJsLoaded = true;
+
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
+            document.head.appendChild(script);
+        }
+
+        // Observe charts section for lazy loading
+        if ('IntersectionObserver' in window) {
+            document.addEventListener('DOMContentLoaded', function() {
+                const chartsSection = document.querySelector('.charts');
+                if (chartsSection) {
+                    const observer = new IntersectionObserver(function(entries) {
+                        entries.forEach(function(entry) {
+                            if (entry.isIntersecting) {
+                                loadChartJs();
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    }, { rootMargin: '200px' }); // Load 200px before visible
+
+                    observer.observe(chartsSection);
+                }
+
+                // Load EmailJS when contact modal opens
+                const contactBtn = document.querySelector('[onclick*="contactModal"]');
+                if (contactBtn) {
+                    contactBtn.addEventListener('click', loadEmailJs, { once: true });
+                }
+            });
+        } else {
+            // Fallback for older browsers - load after 2 seconds
+            setTimeout(function() {
+                loadChartJs();
+                loadEmailJs();
+            }, 2000);
+        }
+    </script>
 
     <!-- Main application script -->
-    <script defer src="inflation-site-optimized.min.js?v=1.4"></script>
+    <script defer src="inflation-site-optimized.min.js?v=1.5"></script>
 
 
 </body>

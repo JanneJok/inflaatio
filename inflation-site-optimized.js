@@ -21,8 +21,24 @@ let dataCache = new Map();
 let lastFetch = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize EmailJS
-    emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
+    // Initialize EmailJS when available (lazy loaded)
+    function initEmailJS() {
+        if (typeof emailjs !== 'undefined' && !window.emailJsInitialized) {
+            emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
+            window.emailJsInitialized = true;
+        }
+    }
+
+    // Try to initialize EmailJS if already loaded, otherwise wait for lazy load
+    initEmailJS();
+
+    // Check periodically if EmailJS becomes available
+    const emailJsInterval = setInterval(() => {
+        if (typeof emailjs !== 'undefined') {
+            initEmailJS();
+            clearInterval(emailJsInterval);
+        }
+    }, 100);
     
     // Store chart instances globally for updates
     let inflationChart = null;
@@ -251,9 +267,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Make initCharts available globally for lazy loading
+    window.initCharts = function() {
+        if (window.chartsInitialized) return; // Prevent double initialization
+        window.chartsInitialized = true;
+        initializeCharts();
+    };
+
     // Initialize Chart.js charts if available
     if (typeof Chart !== 'undefined') {
-        initializeCharts();
+        window.initCharts();
     }
 
     function initializeCharts() {
