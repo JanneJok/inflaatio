@@ -450,10 +450,23 @@
                 const script = document.createElement('script');
                 script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
                 script.onload = function() {
-                    // Initialize charts after Chart.js loads
-                    if (window.initCharts) {
-                        window.initCharts();
+                    // Wait for window.initCharts to be available
+                    function tryInitCharts(attempts) {
+                        if (attempts === 0) {
+                            console.error('window.initCharts not available after Chart.js load');
+                            return;
+                        }
+
+                        if (window.initCharts) {
+                            window.initCharts();
+                        } else {
+                            setTimeout(function() {
+                                tryInitCharts(attempts - 1);
+                            }, 50);
+                        }
                     }
+
+                    tryInitCharts(20); // Try for 1 second (20 * 50ms)
                 };
                 document.head.appendChild(script);
             }
