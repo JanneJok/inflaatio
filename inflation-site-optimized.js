@@ -418,6 +418,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
+
+        // If data was already loaded before Chart.js, update charts now
+        console.log('✅ Charts initialized. Data available:', inflationData.length > 0);
+        if (inflationData.length > 0) {
+            console.log('📊 Data was loaded before charts - updating now...');
+            updateChartsWithData();
+        }
     }
 
     // JSONP fetchThroughProxy-funktio
