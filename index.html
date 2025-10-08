@@ -455,22 +455,22 @@
                 script.onload = function() {
                     console.log('✅ Chart.js loaded, waiting for initCharts...');
 
-                    // Wait for window.initCharts to be available
-                    var attempts = 0;
-                    var maxAttempts = 50;
+                    // Wait for window.initCharts using requestAnimationFrame (better performance)
+                    var startTime = Date.now();
+                    var maxWaitTime = 2500; // 2.5 seconds max
 
-                    var interval = setInterval(function() {
-                        attempts++;
-
+                    function checkInitCharts() {
                         if (window.initCharts && typeof Chart !== 'undefined') {
-                            clearInterval(interval);
                             console.log('🚀 Calling window.initCharts()');
                             window.initCharts();
-                        } else if (attempts >= maxAttempts) {
-                            clearInterval(interval);
+                        } else if (Date.now() - startTime < maxWaitTime) {
+                            requestAnimationFrame(checkInitCharts);
+                        } else {
                             console.error('❌ Failed: window.initCharts=' + typeof window.initCharts + ', Chart=' + typeof Chart);
                         }
-                    }, 50);
+                    }
+
+                    requestAnimationFrame(checkInitCharts);
                 };
 
                 script.onerror = function() {
