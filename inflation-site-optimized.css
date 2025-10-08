@@ -711,7 +711,7 @@ body {
     
     .hero-text {
         text-align: center;
-        background-image: url('https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/file_00000000fbbc6246b29f5252e8021c2a.webp');
+        background-image: url('/image/file_00000000fbbc6246b29f5252e8021c2a.webp');
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
@@ -1055,7 +1055,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background-image: url('https://raw.githubusercontent.com/JanneJok/inflaatio/main/image/footer.webp');
+    background-image: url('/image/footer.webp');
     background-size: cover;
     background-position: center center; /* Muutettu center bottom -> center center */
     background-repeat: no-repeat;
