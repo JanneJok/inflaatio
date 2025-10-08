@@ -270,11 +270,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Make initCharts available globally for lazy loading
     window.initCharts = function() {
         if (window.chartsInitialized) return; // Prevent double initialization
+
+        // Check if Chart.js is loaded
+        if (typeof Chart === 'undefined') {
+            console.error('Chart.js not loaded yet when initCharts called');
+            return;
+        }
+
         window.chartsInitialized = true;
+        console.log('📊 Initializing Chart.js charts...');
         initializeCharts();
     };
 
-    // Initialize Chart.js charts if available
+    // Initialize Chart.js charts if available immediately
     if (typeof Chart !== 'undefined') {
         window.initCharts();
     }
