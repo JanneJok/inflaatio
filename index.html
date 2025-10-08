@@ -46,30 +46,40 @@
 
     <!-- Critical CSS inline for faster first paint -->
     <style>
-        /* Inline critical font with size-adjust to prevent CLS */
+        /* Inter font with optimized loading */
         @font-face{
             font-family:'Inter';
             font-style:normal;
             font-weight:100 900;
-            font-display:optional;
-            size-adjust:100%;
+            font-display:swap;
             src:url(https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7.woff2) format('woff2');
-            unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+        }
+
+        /* System font fallback with same metrics as Inter */
+        @font-face{
+            font-family:'InterFallback';
+            font-style:normal;
+            font-weight:100 900;
+            src:local('Arial');
+            ascent-override:90%;
+            descent-override:22%;
+            line-gap-override:0%;
+            size-adjust:107%;
         }
 
         /* Critical above-the-fold styles - CLS optimized */
-        body{margin:0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#1e587d;color:#fff;line-height:1.6;min-height:100vh;overflow-x:hidden}
+        body{margin:0;font-family:Inter,InterFallback,system-ui,-apple-system,sans-serif;background:#1e587d;color:#fff;line-height:1.6;min-height:100vh;overflow-x:hidden}
         .starry-bg{position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(to bottom,#20618bd4 0,#1e5a7d 50%,#245066 100%);overflow:hidden;z-index:0}
         .navbar{position:fixed;top:0;width:100%;background:rgba(10,14,39,0.95);backdrop-filter:blur(10px);z-index:1000;box-shadow:0 2px 10px rgba(0,0,0,0.3);height:70px}
 
-        /* Hero section - strict dimensions to eliminate CLS */
-        .hero-section{padding:120px 20px 60px;text-align:center;width:100%;position:relative;contain:layout}
-        .hero-content{display:flex;align-items:center;justify-content:space-between;gap:3rem;max-width:1200px;margin:0 auto;height:450px;contain:layout}
-        .hero-text{flex:1;text-align:left;height:280px;display:flex;flex-direction:column;justify-content:center;contain:layout}
-        .hero-image{flex:0 0 500px;max-width:500px;width:500px;height:333px;overflow:hidden;contain:layout}
-        .hero-image img{width:100%;height:100%;object-fit:cover;aspect-ratio:1536/1024;display:block}
-        .hero-title{font-size:clamp(2.5rem,5vw,3rem);font-weight:700;margin:0 0 1.5rem 0;line-height:1.2;height:3.6rem;overflow:hidden;text-overflow:ellipsis}
-        .hero-subtitle{font-size:1.2rem;line-height:1.6;color:rgba(255,255,255,0.85);margin:0;max-height:7.68rem;overflow:hidden}
+        /* Hero section - prevent CLS with visibility:hidden until fonts load */
+        .hero-section{padding:120px 20px 60px;text-align:center;width:100%;position:relative}
+        .hero-content{display:grid;grid-template-columns:1fr 500px;gap:3rem;max-width:1200px;margin:0 auto;align-items:center}
+        .hero-text{text-align:left}
+        .hero-image{width:500px;height:333px}
+        .hero-image img{width:100%;height:100%;object-fit:cover;display:block}
+        .hero-title{font-size:3rem;font-weight:700;margin:0 0 1.5rem;line-height:1.2}
+        .hero-subtitle{font-size:1.2rem;line-height:1.6;color:rgba(255,255,255,0.85);margin:0}
 
         .container{max-width:1400px;margin:0 auto;padding:120px 2rem 4rem;position:relative;z-index:1}
 
