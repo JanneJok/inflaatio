@@ -434,79 +434,82 @@
     <!-- Scripts optimized for performance -->
     <script defer src="cookie-consent.js"></script>
 
+    <!-- Main application script - must load before chart lazy loader -->
+    <script defer src="inflation-site-optimized.min.js?v=1.6"></script>
+
     <!-- Lazy load Chart.js when charts section becomes visible -->
-    <script>
-        let chartJsLoaded = false;
-        let emailJsLoaded = false;
+    <script defer>
+        (function() {
+            let chartJsLoaded = false;
+            let emailJsLoaded = false;
 
-        function loadChartJs() {
-            if (chartJsLoaded) return;
-            chartJsLoaded = true;
+            function loadChartJs() {
+                if (chartJsLoaded) return;
+                chartJsLoaded = true;
 
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-            script.onload = function() {
-                // Initialize charts after Chart.js loads
-                if (window.initCharts) window.initCharts();
-            };
-            document.head.appendChild(script);
-        }
-
-        function loadEmailJs() {
-            if (emailJsLoaded) return;
-            emailJsLoaded = true;
-
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
-            document.head.appendChild(script);
-        }
-
-        function setupChartLazyLoad() {
-            const chartsSection = document.querySelector('.charts');
-            if (!chartsSection) return;
-
-            // Check if charts are already visible (important!)
-            const rect = chartsSection.getBoundingClientRect();
-            const isVisible = rect.top < window.innerHeight + 200;
-
-            if (isVisible) {
-                // Charts are already visible, load immediately
-                loadChartJs();
-            } else if ('IntersectionObserver' in window) {
-                // Charts not visible yet, use observer
-                const observer = new IntersectionObserver(function(entries) {
-                    entries.forEach(function(entry) {
-                        if (entry.isIntersecting) {
-                            loadChartJs();
-                            observer.unobserve(entry.target);
-                        }
-                    });
-                }, { rootMargin: '200px' });
-
-                observer.observe(chartsSection);
-            } else {
-                // Fallback for older browsers
-                loadChartJs();
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+                script.onload = function() {
+                    // Initialize charts after Chart.js loads
+                    if (window.initCharts) {
+                        window.initCharts();
+                    }
+                };
+                document.head.appendChild(script);
             }
 
-            // Load EmailJS when contact button is clicked
-            const contactBtn = document.getElementById('contactModalBtn');
-            if (contactBtn) {
-                contactBtn.addEventListener('click', loadEmailJs, { once: true });
-            }
-        }
+            function loadEmailJs() {
+                if (emailJsLoaded) return;
+                emailJsLoaded = true;
 
-        // Run setup when DOM is ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', setupChartLazyLoad);
-        } else {
-            // DOM already loaded
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
+                document.head.appendChild(script);
+            }
+
+            function setupChartLazyLoad() {
+                const chartsSection = document.querySelector('.charts');
+                if (!chartsSection) {
+                    // Retry after a short delay
+                    setTimeout(setupChartLazyLoad, 100);
+                    return;
+                }
+
+                // Check if charts are already visible
+                const rect = chartsSection.getBoundingClientRect();
+                const isVisible = rect.top < window.innerHeight + 200;
+
+                if (isVisible) {
+                    // Charts are already visible, load immediately
+                    loadChartJs();
+                } else if ('IntersectionObserver' in window) {
+                    // Charts not visible yet, use observer
+                    const observer = new IntersectionObserver(function(entries) {
+                        entries.forEach(function(entry) {
+                            if (entry.isIntersecting) {
+                                loadChartJs();
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    }, { rootMargin: '200px' });
+
+                    observer.observe(chartsSection);
+                } else {
+                    // Fallback for older browsers
+                    loadChartJs();
+                }
+
+                // Load EmailJS when contact button is clicked
+                const contactBtn = document.getElementById('contactModalBtn');
+                if (contactBtn) {
+                    contactBtn.addEventListener('click', loadEmailJs, { once: true });
+                }
+            }
+
+            // Run setup immediately (defer ensures DOM is ready)
             setupChartLazyLoad();
-        }
+        })();
     </script>
-
-    <!-- Main application script -->
-    <script defer src="inflation-site-optimized.min.js?v=1.5"></script>
 
 
 </body>
