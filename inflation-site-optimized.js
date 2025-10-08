@@ -269,22 +269,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Make initCharts available globally for lazy loading
     window.initCharts = function() {
-        if (window.chartsInitialized) return; // Prevent double initialization
+        if (window.chartsInitialized) {
+            console.log('⚠️ Charts already initialized, skipping...');
+            return; // Prevent double initialization
+        }
 
         // Check if Chart.js is loaded
         if (typeof Chart === 'undefined') {
-            console.error('Chart.js not loaded yet when initCharts called');
+            console.error('❌ Chart.js not loaded yet when initCharts called');
             return;
         }
 
-        window.chartsInitialized = true;
         console.log('📊 Initializing Chart.js charts...');
+        window.chartsInitialized = true; // Set AFTER check, BEFORE init
         initializeCharts();
     };
 
     // Initialize Chart.js charts if available immediately
     if (typeof Chart !== 'undefined') {
+        console.log('⚡ Chart.js available on page load, initializing immediately');
         window.initCharts();
+    } else {
+        console.log('⏳ Chart.js not loaded yet, waiting for lazy load...');
     }
 
     function initializeCharts() {
