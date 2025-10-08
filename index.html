@@ -461,35 +461,47 @@
             document.head.appendChild(script);
         }
 
-        // Observe charts section for lazy loading
-        if ('IntersectionObserver' in window) {
-            document.addEventListener('DOMContentLoaded', function() {
-                const chartsSection = document.querySelector('.charts');
-                if (chartsSection) {
-                    const observer = new IntersectionObserver(function(entries) {
-                        entries.forEach(function(entry) {
-                            if (entry.isIntersecting) {
-                                loadChartJs();
-                                observer.unobserve(entry.target);
-                            }
-                        });
-                    }, { rootMargin: '200px' }); // Load 200px before visible
+        function setupChartLazyLoad() {
+            const chartsSection = document.querySelector('.charts');
+            if (!chartsSection) return;
 
-                    observer.observe(chartsSection);
-                }
+            // Check if charts are already visible (important!)
+            const rect = chartsSection.getBoundingClientRect();
+            const isVisible = rect.top < window.innerHeight + 200;
 
-                // Load EmailJS when contact modal opens
-                const contactBtn = document.querySelector('[onclick*="contactModal"]');
-                if (contactBtn) {
-                    contactBtn.addEventListener('click', loadEmailJs, { once: true });
-                }
-            });
-        } else {
-            // Fallback for older browsers - load after 2 seconds
-            setTimeout(function() {
+            if (isVisible) {
+                // Charts are already visible, load immediately
                 loadChartJs();
-                loadEmailJs();
-            }, 2000);
+            } else if ('IntersectionObserver' in window) {
+                // Charts not visible yet, use observer
+                const observer = new IntersectionObserver(function(entries) {
+                    entries.forEach(function(entry) {
+                        if (entry.isIntersecting) {
+                            loadChartJs();
+                            observer.unobserve(entry.target);
+                        }
+                    });
+                }, { rootMargin: '200px' });
+
+                observer.observe(chartsSection);
+            } else {
+                // Fallback for older browsers
+                loadChartJs();
+            }
+
+            // Load EmailJS when contact button is clicked
+            const contactBtn = document.getElementById('contactModalBtn');
+            if (contactBtn) {
+                contactBtn.addEventListener('click', loadEmailJs, { once: true });
+            }
+        }
+
+        // Run setup when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setupChartLazyLoad);
+        } else {
+            // DOM already loaded
+            setupChartLazyLoad();
         }
     </script>
 
