@@ -91,6 +91,15 @@
         .cookie-btn{padding:0.75rem 1.5rem;border:none;border-radius:8px;font-size:0.9rem;font-weight:500;cursor:pointer;white-space:nowrap}
         .cookie-btn-accept{background:#10b981;color:white;box-shadow:0 4px 12px rgba(16,185,129,0.3)}
 
+        /* Breadcrumb Navigation */
+        .breadcrumb{padding:0.75rem 0;margin-bottom:1rem;font-size:0.9rem}
+        .breadcrumb ol{display:flex;flex-wrap:wrap;list-style:none;padding:0;margin:0;gap:0.5rem;align-items:center}
+        .breadcrumb li{display:flex;align-items:center}
+        .breadcrumb li:not(:last-child)::after{content:'›';margin-left:0.5rem;color:rgba(255,255,255,0.5);font-size:1.2rem}
+        .breadcrumb a{color:rgba(255,255,255,0.7);text-decoration:none;transition:color 0.3s ease}
+        .breadcrumb a:hover{color:#4ca5ba;text-decoration:underline}
+        .breadcrumb li:last-child a{color:rgba(255,255,255,0.9);font-weight:500}
+
         /* Responsive - prevent mobile CLS */
         @media (max-width:768px){
             .hero-content{grid-template-columns:1fr!important;gap:0!important}
@@ -146,11 +155,11 @@
     "description": "Reaaliaikainen näkymä Suomen talouden hintakehitykseen. Seuraa inflaatiota, analysoi trendejä ja tee tietoon perustuvia päätöksiä.",
     "url": "https://inflaatio.fi/",
     "inLanguage": "fi",
-    "author": {
-        "@type": "Person",
-        "name": "Janne Jokela"
+    "publisher": {
+        "@type": "Organization",
+        "name": "Inflaatio.fi"
     },
-    "dateModified": "2025-09-06",
+    "dateModified": "2025-10-10",
     "keywords": "inflaatio, inflaatio suomessa, suomen inflaatio, inflaatio nyt, inflaatiokehitys, tilastokeskus inflaatio, HICP, CPI, hintakehitys, kuluttajahintaindeksi",
     "mainEntity": {
         "@type": "Dataset",
@@ -165,6 +174,95 @@
 }
 </script>
 
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Etusivu",
+            "item": "https://inflaatio.fi/"
+        },
+        {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Tunnusluvut",
+            "item": "https://inflaatio.fi/#tunnusluvut"
+        },
+        {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "Analytiikka",
+            "item": "https://inflaatio.fi/#analytiikka"
+        },
+        {
+            "@type": "ListItem",
+            "position": 4,
+            "name": "Tietoa inflaatiosta",
+            "item": "https://inflaatio.fi/#tietoa"
+        }
+    ]
+}
+</script>
+
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "Mikä on inflaatio?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Inflaatio tarkoittaa yleistä hintatason nousua taloudessa. Se mitataan kuluttajahintaindeksillä (HICP), joka seuraa tavallisten kulutustavaroiden ja palveluiden hintakehitystä."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Miten inflaatio vaikuttaa arkeen?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Inflaatio vähentää rahan ostovoimaa - sama rahasumma ostaa vähemmän tavaraa kuin ennen. Kohtuullinen inflaatio (noin 2%) on kuitenkin merkki terveestä talouskasvusta."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Miten inflaatio lasketaan Suomessa?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Inflaatioluvut perustuvat Eurostat-tilastoviraston julkaisemiin tietoihin. HICP-indeksi laskee keskimääräistä hintamuutosta kuluttajakorissa, joka sisältää ruoan, asumisen, liikenteen ja muut arkiset menot."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Mikä ero on HICP ja CPI välillä?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "HICP (Harmonised Index of Consumer Prices) on EU:n yhtenäinen kuluttajahintaindeksi, joka mahdollistaa vertailun eri maiden välillä. CPI (Consumer Price Index) on kansallinen kuluttajahintaindeksi, joka voi sisältää lisäkomponentteja kuten asuntolainojen korkoja. Suomessa Tilastokeskus raportoi CPI:tä, kun taas Eurostat käyttää HICP:tä."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Mikä on Suomen nykyinen inflaatio?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Suomen viimeisin inflaatiolukema on 1.9% (HICP-pohjainen vuosi-inflaatio). Luku päivittyy kuukausittain Eurostatin julkaisun myötä. Seuraa reaaliaikaisia lukuja sivustomme tunnusluvut-osiosta."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Mistä inflaatiodata on peräisin?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Inflaatiodata perustuu virallisiin lähteisiin: Eurostat (HICP-indeksi) ja Tilastokeskus (kuluttajahintaindeksi). Kaikki data on julkisesti saatavilla ja päivittyy kuukausittain."
+            }
+        }
+    ]
+}
+</script>
 
 </head>
 <body>
@@ -183,6 +281,18 @@
     </nav>
 
     <div class="container">
+        <!-- Breadcrumb Navigation -->
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol itemscope itemtype="https://schema.org/BreadcrumbList">
+                <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+                    <a itemprop="item" href="https://inflaatio.fi/">
+                        <span itemprop="name">Etusivu</span>
+                    </a>
+                    <meta itemprop="position" content="1" />
+                </li>
+            </ol>
+        </nav>
+
         <section class="hero-section" id="home">
             <div class="hero-content">
                 <div class="hero-text">
@@ -355,20 +465,28 @@
                     <div class="footer-column">
                         <h4>Sivusto</h4>
                         <ul>
-                            <li><a href="#home">Etusivu</a></li>
-                            <li><a href="#tunnusluvut">Tunnusluvut</a></li>
-                            <li><a href="#analytiikka">Analytiikka</a></li>
-                            <li><a href="#tietoa">Tietoa</a></li>
+                            <li><a href="#home" title="Palaa etusivulle">Etusivu</a></li>
+                            <li><a href="#tunnusluvut" title="Katso Suomen inflaation keskeiset tunnusluvut">Tunnusluvut</a></li>
+                            <li><a href="#analytiikka" title="Analysoi inflaation kehitystä graafeilla">Analytiikka</a></li>
+                            <li><a href="#tietoa" title="Lue lisää inflaatiosta ja laskentamenetelmistä">Tietoa inflaatiosta</a></li>
                         </ul>
                     </div>
-                    
-                   
+
+                    <div class="footer-column">
+                        <h4>Resurssit</h4>
+                        <ul>
+                            <li><a href="https://ec.europa.eu/eurostat/web/hicp" target="_blank" rel="noopener" title="Eurostat HICP-indeksi">Eurostat HICP</a></li>
+                            <li><a href="https://www.stat.fi/tilasto/khi" target="_blank" rel="noopener" title="Tilastokeskuksen kuluttajahintaindeksi">Tilastokeskus</a></li>
+                            <li><a href="https://fi.wikipedia.org/wiki/Inflaatio" target="_blank" rel="noopener" title="Mitä inflaatio on?">Wikipedia: Inflaatio</a></li>
+                        </ul>
+                    </div>
+
                     <div class="footer-column">
                         <h4>Yhteystiedot</h4>
                         <ul>
-                            <li><a href="#" id="contactModalBtn">Ota yhteyttä</a></li>
-                            <li><a href="#" onclick="CookieConsent.showCookieSettings()">Evästeasetukset</a></li>
-                            <li><a href="terms-of-use.html">Käyttöehdot</a></li>
+                            <li><a href="#" id="contactModalBtn" title="Lähetä meille viesti">Ota yhteyttä</a></li>
+                            <li><a href="#" onclick="CookieConsent.showCookieSettings()" title="Hallitse evästeasetuksia">Evästeasetukset</a></li>
+                            <li><a href="terms-of-use.html" title="Lue käyttöehdot ja tietosuojaseloste">Käyttöehdot</a></li>
                         </ul>
                     </div>
                 </div>

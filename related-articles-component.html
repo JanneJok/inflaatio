@@ -1,0 +1,223 @@
+<!-- LIITTYVÄT ARTIKKELIT -KOMPONENTTI -->
+<!-- Kopioi tämä pohja jokaisen blogiartikkelin loppuun -->
+
+<section class="related-articles">
+    <div class="related-articles-container">
+        <h2 class="related-articles-title">Lue myös nämä</h2>
+        <div class="related-articles-grid">
+
+            <!-- Artikkeli 1 -->
+            <article class="related-article-card">
+                <a href="/blogi/mika-on-inflaatio/" class="article-link">
+                    <div class="article-image">
+                        <img src="/image/article-placeholder.webp" alt="Mikä on inflaatio?" loading="lazy">
+                    </div>
+                    <div class="article-content">
+                        <span class="article-category">Perusteet</span>
+                        <h3 class="article-title">Mikä on inflaatio ja miten se vaikuttaa säästöihisi?</h3>
+                        <p class="article-excerpt">Selvitämme inflaation perusteet ja sen vaikutuksen henkilökohtaiseen talouteen ymmärrettävästi.</p>
+                        <div class="article-meta">
+                            <span class="article-date">10.10.2025</span>
+                            <span class="article-readtime">5 min lukuaika</span>
+                        </div>
+                    </div>
+                </a>
+            </article>
+
+            <!-- Artikkeli 2 -->
+            <article class="related-article-card">
+                <a href="/blogi/hicp-vs-cpi/" class="article-link">
+                    <div class="article-image">
+                        <img src="/image/article-placeholder-2.webp" alt="HICP vs CPI" loading="lazy">
+                    </div>
+                    <div class="article-content">
+                        <span class="article-category">Analytiikka</span>
+                        <h3 class="article-title">Miten inflaatio lasketaan? HICP vs CPI selitettynä</h3>
+                        <p class="article-excerpt">Ymmärrä ero Eurostatin HICP-indeksin ja Tilastokeskuksen CPI-indeksin välillä.</p>
+                        <div class="article-meta">
+                            <span class="article-date">8.10.2025</span>
+                            <span class="article-readtime">7 min lukuaika</span>
+                        </div>
+                    </div>
+                </a>
+            </article>
+
+            <!-- Artikkeli 3 -->
+            <article class="related-article-card">
+                <a href="/blogi/suojautuminen-inflaatiolta/" class="article-link">
+                    <div class="article-image">
+                        <img src="/image/article-placeholder-3.webp" alt="Suojautuminen inflaatiolta" loading="lazy">
+                    </div>
+                    <div class="article-content">
+                        <span class="article-category">Oppaat</span>
+                        <h3 class="article-title">10 tapaa suojautua inflaatiolta Suomessa</h3>
+                        <p class="article-excerpt">Käytännön vinkkejä, joilla voit suojata säästösi ja ostovoimasi inflaatiolta.</p>
+                        <div class="article-meta">
+                            <span class="article-date">5.10.2025</span>
+                            <span class="article-readtime">8 min lukuaika</span>
+                        </div>
+                    </div>
+                </a>
+            </article>
+
+        </div>
+    </div>
+</section>
+
+<style>
+/* Related Articles Component Styles */
+.related-articles {
+    margin: 4rem 0;
+    padding: 3rem 2rem;
+    background: rgba(36, 80, 102, 0.3);
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+}
+
+.related-articles-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.related-articles-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary, #ffffff);
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.related-articles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.related-article-card {
+    background: rgba(26, 63, 82, 0.6);
+    border-radius: 15px;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid rgba(76, 165, 186, 0.2);
+}
+
+.related-article-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.article-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.article-image {
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+    background: rgba(42, 123, 160, 0.2);
+}
+
+.article-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.related-article-card:hover .article-image img {
+    transform: scale(1.05);
+}
+
+.article-content {
+    padding: 1.5rem;
+}
+
+.article-category {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background: rgba(76, 165, 186, 0.3);
+    color: #4ca5ba;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.article-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary, #ffffff);
+    margin-bottom: 0.75rem;
+    line-height: 1.4;
+}
+
+.article-excerpt {
+    font-size: 0.95rem;
+    color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.article-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary, rgba(255, 255, 255, 0.6));
+}
+
+.article-date::before {
+    content: '📅 ';
+}
+
+.article-readtime::before {
+    content: '⏱ ';
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .related-articles {
+        padding: 2rem 1rem;
+        margin: 2rem 0;
+    }
+
+    .related-articles-title {
+        font-size: 1.5rem;
+    }
+
+    .related-articles-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .article-image {
+        height: 180px;
+    }
+}
+</style>
+
+<!-- Schema.org markup for articles (lisää jokaiseen blogiartikkeliin) -->
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Artikkelin otsikko tähän",
+    "description": "Artikkelin lyhyt kuvaus tähän",
+    "image": "https://inflaatio.fi/image/article-image.webp",
+    "publisher": {
+        "@type": "Organization",
+        "name": "Inflaatio.fi",
+        "logo": {
+            "@type": "ImageObject",
+            "url": "https://inflaatio.fi/image/favicon.webp"
+        }
+    },
+    "datePublished": "2025-10-10",
+    "dateModified": "2025-10-10",
+    "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "https://inflaatio.fi/blogi/artikkeli-url/"
+    }
+}
+</script>

@@ -7,31 +7,39 @@
     <!-- Etusivu -->
     <url>
         <loc>https://inflaatio.fi/</loc>
-        <lastmod>2025-09-06</lastmod>
+        <lastmod>2025-10-10</lastmod>
         <changefreq>daily</changefreq>
         <priority>1.0</priority>
     </url>
-    
+
+    <!-- Käyttöehdot -->
+    <url>
+        <loc>https://inflaatio.fi/terms-of-use.html</loc>
+        <lastmod>2025-10-10</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.3</priority>
+    </url>
+
     <!-- Tunnusluvut-osio -->
     <url>
         <loc>https://inflaatio.fi/#tunnusluvut</loc>
-        <lastmod>2025-09-06</lastmod>
+        <lastmod>2025-10-10</lastmod>
         <changefreq>daily</changefreq>
         <priority>0.9</priority>
     </url>
-    
+
     <!-- Analytiikka-osio -->
     <url>
         <loc>https://inflaatio.fi/#analytiikka</loc>
-        <lastmod>2025-09-06</lastmod>
+        <lastmod>2025-10-10</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.8</priority>
     </url>
-    
-    <!-- Tietoa-osio -->
+
+    <!-- Tietoa-osio (sisältää FAQ) -->
     <url>
         <loc>https://inflaatio.fi/#tietoa</loc>
-        <lastmod>2025-09-06</lastmod>
+        <lastmod>2025-10-10</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
     </url>
