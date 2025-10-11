@@ -142,6 +142,13 @@
 <meta name="googlebot" content="index, follow">
 <link rel="canonical" href="https://inflaatio.fi/">
 
+<!-- Redirect /index.html to / for canonical URL -->
+<script>
+if (window.location.pathname === '/index.html') {
+    window.location.replace('https://inflaatio.fi/');
+}
+</script>
+
 <!-- Strukturoitu data (JSON-LD) -->
 
 
