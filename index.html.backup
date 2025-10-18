@@ -111,8 +111,8 @@
     </style>
 
     <!-- Load minified CSS asynchronously -->
-    <link rel="preload" href="inflation-site-optimized.min.css?v=1.8" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="inflation-site-optimized.min.css?v=1.8"></noscript>
+    <link rel="preload" href="inflation-site-optimized.min.css?v=1.5" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="inflation-site-optimized.min.css?v=1.5"></noscript>
 
     <link rel="preload" href="cookie-consent.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="cookie-consent.css"></noscript>
@@ -266,30 +266,6 @@ if (window.location.pathname === '/index.html') {
                 "@type": "Answer",
                 "text": "Inflaatiodata perustuu virallisiin lähteisiin: Eurostat (HICP-indeksi) ja Tilastokeskus (kuluttajahintaindeksi). Kaikki data on julkisesti saatavilla ja päivittyy kuukausittain."
             }
-        },
-        {
-            "@type": "Question",
-            "name": "Mikä on ollut vuotuinen inflaatio Suomessa?",
-            "acceptedAnswer": {
-                "@type": "Answer",
-                "text": "Suomen vuotuinen inflaatio on vaihdellut merkittävästi viime vuosikymmeninä. 2000-luvun alussa inflaatio oli noin 2-3%, mutta laski lähelle nollaa 2010-luvun puolivälissä. Vuosina 2022-2023 Suomi koki poikkeuksellisen korkean inflaation (yli 7%), joka johtui pääasiassa energiakriisistä ja pandemian jälkeisistä häiriöistä toimitusketjuissa."
-            }
-        },
-        {
-            "@type": "Question",
-            "name": "Mikä oli korkein inflaatio Suomessa?",
-            "acceptedAnswer": {
-                "@type": "Answer",
-                "text": "Viime vuosikymmeninä korkein inflaatio mitattiin vuonna 2022, jolloin vuosikeskiarvo oli 7.1%. Tätä ennen vuonna 2008 inflaatio oli 3.9% finanssikriisin ja energiahintojen nousun seurauksena."
-            }
-        },
-        {
-            "@type": "Question",
-            "name": "Onko Suomessa ollut deflaatiota?",
-            "acceptedAnswer": {
-                "@type": "Answer",
-                "text": "Kyllä, Suomessa on ollut lyhyitä deflaatiokausia. Vuonna 2015 inflaatio oli -0.2%, mikä tarkoittaa että hinnat laskivat keskimäärin. Myös vuonna 2009 finanssikriisin seurauksena inflaatio oli 0.0%."
-            }
         }
     ]
 }
@@ -317,7 +293,7 @@ if (window.location.pathname === '/index.html') {
             <ol itemscope itemtype="https://schema.org/BreadcrumbList">
                 <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
                     <a itemprop="item" href="https://inflaatio.fi/">
-                        <span itemprop="name"></span>
+                        <span itemprop="name">Etusivu</span>
                     </a>
                     <meta itemprop="position" content="1" />
                 </li>
@@ -368,99 +344,6 @@ if (window.location.pathname === '/index.html') {
             </div>
         </div>
 
-        <!-- Inflaatio Suomessa vuosittain taulukko -->
-        <section class="yearly-inflation-table" id="vuosittain">
-            <div class="table-header">
-                <h2>Inflaatio Suomessa vuosittain</h2>
-                <p class="table-description">Historiallinen katsaus Suomen vuosittaiseen inflaatioon HICP-indeksin mukaan. Taulukko näyttää keskimääräisen inflaation kussakin vuodessa.</p>
-            </div>
-            <div class="compact-table-grid">
-                <div class="year-column">
-                    <div class="year-item current-year-item">
-                        <span class="current-year-badge">Kuluva vuosi</span>
-                        <span class="year">2025</span>
-                        <span class="value positive">1.9% <span class="trend-arrow up">↑</span></span>
-                    </div>
-                    <div class="year-item"><span class="year">2022</span><span class="value positive">7.2% <span class="trend-arrow up">↑</span></span></div>
-                </div>
-                <div class="year-column">
-                    <div class="year-item"><span class="year">2024</span><span class="value positive">1% <span class="trend-arrow up">↑</span></span></div>
-                    <div class="year-item"><span class="year">2021</span><span class="value positive">2.1% <span class="trend-arrow up">↑</span></span></div>
-                </div>
-                <div class="year-column">
-                    <div class="year-item"><span class="year">2023</span><span class="value positive">4.4% <span class="trend-arrow up">↑</span></span></div>
-                    <div class="year-item"><span class="year">2020</span><span class="value positive">0.4% <span class="trend-arrow up">↑</span></span></div>
-                </div>
-                <div class="year-column older-years" style="display: none;">
-                    <div class="year-item"><span class="year">2019</span><span class="value positive">1.1% <span class="trend-arrow up">↑</span></span></div>
-                    <div class="year-item"><span class="year">2018</span><span class="value positive">1.2% <span class="trend-arrow up">↑</span></span></div>
-                </div>
-                <div class="year-column older-years" style="display: none;">
-                    <div class="year-item"><span class="year">2017</span><span class="value positive">0.8% <span class="trend-arrow up">↑</span></span></div>
-                    <div class="year-item"><span class="year">2016</span><span class="value positive">0.4% <span class="trend-arrow up">↑</span></span></div>
-                </div>
-                <div class="year-column older-years" style="display: none;">
-                    <div class="year-item"><span class="year">2015</span><span class="value negative">-0.1% <span class="trend-arrow down">↓</span></span></div>
-                    <div class="year-item"><span class="year">2014</span><span class="value positive">1.2% <span class="trend-arrow up">↑</span></span></div>
-                </div>
-                <div class="year-column older-years" style="display: none;">
-                    <div class="year-item"><span class="year">2013</span><span class="value positive">2.2% <span class="trend-arrow up">↑</span></span></div>
-                    <div class="year-item"><span class="year">2012</span><span class="value positive">3.1% <span class="trend-arrow up">↑</span></span></div>
-                </div>
-                <div class="year-column older-years" style="display: none;">
-                    <div class="year-item"><span class="year">2011</span><span class="value positive">3.3% <span class="trend-arrow up">↑</span></span></div>
-                    <div class="year-item"><span class="year">2010</span><span class="value positive">1.7% <span class="trend-arrow up">↑</span></span></div>
-                </div>
-                <div class="year-column older-years" style="display: none;">
-                    <div class="year-item"><span class="year">2009</span><span class="value positive">1.6% <span class="trend-arrow up">↑</span></span></div>
-                    <div class="year-item"><span class="year">2008</span><span class="value positive">3.9% <span class="trend-arrow up">↑</span></span></div>
-                </div>
-                <div class="year-column older-years" style="display: none;">
-                    <div class="year-item"><span class="year">2007</span><span class="value positive">1.6% <span class="trend-arrow up">↑</span></span></div>
-                    <div class="year-item"><span class="year">2006</span><span class="value positive">1.3% <span class="trend-arrow up">↑</span></span></div>
-                </div>
-                <div class="year-column older-years" style="display: none;">
-                    <div class="year-item"><span class="year">2005</span><span class="value positive">0.8% <span class="trend-arrow up">↑</span></span></div>
-                    <div class="year-item"><span class="year">2004</span><span class="value positive">0.1% <span class="trend-arrow up">↑</span></span></div>
-                </div>
-                <div class="year-column older-years" style="display: none;">
-                    <div class="year-item"><span class="year">2003</span><span class="value positive">1.3% <span class="trend-arrow up">↑</span></span></div>
-                    <div class="year-item"><span class="year">2002</span><span class="value positive">2% <span class="trend-arrow up">↑</span></span></div>
-                </div>
-                <div class="year-column older-years" style="display: none;">
-                    <div class="year-item"><span class="year">2001</span><span class="value positive">2.7% <span class="trend-arrow up">↑</span></span></div>
-                    <div class="year-item"><span class="year">2000</span><span class="value positive">2.9% <span class="trend-arrow up">↑</span></span></div>
-                </div>
-            </div>
-            <div class="show-more-container">
-                <button class="show-more-btn" id="showMoreYearsBtn" onclick="toggleOlderYears()">
-                    <span class="btn-text">Näytä edelliset vuodet (2000-2019)</span>
-                    <span class="btn-icon">▼</span>
-                </button>
-            </div>
-            <p class="table-note">Lähde: Eurostat HICP (Harmonised Index of Consumer Prices). Luvut edustavat vuosikeskiarvoja. 2025 data perustuu 9 kuukauteen.</p>
-        </section>
-
-        <!-- FAQ: Inflaatio Suomessa vuosittain -->
-        <section class="faq-section" id="faq">
-            <div class="faq-container">
-                <h2>Usein kysyttyä inflaatiosta</h2>
-                <div class="faq-item">
-                    <h3>Mikä on ollut vuotuinen inflaatio Suomessa?</h3>
-                    <p>Suomen vuotuinen inflaatio on vaihdellut merkittävästi viime vuosikymmeninä. 2000-luvun alussa inflaatio oli noin 2-3%, mutta laski lähelle nollaa 2010-luvun puolivälissä. Vuosina 2022-2023 Suomi koki poikkeuksellisen korkean inflaation (yli 7%), joka johtui pääasiassa energiakriisistä ja pandemian jälkeisistä häiriöistä toimitusketjuissa.</p>
-                    <p>Katso yksityiskohtainen vuosittainen data yllä olevasta taulukosta.</p>
-                </div>
-                <div class="faq-item">
-                    <h3>Mikä oli korkein inflaatio Suomessa?</h3>
-                    <p>Viime vuosikymmeninä korkein inflaatio mitattiin vuonna 2022, jolloin vuosikeskiarvo oli 7.1%. Tätä ennen vuonna 2008 inflaatio oli 3.9% finanssikriisin ja energiahintojen nousun seurauksena. Historiallisesti 1970-luvulla ja 1990-luvun alussa Suomi koki vielä korkeampia inflaatiolukemia.</p>
-                </div>
-                <div class="faq-item">
-                    <h3>Onko Suomessa ollut deflaatiota?</h3>
-                    <p>Kyllä, Suomessa on ollut lyhyitä deflaatiokausia. Vuonna 2015 inflaatio oli -0.2%, mikä tarkoittaa että hinnat laskivat keskimäärin. Myös vuonna 2009 finanssikriisin seurauksena inflaatio oli 0.0%. Deflaatio on harvinaista ja voi olla merkki talouden haasteista.</p>
-                </div>
-            </div>
-        </section>
-
         <section class="carousel" id="tunnusluvut">
             <div class="carousel-header">
                 <h2>Suomen inflaation keskeiset luvut</h2>
@@ -469,30 +352,31 @@ if (window.location.pathname === '/index.html') {
             <div class="carousel-inner">
                 <div class="tile">
                     <h3>Viimeisin inflaatiolukema</h3>
-                    <p class="highlight positive">▲ 2.2 %</p>
+                    <p class="highlight positive">▲ 1.9%</p>
                     <p>Viimeisin Eurostatin julkaisema vuosi-inflaatio. Perustuu kuluttajahintaindeksiin.</p>
                 </div>
                 <div class="tile">
                     <h3>Muutos edelliseen kuukauteen</h3>
-                    <p class="highlight neutral">0.0 %</p>
+                    <p class="highlight neutral">0.0%</p>
                     <p>Kertoo, onko hintojen nousuvauhti kiihtynyt vai hidastunut edellisestä kuukaudesta.</p>
                 </div>
                 <div class="tile">
                     <h3>12 kuukauden keskiarvo</h3>
-                    <p class="highlight positive">▲ 1.8 %</p>
+                    <p class="highlight positive">▲ 1.6%</p>
                     <p>Keskimääräinen inflaatio viimeisten 12 kuukauden aikana. Vakaampi kuva hintakehityksestä.</p>
                 </div>
                 <div class="tile">
                     <h3>Vuoden 2025 keskiarvo</h3>
-                    <p class="highlight positive">▲ 1.9 %</p>
+                    <p class="highlight positive">▲ 1.8%</p>
                     <p>Inflaation keskiarvo vuoden alusta tähän hetkeen. Hyödyllinen budjetointiin ja analyysiin.</p>
                 </div>
                 <div class="tile">
                     <h3>Vuosi sitten (sama kuukausi)</h3>
-                    <p class="highlight positive">▲ 1.0 %</p>
+                    <p class="highlight positive">▲ 0.5%</p>
                     <p>Vertailu viime vuoden samaan kuukauteen näyttää, miten paljon inflaatio on muuttunut vuodessa.</p>
                 </div>
             </div>
+            <button type="button" class="arrow arrow-right" aria-label="Next items">›</button>
         </section>
 
         <section class="charts" id="analytiikka">
@@ -678,40 +562,6 @@ if (window.location.pathname === '/index.html') {
     <!-- Main application script - must load before chart lazy loader -->
     <script defer src="inflation-site-optimized.min.js?v=1.7"></script>
 
-    <!-- Toggle older years functionality -->
-    <script>
-        function toggleOlderYears() {
-            const olderYears = document.querySelectorAll('.older-years');
-            const btn = document.getElementById('showMoreYearsBtn');
-            const btnText = btn.querySelector('.btn-text');
-            const btnIcon = btn.querySelector('.btn-icon');
-            const grid = document.querySelector('.compact-table-grid');
-
-            const isHidden = olderYears[0].style.display === 'none';
-
-            if (isHidden) {
-                // Näytä vanhemmat vuodet
-                olderYears.forEach(col => {
-                    col.style.display = 'flex';
-                });
-                btnText.textContent = 'Piilota edelliset vuodet';
-                btnIcon.textContent = '▲';
-                btn.classList.add('expanded');
-            } else {
-                // Piilota vanhemmat vuodet
-                olderYears.forEach(col => {
-                    col.style.display = 'none';
-                });
-                btnText.textContent = 'Näytä edelliset vuodet (2000-2019)';
-                btnIcon.textContent = '▼';
-                btn.classList.remove('expanded');
-
-                // Scrollaa takaisin taulukon alkuun
-                grid.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-        }
-    </script>
-
     <!-- Lazy load Chart.js when charts section becomes visible -->
     <script defer>
         (function() {
@@ -809,366 +659,5 @@ if (window.location.pathname === '/index.html') {
     </script>
 
 
-    <script>
-    // === STATIC DATA (Auto-generated by update-all-data.js) ===
-    // Last updated: 2025-10-18T08:48:14.708Z
-    // This data is embedded directly in the page to avoid API calls
-    // Format: [date, inflation%, HICP index]
-
-    const STATIC_INFLATION_DATA = [
-    ["1997-01", 0.9, 71.2],
-    ["1997-02", 0.6, 71.49],
-    ["1997-03", 0.7, 71.63],
-    ["1997-04", 0.9, 71.78],
-    ["1997-05", 0.9, 71.99],
-    ["1997-06", 1.1, 71.99],
-    ["1997-07", 1.1, 71.99],
-    ["1997-08", 1.7, 71.7],
-    ["1997-09", 1.6, 71.85],
-    ["1997-10", 1.7, 71.92],
-    ["1997-11", 1.8, 71.78],
-    ["1997-12", 1.6, 71.92],
-    ["1998-01", 1.8, 71.85],
-    ["1998-02", 1.7, 71.92],
-    ["1998-03", 1.6, 72.13],
-    ["1998-04", 1.7, 72.42],
-    ["1998-05", 1.6, 72.64],
-    ["1998-06", 1.6, 72.78],
-    ["1998-07", 1.1, 72.78],
-    ["1998-08", 1.1, 72.92],
-    ["1998-09", 1.4, 73],
-    ["1998-10", 1.1, 73.14],
-    ["1998-11", 0.9, 73.07],
-    ["1998-12", 0.8, 73.07],
-    ["1999-01", 0.5, 73.14],
-    ["1999-02", 0.9, 73.14],
-    ["1999-03", 0.9, 73.28],
-    ["1999-04", 1.3, 73.64],
-    ["1999-05", 1.4, 73.79],
-    ["1999-06", 1.2, 73.93],
-    ["1999-07", 1.4, 73.57],
-    ["1999-08", 1.3, 73.71],
-    ["1999-09", 1.4, 74],
-    ["1999-10", 1.6, 73.93],
-    ["1999-11", 1.9, 73.71],
-    ["1999-12", 2.2, 73.64],
-    ["2000-01", 2.3, 73.5],
-    ["2000-02", 2.7, 73.79],
-    ["2000-03", 3.2, 73.93],
-    ["2000-04", 2.5, 74.57],
-    ["2000-05", 2.7, 74.79],
-    ["2000-06", 3.1, 74.79],
-    ["2000-07", 2.9, 74.57],
-    ["2000-08", 2.9, 74.65],
-    ["2000-09", 3.4, 75.01],
-    ["2000-10", 3.4, 75.08],
-    ["2000-11", 3.3, 75.08],
-    ["2000-12", 2.9, 75.29],
-    ["2001-01", 2.9, 75.22],
-    ["2001-02", 2.7, 75.8],
-    ["2001-03", 2.5, 76.3],
-    ["2001-04", 2.9, 76.44],
-    ["2001-05", 3.3, 76.8],
-    ["2001-06", 3, 77.09],
-    ["2001-07", 2.6, 76.73],
-    ["2001-08", 2.7, 76.8],
-    ["2001-09", 2.6, 77.59],
-    ["2001-10", 2.4, 77.66],
-    ["2001-11", 2.2, 77.59],
-    ["2001-12", 2.3, 77.45],
-    ["2002-01", 2.9, 77.37],
-    ["2002-02", 2.5, 77.84],
-    ["2002-03", 2.6, 78.23],
-    ["2002-04", 2.5, 78.62],
-    ["2002-05", 1.8, 79.32],
-    ["2002-06", 1.5, 79.38],
-    ["2002-07", 2, 78.75],
-    ["2002-08", 1.8, 78.9],
-    ["2002-09", 1.3, 79.58],
-    ["2002-10", 1.7, 79.51],
-    ["2002-11", 1.7, 79.26],
-    ["2002-12", 1.7, 79.27],
-    ["2003-01", 1.4, 79.63],
-    ["2003-02", 2.1, 79.79],
-    ["2003-03", 1.8, 80.26],
-    ["2003-04", 1.4, 80.58],
-    ["2003-05", 1.1, 80.75],
-    ["2003-06", 1.1, 80.6],
-    ["2003-07", 1, 80.33],
-    ["2003-08", 1.2, 80.31],
-    ["2003-09", 1.3, 80.65],
-    ["2003-10", 0.9, 80.86],
-    ["2003-11", 1.1, 80.63],
-    ["2003-12", 1.2, 80.63],
-    ["2004-01", 0.7, 80.76],
-    ["2004-02", 0.4, 81.44],
-    ["2004-03", -0.4, 81.72],
-    ["2004-04", -0.4, 81.7],
-    ["2004-05", -0.1, 81.6],
-    ["2004-06", -0.1, 81.51],
-    ["2004-07", 0.2, 81.12],
-    ["2004-08", 0.2, 81.27],
-    ["2004-09", 0.2, 81.66],
-    ["2004-10", 0.6, 81.58],
-    ["2004-11", 0.2, 81.52],
-    ["2004-12", 0.1, 81.59],
-    ["2005-01", -0.1, 81.36],
-    ["2005-02", 0, 81.77],
-    ["2005-03", 0.9, 81.39],
-    ["2005-04", 1.2, 81.39],
-    ["2005-05", 0.7, 81.5],
-    ["2005-06", 1, 81.44],
-    ["2005-07", 0.9, 81.27],
-    ["2005-08", 1, 81.47],
-    ["2005-09", 1.2, 81.81],
-    ["2005-10", 0.8, 82.1],
-    ["2005-11", 0.9, 81.7],
-    ["2005-12", 1, 81.71],
-    ["2006-01", 1.2, 81.26],
-    ["2006-02", 1.3, 81.78],
-    ["2006-03", 1.2, 82.11],
-    ["2006-04", 1.5, 82.33],
-    ["2006-05", 1.7, 82.03],
-    ["2006-06", 1.5, 82.26],
-    ["2006-07", 1.3, 82],
-    ["2006-08", 1.3, 82.25],
-    ["2006-09", 0.8, 82.76],
-    ["2006-10", 1, 82.72],
-    ["2006-11", 1.3, 82.45],
-    ["2006-12", 1.2, 82.54],
-    ["2007-01", 1.3, 82.21],
-    ["2007-02", 1.2, 82.84],
-    ["2007-03", 1.6, 83.09],
-    ["2007-04", 1.5, 83.53],
-    ["2007-05", 1.3, 83.46],
-    ["2007-06", 1.4, 83.47],
-    ["2007-07", 1.6, 83.09],
-    ["2007-08", 1.3, 83.33],
-    ["2007-09", 1.7, 83.41],
-    ["2007-10", 1.8, 83.54],
-    ["2007-11", 2.2, 83.54],
-    ["2007-12", 1.9, 83.56],
-    ["2008-01", 3.4, 83.29],
-    ["2008-02", 3.3, 83.81],
-    ["2008-03", 3.6, 84.42],
-    ["2008-04", 3.3, 84.81],
-    ["2008-05", 4.1, 84.55],
-    ["2008-06", 4.3, 84.67],
-    ["2008-07", 4.3, 84.44],
-    ["2008-08", 4.6, 84.45],
-    ["2008-09", 4.7, 84.83],
-    ["2008-10", 4.4, 85.07],
-    ["2008-11", 3.5, 85.37],
-    ["2008-12", 3.4, 85.18],
-    ["2009-01", 2.5, 86.16],
-    ["2009-02", 2.7, 86.57],
-    ["2009-03", 2, 87.44],
-    ["2009-04", 2.1, 87.58],
-    ["2009-05", 1.5, 88.05],
-    ["2009-06", 1.6, 88.34],
-    ["2009-07", 1.2, 88.1],
-    ["2009-08", 1.3, 88.34],
-    ["2009-09", 1.1, 88.83],
-    ["2009-10", 0.6, 88.81],
-    ["2009-11", 1.3, 88.35],
-    ["2009-12", 1.8, 88.06],
-    ["2010-01", 1.6, 88.3],
-    ["2010-02", 1.3, 88.9],
-    ["2010-03", 1.5, 89.23],
-    ["2010-04", 1.6, 89.42],
-    ["2010-05", 1.4, 89.37],
-    ["2010-06", 1.3, 89.74],
-    ["2010-07", 1.3, 89.12],
-    ["2010-08", 1.3, 89.5],
-    ["2010-09", 1.4, 89.79],
-    ["2010-10", 2.4, 89.34],
-    ["2010-11", 2.4, 89.5],
-    ["2010-12", 2.8, 89.65],
-    ["2011-01", 3.1, 89.71],
-    ["2011-02", 3.5, 90.04],
-    ["2011-03", 3.5, 90.58],
-    ["2011-04", 3.4, 90.84],
-    ["2011-05", 3.4, 90.66],
-    ["2011-06", 3.4, 90.87],
-    ["2011-07", 3.7, 90.3],
-    ["2011-08", 3.5, 90.65],
-    ["2011-09", 3.5, 91.06],
-    ["2011-10", 3.2, 91.44],
-    ["2011-11", 3.2, 91.65],
-    ["2011-12", 2.6, 92.13],
-    ["2012-01", 3, 92.49],
-    ["2012-02", 3, 93.19],
-    ["2012-03", 2.9, 93.73],
-    ["2012-04", 3, 93.9],
-    ["2012-05", 3.1, 93.77],
-    ["2012-06", 2.9, 94],
-    ["2012-07", 3.1, 93.6],
-    ["2012-08", 3.3, 93.8],
-    ["2012-09", 3.4, 94.21],
-    ["2012-10", 3.5, 94.37],
-    ["2012-11", 3.2, 94.57],
-    ["2012-12", 3.4, 94.53],
-    ["2013-01", 2.6, 95.3],
-    ["2013-02", 2.4, 96.02],
-    ["2013-03", 2.5, 96.49],
-    ["2013-04", 2.4, 96.71],
-    ["2013-05", 2.5, 96.66],
-    ["2013-06", 2.3, 96.76],
-    ["2013-07", 2.5, 96.51],
-    ["2013-08", 2.1, 96.85],
-    ["2013-09", 1.8, 97.43],
-    ["2013-10", 1.7, 97.67],
-    ["2013-11", 1.8, 97.58],
-    ["2013-12", 1.9, 97.79],
-    ["2014-01", 1.9, 97.79],
-    ["2014-02", 1.6, 98.37],
-    ["2014-03", 1.3, 98.88],
-    ["2014-04", 1.3, 99.06],
-    ["2014-05", 1, 99.05],
-    ["2014-06", 1.1, 98.99],
-    ["2014-07", 1, 98.96],
-    ["2014-08", 1.2, 98.84],
-    ["2014-09", 1.5, 99.22],
-    ["2014-10", 1.2, 99.35],
-    ["2014-11", 1.1, 99.32],
-    ["2014-12", 0.6, 99.68],
-    ["2015-01", -0.1, 99.63],
-    ["2015-02", -0.1, 99.91],
-    ["2015-03", 0, 100.16],
-    ["2015-04", -0.1, 100.3],
-    ["2015-05", 0.1, 100],
-    ["2015-06", 0.1, 100.05],
-    ["2015-07", -0.1, 99.91],
-    ["2015-08", -0.2, 100.07],
-    ["2015-09", -0.7, 100.7],
-    ["2015-10", -0.3, 100.53],
-    ["2015-11", -0.2, 100.38],
-    ["2015-12", -0.2, 100.23],
-    ["2016-01", 0, 99.49],
-    ["2016-02", -0.1, 99.83],
-    ["2016-03", 0, 100.2],
-    ["2016-04", 0.3, 100.22],
-    ["2016-05", 0.3, 100.11],
-    ["2016-06", 0.3, 100.12],
-    ["2016-07", 0.5, 99.82],
-    ["2016-08", 0.5, 99.87],
-    ["2016-09", 0.5, 100.02],
-    ["2016-10", 0.6, 100.19],
-    ["2016-11", 0.6, 100.15],
-    ["2016-12", 1.1, 99.98],
-    ["2017-01", 0.9, 99.52],
-    ["2017-02", 1.4, 99.69],
-    ["2017-03", 0.9, 100.18],
-    ["2017-04", 1, 100.49],
-    ["2017-05", 0.9, 100.4],
-    ["2017-06", 0.9, 100.46],
-    ["2017-07", 0.6, 100.31],
-    ["2017-08", 0.8, 100.35],
-    ["2017-09", 0.8, 100.57],
-    ["2017-10", 0.5, 100.82],
-    ["2017-11", 0.9, 100.8],
-    ["2017-12", 0.5, 101.08],
-    ["2018-01", 0.8, 100.41],
-    ["2018-02", 0.6, 101.12],
-    ["2018-03", 0.9, 101.1],
-    ["2018-04", 0.8, 101.5],
-    ["2018-05", 1, 101.32],
-    ["2018-06", 1.2, 101.34],
-    ["2018-07", 1.4, 100.94],
-    ["2018-08", 1.4, 101.12],
-    ["2018-09", 1.4, 101.35],
-    ["2018-10", 1.7, 101.32],
-    ["2018-11", 1.4, 101.67],
-    ["2018-12", 1.3, 101.59],
-    ["2019-01", 1.2, 101.26],
-    ["2019-02", 1.3, 101.74],
-    ["2019-03", 1.1, 101.98],
-    ["2019-04", 1.5, 102.32],
-    ["2019-05", 1.3, 102.37],
-    ["2019-06", 1.1, 102.55],
-    ["2019-07", 1, 102.36],
-    ["2019-08", 1.2, 102.51],
-    ["2019-09", 1, 102.78],
-    ["2019-10", 0.9, 103.05],
-    ["2019-11", 0.8, 103.13],
-    ["2019-12", 1.1, 102.93],
-    ["2020-01", 1.2, 102.48],
-    ["2020-02", 1.1, 103.04],
-    ["2020-03", 0.9, 103.15],
-    ["2020-04", -0.3, 103.9],
-    ["2020-05", -0.1, 103.67],
-    ["2020-06", 0.1, 103.71],
-    ["2020-07", 0.7, 103.38],
-    ["2020-08", 0.3, 103.79],
-    ["2020-09", 0.3, 103.83],
-    ["2020-10", 0.2, 103.98],
-    ["2020-11", 0.2, 103.92],
-    ["2020-12", 0.2, 104.1],
-    ["2021-01", 1, 103.72],
-    ["2021-02", 0.9, 104.2],
-    ["2021-03", 1.4, 104.03],
-    ["2021-04", 2.2, 103.58],
-    ["2021-05", 2.3, 103.52],
-    ["2021-06", 1.9, 103.77],
-    ["2021-07", 1.8, 104.07],
-    ["2021-08", 1.8, 104.09],
-    ["2021-09", 2.1, 104.11],
-    ["2021-10", 2.8, 104.22],
-    ["2021-11", 3.5, 104.1],
-    ["2021-12", 3.2, 104.3],
-    ["2022-01", 4.1, 104.76],
-    ["2022-02", 4.4, 105.12],
-    ["2022-03", 5.8, 105.44],
-    ["2022-04", 5.8, 105.85],
-    ["2022-05", 7.1, 105.88],
-    ["2022-06", 8.1, 105.75],
-    ["2022-07", 8, 105.97],
-    ["2022-08", 7.9, 106],
-    ["2022-09", 8.4, 106.26],
-    ["2022-10", 8.4, 107.14],
-    ["2022-11", 9.1, 107.72],
-    ["2022-12", 8.8, 107.6],
-    ["2023-01", 7.9, 109.1],
-    ["2023-02", 8, 109.73],
-    ["2023-03", 6.7, 111.54],
-    ["2023-04", 6.3, 111.98],
-    ["2023-05", 5, 113.43],
-    ["2023-06", 4.1, 114.31],
-    ["2023-07", 4.2, 114.49],
-    ["2023-08", 3.1, 114.37],
-    ["2023-09", 3, 115.2],
-    ["2023-10", 2.4, 116.13],
-    ["2023-11", 0.7, 117.48],
-    ["2023-12", 1.3, 117.06],
-    ["2024-01", 1.1, 117.69],
-    ["2024-02", 1.1, 118.46],
-    ["2024-03", 0.6, 118.98],
-    ["2024-04", 0.6, 119.05],
-    ["2024-05", 0.4, 119.14],
-    ["2024-06", 0.5, 118.96],
-    ["2024-07", 0.5, 119.28],
-    ["2024-08", 1.1, 117.96],
-    ["2024-09", 1, 118.66],
-    ["2024-10", 1.5, 118.93],
-    ["2024-11", 1.7, 118.34],
-    ["2024-12", 1.6, 118.61],
-    ["2025-01", 1.7, 119.01],
-    ["2025-02", 1.5, 119.8],
-    ["2025-03", 1.8, 119.64],
-    ["2025-04", 1.9, 119.74],
-    ["2025-05", 2, 119.67],
-    ["2025-06", 1.9, 119.61],
-    ["2025-07", 1.9, 119.91],
-    ["2025-08", 2.2, 119.23],
-    ["2025-09", 2.2, 119.79]
-];
-
-    // Set flags to indicate static data is available
-    window.USE_STATIC_DATA = true;
-    window.STATIC_DATA_AVAILABLE = true;
-
-    console.log('✅ Static data loaded:', STATIC_INFLATION_DATA.length, 'data points (inflation + HICP)');
-    
-    </script>
 </body>
 </html>

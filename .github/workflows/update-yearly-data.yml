@@ -1,0 +1,43 @@
+name: Update Yearly Inflation Data
+
+# Aja kerran päivässä klo 07:00 UTC (09:00 Suomen aikaa kesällä, 10:00 talvella)
+on:
+  schedule:
+    - cron: '0 7 * * *'  # Joka päivä klo 07:00 UTC (≈ 09:00 Suomi)
+  workflow_dispatch:  # Mahdollistaa myös manuaalisen ajon GitHubissa
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Run update script
+        run: node update-yearly-data.js
+
+      - name: Check for changes
+        id: git-check
+        run: |
+          git diff --exit-code index.html || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push if changed
+        if: steps.git-check.outputs.changed == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add index.html
+          git commit -m "Update yearly inflation data from Google Sheets"
+          git push
+
+      - name: No changes
+        if: steps.git-check.outputs.changed != 'true'
+        run: echo "No changes in data, skipping commit"

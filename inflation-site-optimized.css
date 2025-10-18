@@ -1268,3 +1268,326 @@ body {
     opacity: 0.8;
 }
 
+/* Vuosittainen inflaatiotaulukko - Kompakti grid-layout */
+.yearly-inflation-table {
+    max-width: 900px;
+    margin: 4rem auto;
+    padding: 0 2rem;
+}
+
+.table-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.table-header h2 {
+    font-size: 2.25rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+}
+
+.table-description {
+    font-size: 1.05rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* Kompakti kolumni-layout */
+.compact-table-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.0rem;
+    background: linear-gradient(135deg, rgba(56, 145, 166, 0.08) 0%, rgba(42, 123, 160, 0.04) 100%);
+    border: 1px solid rgba(76, 165, 186, 0.25);
+    border-radius: 20px;
+    padding: 2rem;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 30px rgba(15, 41, 54, 0.2);
+}
+
+.year-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.0rem;
+}
+
+.year-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(76, 165, 186, 0.15);
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+
+.year-item:hover {
+    background: rgba(76, 165, 186, 0.1);
+    border-color: rgba(76, 165, 186, 0.3);
+    transform: translateX(3px);
+}
+
+.year-item .year {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    white-space: nowrap;
+}
+
+.year-item .value {
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.year-item .value.positive {
+    color: #10b981;
+}
+
+.year-item .value.negative {
+    color: #ef4444;
+}
+
+.year-item .value.neutral {
+    color: #94a3b8;
+}
+
+/* Kuluva vuosi badge */
+.current-year-item {
+    position: relative;
+}
+
+.current-year-badge {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.55rem;
+    font-weight: 600;
+    padding: 0.2rem 0.4rem;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    white-space: nowrap;
+    z-index: 10;
+}
+
+/* Trend arrows */
+.trend-arrow {
+    font-size: 0.875rem;
+    margin-left: 0.35rem;
+    font-weight: 700;
+}
+
+.trend-arrow.up {
+    color: #10b981;
+}
+
+.trend-arrow.down {
+    color: #ef4444;
+}
+
+.trend-arrow.neutral {
+    color: #94a3b8;
+}
+
+/* Show more button container */
+.show-more-container {
+    margin-top: 1.5rem;
+    text-align: center;
+}
+
+.show-more-btn {
+    background: linear-gradient(135deg, rgba(56, 145, 166, 0.15) 0%, rgba(42, 123, 160, 0.1) 100%);
+    border: 1px solid rgba(76, 165, 186, 0.3);
+    border-radius: 12px;
+    padding: 0.875rem 1.5rem;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    backdrop-filter: blur(10px);
+}
+
+.show-more-btn:hover {
+    background: linear-gradient(135deg, rgba(56, 145, 166, 0.25) 0%, rgba(42, 123, 160, 0.15) 100%);
+    border-color: rgba(76, 165, 186, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(42, 123, 160, 0.2);
+}
+
+.show-more-btn .btn-icon {
+    font-size: 0.75rem;
+    transition: transform 0.3s ease;
+}
+
+.show-more-btn.expanded .btn-icon {
+    transform: rotate(180deg);
+}
+
+.table-note {
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.6);
+    font-style: italic;
+}
+
+/* FAQ-osio */
+.faq-section {
+    max-width: 1200px;
+    margin: 4rem auto;
+    padding: 0 2rem;
+}
+
+.faq-container {
+    background: linear-gradient(135deg, rgba(56, 145, 166, 0.08) 0%, rgba(42, 123, 160, 0.04) 100%);
+    border: 1px solid rgba(76, 165, 186, 0.25);
+    border-radius: 20px;
+    padding: 3rem;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 30px rgba(15, 41, 54, 0.2);
+}
+
+.faq-container h2 {
+    font-size: 2.25rem;
+    font-weight: 700;
+    margin-bottom: 2.5rem;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+    text-align: center;
+}
+
+.faq-item {
+    margin-bottom: 2.5rem;
+    padding-bottom: 2.5rem;
+    border-bottom: 1px solid rgba(76, 165, 186, 0.15);
+}
+
+.faq-item:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.faq-item h3 {
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: #4ca5ba;
+    margin-bottom: 1rem;
+    line-height: 1.4;
+}
+
+.faq-item p {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+}
+
+.faq-item p:last-child {
+    margin-bottom: 0;
+}
+
+/* Mobile responsive for compact table and FAQ */
+@media (max-width: 768px) {
+    .yearly-inflation-table,
+    .faq-section {
+        margin: 3rem auto;
+        padding: 0 1rem;
+    }
+
+    .table-header h2,
+    .faq-container h2 {
+        font-size: 1.75rem;
+    }
+
+    .table-description {
+        font-size: 0.95rem;
+    }
+
+    /* Mobiilissa 2 kolumnia */
+    .compact-table-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        padding: 1.5rem;
+    }
+
+    .year-item {
+        padding: 0.625rem 0.875rem;
+    }
+
+    .year-item .year {
+        font-size: 0.875rem;
+    }
+
+    .year-item .value {
+        font-size: 0.9rem;
+        padding: 0.2rem 0.6rem;
+    }
+
+    .faq-container {
+        padding: 2rem 1.5rem;
+        border-radius: 15px;
+    }
+
+    .faq-item {
+        margin-bottom: 2rem;
+        padding-bottom: 2rem;
+    }
+
+    .faq-item h3 {
+        font-size: 1.15rem;
+    }
+
+    .faq-item p {
+        font-size: 0.95rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .yearly-inflation-table,
+    .faq-section {
+        margin: 2rem auto;
+        padding: 0 0.75rem;
+    }
+
+    /* Pienimmällä mobiililla 1 kolumni */
+    .compact-table-grid {
+        grid-template-columns: 1fr;
+        gap: 1.0rem;
+        padding: 1.25rem;
+    }
+
+    .year-item {
+        padding: 0.75rem 1rem;
+    }
+
+    .faq-container {
+        padding: 1.5rem 1rem;
+    }
+
+    .faq-container h2 {
+        font-size: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .faq-item h3 {
+        font-size: 1.05rem;
+    }
+}
+

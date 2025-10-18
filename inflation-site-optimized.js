@@ -456,9 +456,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Fetch and process Google Sheets data
     async function fetchInflationData() {
+        // CHECK FOR STATIC DATA FIRST (no API calls needed!)
+        if (window.STATIC_DATA_AVAILABLE && typeof STATIC_INFLATION_DATA !== 'undefined') {
+            console.log('✅ Using static inline data (no API calls)');
+
+            inflationData = STATIC_INFLATION_DATA.map(row => ({
+                date: row[0],
+                inflation: row[1],
+                hicp: row[2] || 0  // HICP index from column 3
+            }));
+
+            console.log(`📊 Loaded ${inflationData.length} data points from static data (with HICP)`);
+            updateChartsWithData();
+
+            // Static data cards are already in HTML, no need to update
+            return { historical: inflationData, metrics: {} };
+        }
+
+        // FALLBACK: If no static data, use API (old behavior)
         const cacheKey = 'inflation_data';
         const now = Date.now();
-        
+
         // Check cache
         if (dataCache.has(cacheKey) && (now - lastFetch) < CONFIG.CACHE_DURATION) {
             const cachedData = dataCache.get(cacheKey);
@@ -469,7 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            console.log('📄 Fetching data through secure proxy...');
+            console.log('📄 Fetching data through secure proxy (fallback mode)...');
             
             // Fetch through proxy server instead of direct API calls
             const [historicalData, metricsData] = await Promise.all([
@@ -668,9 +686,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Fetch data on load
     fetchInflationData();
-    
-    // Set up auto-refresh every 5 minutes
-    setInterval(fetchInflationData, CONFIG.CACHE_DURATION);
+
+    // Only set up auto-refresh if using API (not needed for static data)
+    if (!window.STATIC_DATA_AVAILABLE) {
+        setInterval(fetchInflationData, CONFIG.CACHE_DURATION);
+        console.log('⏰ Auto-refresh enabled (API mode)');
+    } else {
+        console.log('⏰ Auto-refresh disabled (using static data)');
+    }
     
     // Header scroll-animaatio
     window.addEventListener('scroll', () => {
