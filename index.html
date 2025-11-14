@@ -661,10 +661,11 @@ if (window.location.pathname === '/index.html') {
 </div>
 
     <!-- Scripts optimized for performance -->
-    <script defer src="cookie-consent.js"></script>
-
-    <!-- Main application script - must load before chart lazy loader -->
+    <!-- Main application script - must load FIRST to define Analytics -->
     <script defer src="inflation-site-optimized.min.js?v=1.9"></script>
+
+    <!-- Cookie consent - loads after Analytics is defined -->
+    <script defer src="cookie-consent.js"></script>
 
     <!-- Toggle older years functionality -->
     <script>
