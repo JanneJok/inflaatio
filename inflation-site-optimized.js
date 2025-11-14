@@ -571,6 +571,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }));
 
             console.log(`📊 Loaded ${inflationData.length} data points from static data (with HICP)`);
+
+            // Update year table note with current year data
+            updateYearTableNote(inflationData);
+
             updateChartsWithData();
 
             // Static data cards are already in HTML, no need to update
