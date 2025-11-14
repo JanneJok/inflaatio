@@ -268,7 +268,15 @@ class CookieConsent {
 
         // Track cookie acceptance (anonymous)
         if (window.Analytics) {
+            console.log('✅ Tracking cookie accept');
             window.Analytics.cookieAccept();
+        } else {
+            console.warn('⚠️ Analytics not defined yet, retrying...');
+            setTimeout(() => {
+                if (window.Analytics) {
+                    window.Analytics.cookieAccept();
+                }
+            }, 1000);
         }
 
         // Trigger event muille sovelluksille
@@ -284,7 +292,15 @@ class CookieConsent {
 
         // Track cookie decline (anonymous)
         if (window.Analytics) {
+            console.log('✅ Tracking cookie decline');
             window.Analytics.cookieDecline();
+        } else {
+            console.warn('⚠️ Analytics not defined yet, retrying...');
+            setTimeout(() => {
+                if (window.Analytics) {
+                    window.Analytics.cookieDecline();
+                }
+            }, 1000);
         }
 
         // Trigger event

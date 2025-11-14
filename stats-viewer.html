@@ -215,6 +215,11 @@
             </div>
 
             <div class="daily-section">
+                <h2 class="section-title">Referrer Breakdown</h2>
+                <div id="referrerBreakdown" style="margin-bottom: 2rem;"></div>
+            </div>
+
+            <div class="daily-section">
                 <h2 class="section-title">Daily Breakdown</h2>
                 <div id="dailyBreakdown"></div>
             </div>
@@ -332,6 +337,25 @@
                 document.getElementById('totalChartInteractions').textContent = totals.chartInteractions;
                 document.getElementById('totalCookieAccepts').textContent = totals.cookieAccepts;
                 document.getElementById('totalCookieDeclines').textContent = totals.cookieDeclines;
+
+                // Render referrer breakdown
+                const referrerData = {};
+                data.forEach(row => {
+                    const ref = row.referrer || 'direct';
+                    referrerData[ref] = (referrerData[ref] || 0) + (row.count || 1);
+                });
+
+                const referrerBreakdown = document.getElementById('referrerBreakdown');
+                referrerBreakdown.innerHTML = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">' +
+                    Object.entries(referrerData)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([ref, count]) => `
+                            <div style="background: rgba(30, 41, 59, 0.6); padding: 1rem; border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.1);">
+                                <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.25rem;">${ref}</div>
+                                <div style="font-size: 1.5rem; font-weight: bold; color: #60a5fa;">${count}</div>
+                            </div>
+                        `).join('') +
+                    '</div>';
 
                 // Render daily breakdown
                 const dailyBreakdown = document.getElementById('dailyBreakdown');
