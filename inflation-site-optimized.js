@@ -660,27 +660,50 @@ document.addEventListener('DOMContentLoaded', () => {
     function processHistoricalData(rawData) {
         const headers = rawData[0];
         const rows = rawData.slice(1);
-        
+
         const dateCol = headers.indexOf('Kuukausi');
         const inflationCol = headers.indexOf('Inflaatio %');
         const indexCol = headers.indexOf('Indeksi');
-        
+
         const processedData = rows.map(row => {
             const dateStr = row[dateCol] || '';
             const inflationStr = row[inflationCol] || '';
             const indexStr = row[indexCol] || '';
-            
+
             const inflationValue = parseFloat(inflationStr.replace('%', '').replace(',', '.').trim());
             const indexValue = parseFloat(indexStr.replace(',', '.').trim());
-            
+
             return {
                 date: dateStr,
                 inflation: isNaN(inflationValue) ? 0 : inflationValue,
                 hicp: isNaN(indexValue) ? 0 : indexValue
             };
         }).filter(item => item.date && !isNaN(item.inflation));
-        
-        return processedData.sort((a, b) => new Date(a.date + '-01') - new Date(b.date + '-01'));
+
+        const sorted = processedData.sort((a, b) => new Date(a.date + '-01') - new Date(b.date + '-01'));
+
+        // Update year table note with current year data
+        updateYearTableNote(sorted);
+
+        return sorted;
+    }
+
+    // Update the year table note to show current year and month count
+    function updateYearTableNote(data) {
+        const noteElement = document.getElementById('yearTableNote');
+        if (!noteElement || !data || data.length === 0) return;
+
+        const currentYear = new Date().getFullYear();
+        const currentYearData = data.filter(item => {
+            const itemYear = parseInt(item.date.split('-')[0]);
+            return itemYear === currentYear;
+        });
+
+        if (currentYearData.length > 0) {
+            const baseText = 'Lähde: Eurostat HICP (Harmonised Index of Consumer Prices). Luvut edustavat vuosikeskiarvoja.';
+            const monthCount = currentYearData.length;
+            noteElement.textContent = `${baseText} ${currentYear} data perustuu ${monthCount} kuukauteen.`;
+        }
     }
 
     // Process key metrics
