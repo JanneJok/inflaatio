@@ -265,7 +265,12 @@ class CookieConsent {
         });
         this.hideCookieBanner();
         this.showConsentNotification('Kaikki evästeet hyväksytty');
-        
+
+        // Track cookie acceptance (anonymous)
+        if (window.Analytics) {
+            window.Analytics.cookieAccept();
+        }
+
         // Trigger event muille sovelluksille
         this.triggerConsentEvent(consent);
     }

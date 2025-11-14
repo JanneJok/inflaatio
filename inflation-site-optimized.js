@@ -14,6 +14,90 @@ const EMAILJS_CONFIG = {
     PUBLIC_KEY: 'EV6UX6GIPG231yXUd'
 };
 
+// Supabase configuration for analytics
+const SUPABASE_CONFIG = {
+    URL: 'https://ysuhexvvgjoizrcdrxso.supabase.co',
+    ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzdWhleHZ2Z2pvaXpyY2RyeHNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2MDQzODksImV4cCI6MjA3ODE4MDM4OX0.0UFYz-xd_QmUEdVcKWqRo6D4QcwvAmlKDKSdu7M4ENA'
+};
+
+// Initialize Supabase client (lightweight inline version)
+const supabase = (() => {
+    const headers = {
+        'apikey': SUPABASE_CONFIG.ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+        'Content-Type': 'application/json'
+    };
+
+    return {
+        from: (table) => ({
+            insert: async (data) => {
+                try {
+                    const response = await fetch(`${SUPABASE_CONFIG.URL}/rest/v1/${table}`, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(data)
+                    });
+                    return { error: response.ok ? null : await response.json() };
+                } catch (error) {
+                    return { error };
+                }
+            },
+            select: async (columns = '*') => {
+                try {
+                    const response = await fetch(`${SUPABASE_CONFIG.URL}/rest/v1/${table}?select=${columns}`, {
+                        method: 'GET',
+                        headers: headers
+                    });
+                    const data = await response.json();
+                    return { data: response.ok ? data : null, error: response.ok ? null : data };
+                } catch (error) {
+                    return { data: null, error };
+                }
+            }
+        })
+    };
+})();
+
+// Anonymous analytics tracking (GDPR compliant - no personal data)
+const Analytics = window.Analytics = {
+    async track(eventType, metadata = {}) {
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            const page = window.location.pathname;
+            const referrer = document.referrer ? new URL(document.referrer).hostname : 'direct';
+
+            const { error } = await supabase.from('inflaatio_analytics').insert({
+                date: today,
+                event_type: eventType,
+                page: page,
+                referrer: referrer,
+                count: 1
+            });
+
+            if (error) console.error('Analytics error:', error);
+        } catch (error) {
+            // Fail silently - analytics should never break the site
+            console.debug('Analytics tracking failed:', error);
+        }
+    },
+
+    pageView() {
+        this.track('page_view');
+    },
+
+    chartInteraction(chartType) {
+        this.track('chart_interaction', { chart: chartType });
+    },
+
+    contactForm() {
+        this.track('contact_form');
+    },
+
+    cookieAccept() {
+        this.track('cookie_accept');
+    }
+};
+
 // Global variables
 let inflationData = [];
 let keyMetrics = {};
@@ -21,6 +105,9 @@ let dataCache = new Map();
 let lastFetch = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Track page view (anonymous, GDPR compliant)
+    Analytics.pageView();
+
     // Initialize EmailJS when available (lazy loaded)
     function initEmailJS() {
         if (typeof emailjs !== 'undefined' && !window.emailJsInitialized) {
@@ -224,7 +311,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Update inflation chart
                 const range = this.textContent;
                 console.log('📊 Inflation chart range changed to:', range);
-                
+
+                // Track chart interaction
+                Analytics.chartInteraction('inflation_' + range);
+
                 if (inflationChart && fullInflationData) {
                     updateChart(inflationChart, fullInflationData, range);
                 } else {
@@ -249,7 +339,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Update HICP chart
                 const range = this.textContent;
                 console.log('📈 HICP chart range changed to:', range);
-                
+
+                // Track chart interaction
+                Analytics.chartInteraction('hicp_' + range);
+
                 if (hicpChart && fullHicpData) {
                     updateChart(hicpChart, fullHicpData, range);
                 } else {
@@ -749,7 +842,10 @@ async function handleContactSubmit(e) {
             EMAILJS_CONFIG.TEMPLATE_ID,
             templateParams
         );
-        
+
+        // Track successful contact form submission
+        Analytics.contactForm();
+
         // Show success message
         form.style.display = 'none';
         successDiv.style.display = 'block';
