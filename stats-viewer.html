@@ -308,9 +308,14 @@
                             contactSubmissions: 0,
                             chartInteractions: 0,
                             cookieAccepts: 0,
-                            cookieDeclines: 0
+                            cookieDeclines: 0,
+                            referrers: {}
                         };
                     }
+
+                    // Track referrers per day
+                    const ref = row.referrer || 'direct';
+                    dailyData[date].referrers[ref] = (dailyData[date].referrers[ref] || 0) + count;
 
                     switch (row.event_type) {
                         case 'page_view':
@@ -403,6 +408,20 @@
                                 <span class="day-stat-value">${stats.cookieDeclines}</span>
                             </div>
                         </div>
+                        ${Object.keys(stats.referrers).length > 0 ? `
+                        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(148, 163, 184, 0.1);">
+                            <div style="font-size: 0.875rem; color: #94a3b8; margin-bottom: 0.5rem;">Referrers:</div>
+                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                ${Object.entries(stats.referrers)
+                                    .sort((a, b) => b[1] - a[1])
+                                    .map(([ref, count]) => `
+                                        <span style="background: rgba(96, 165, 250, 0.2); padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; color: #60a5fa;">
+                                            ${ref}: ${count}
+                                        </span>
+                                    `).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
                     `;
                     dailyBreakdown.appendChild(dayCard);
                 });
