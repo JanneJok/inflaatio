@@ -95,6 +95,10 @@ const Analytics = window.Analytics = {
 
     cookieAccept() {
         this.track('cookie_accept');
+    },
+
+    cookieDecline() {
+        this.track('cookie_decline');
     }
 };
 

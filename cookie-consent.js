@@ -281,7 +281,12 @@ class CookieConsent {
         });
         this.hideCookieBanner();
         this.showConsentNotification('Vain välttämättömät evästeet hyväksytty');
-        
+
+        // Track cookie decline (anonymous)
+        if (window.Analytics) {
+            window.Analytics.cookieDecline();
+        }
+
         // Trigger event
         this.triggerConsentEvent(consent);
     }

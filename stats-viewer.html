@@ -208,6 +208,10 @@
                     <div class="stat-label">Cookie Accepts</div>
                     <div class="stat-value" id="totalCookieAccepts">0</div>
                 </div>
+                <div class="stat-card">
+                    <div class="stat-label">Cookie Declines</div>
+                    <div class="stat-value" id="totalCookieDeclines">0</div>
+                </div>
             </div>
 
             <div class="daily-section">
@@ -263,7 +267,8 @@
                     pageViews: 0,
                     contactSubmissions: 0,
                     chartInteractions: 0,
-                    cookieAccepts: 0
+                    cookieAccepts: 0,
+                    cookieDeclines: 0
                 };
 
                 const dailyData = {};
@@ -285,6 +290,9 @@
                         case 'cookie_accept':
                             totals.cookieAccepts += count;
                             break;
+                        case 'cookie_decline':
+                            totals.cookieDeclines += count;
+                            break;
                     }
 
                     // Group by date
@@ -294,7 +302,8 @@
                             pageViews: 0,
                             contactSubmissions: 0,
                             chartInteractions: 0,
-                            cookieAccepts: 0
+                            cookieAccepts: 0,
+                            cookieDeclines: 0
                         };
                     }
 
@@ -311,6 +320,9 @@
                         case 'cookie_accept':
                             dailyData[date].cookieAccepts += count;
                             break;
+                        case 'cookie_decline':
+                            dailyData[date].cookieDeclines += count;
+                            break;
                     }
                 });
 
@@ -319,6 +331,7 @@
                 document.getElementById('totalContactSubmissions').textContent = totals.contactSubmissions;
                 document.getElementById('totalChartInteractions').textContent = totals.chartInteractions;
                 document.getElementById('totalCookieAccepts').textContent = totals.cookieAccepts;
+                document.getElementById('totalCookieDeclines').textContent = totals.cookieDeclines;
 
                 // Render daily breakdown
                 const dailyBreakdown = document.getElementById('dailyBreakdown');
@@ -360,6 +373,10 @@
                             <div class="day-stat">
                                 <span class="day-stat-label">Cookie Accepts</span>
                                 <span class="day-stat-value">${stats.cookieAccepts}</span>
+                            </div>
+                            <div class="day-stat">
+                                <span class="day-stat-label">Cookie Declines</span>
+                                <span class="day-stat-value">${stats.cookieDeclines}</span>
                             </div>
                         </div>
                     `;
