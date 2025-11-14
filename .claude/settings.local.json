@@ -17,7 +17,8 @@
       "Bash(python3:*)",
       "Bash(node:*)",
       "Bash(python:*)",
-      "Bash(where:*)"
+      "Bash(where:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []

@@ -66,11 +66,18 @@ const Analytics = window.Analytics = {
             const page = window.location.pathname;
             const referrer = document.referrer ? new URL(document.referrer).hostname : 'direct';
 
+            // Extract search query from URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const searchQuery = urlParams.get('q') || urlParams.get('search') ||
+                               urlParams.get('query') || urlParams.get('s') ||
+                               urlParams.get('utm_term') || null;
+
             const { error } = await supabase.from('inflaatio_analytics').insert({
                 date: today,
                 event_type: eventType,
                 page: page,
                 referrer: referrer,
+                search_query: searchQuery,
                 count: 1
             });
 
