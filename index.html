@@ -6,37 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Inflaatio Suomessa nyt: reaaliaikaiset inflaatioluvut ja historiallinen kehitys vuodesta 1997. Seuraa Suomen inflaatiota Tilastokeskuksen ja Eurostatin HICP-datan perusteella." />
     <title>Inflaatio Suomessa nyt - Suomen inflaation kehitys 2025 | Inflaatio.fi</title>
-    
-    <!-- Google Analytics 4 - Lazy loaded for performance -->
-    <script>
-        // Delay GA loading until user interaction or 3 seconds
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
 
-        function loadGA() {
-            // Check if already loaded (by cookie-consent.js or ourselves)
-            if (window.gtag || document.querySelector('script[src*="googletagmanager.com/gtag/js"]')) return;
+    <!-- Google Analytics 4 - Loaded by cookie-consent.js after user consent (GDPR compliant) -->
 
-            const script = document.createElement('script');
-            script.async = true;
-            script.src = 'https://www.googletagmanager.com/gtag/js?id=G-Y6YW3W445P';
-            document.head.appendChild(script);
-
-            script.onload = function() {
-                gtag('js', new Date());
-                gtag('config', 'G-Y6YW3W445P');
-            };
-        }
-
-        // Load GA on first user interaction
-        ['mousedown', 'touchstart', 'keydown', 'scroll'].forEach(event => {
-            window.addEventListener(event, loadGA, { once: true, passive: true });
-        });
-
-        // Fallback: load after 3 seconds if no interaction
-        setTimeout(loadGA, 3000);
-    </script>
-    
     <!-- Preconnect for external resources -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
