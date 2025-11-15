@@ -1,9 +1,9 @@
 name: Update Yearly Inflation Data
 
-# Aja kerran päivässä klo 07:00 UTC (09:00 Suomen aikaa kesällä, 10:00 talvella)
+# Aja joka kuukauden 1. päivä klo 07:00 UTC (09:00 Suomen talviaikaan, 10:00 kesäaikaan)
 on:
   schedule:
-    - cron: '0 7 * * *'  # Joka päivä klo 07:00 UTC (≈ 09:00 Suomi)
+    - cron: '0 7 1 * *'  # Joka kuukauden 1. päivä klo 07:00 UTC
   workflow_dispatch:  # Mahdollistaa myös manuaalisen ajon GitHubissa
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
           node-version: '18'
 
       - name: Run update script
-        run: node update-yearly-data.js
+        run: node update-all-data.js
 
       - name: Check for changes
         id: git-check
@@ -35,7 +35,7 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add index.html
-          git commit -m "Update yearly inflation data from Google Sheets"
+          git commit -m "🔄 Auto-update inflation data - $(date +'%Y-%m-%d %H:%M')"
           git push
 
       - name: No changes
