@@ -106,27 +106,58 @@ const Analytics = window.Analytics = {
         // Track session duration
         this.pageLoadTime = Date.now();
 
-        // Send session duration when user leaves
+        // Send session duration when user leaves (using sendBeacon for reliability)
         const trackSessionEnd = () => {
             const duration = (Date.now() - this.pageLoadTime) / 1000; // seconds
+            console.log('Session duration:', duration + 's');
+
             if (duration > 1) { // Only track if stayed more than 1 second
-                this.track('session_end', { duration });
+                const today = new Date().toISOString().split('T')[0];
+                const page = window.location.pathname;
+                const referrer = document.referrer ? new URL(document.referrer).hostname : 'direct';
+
+                const payload = {
+                    date: today,
+                    event_type: 'session_end',
+                    page: page,
+                    referrer: referrer,
+                    search_query: null,
+                    count: 1,
+                    session_duration: Math.round(duration)
+                };
+
+                // Use fetch with keepalive for reliable tracking on page unload
+                const url = `${SUPABASE_CONFIG.URL}/rest/v1/inflaatio_analytics`;
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_CONFIG.ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload),
+                    keepalive: true
+                }).catch(err => console.error('Session end track failed:', err));
+
+                console.log('Session end tracked:', Math.round(duration) + 's');
             }
         };
 
         // Track on page unload
-        window.addEventListener('beforeunload', trackSessionEnd, { once: true });
+        window.addEventListener('beforeunload', trackSessionEnd);
+        window.addEventListener('pagehide', trackSessionEnd);
 
         // Also track on visibility change (tab switch, minimize)
+        let visibilityTracked = false;
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                const duration = (Date.now() - this.pageLoadTime) / 1000;
-                if (duration > 1) {
-                    this.track('session_end', { duration });
-                }
-            } else {
-                // Reset timer when coming back
+            if (document.hidden && !visibilityTracked) {
+                visibilityTracked = true;
+                trackSessionEnd();
+            } else if (!document.hidden) {
+                // Reset timer and flag when coming back
                 this.pageLoadTime = Date.now();
+                visibilityTracked = false;
             }
         });
     },
