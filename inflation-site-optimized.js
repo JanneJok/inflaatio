@@ -105,59 +105,67 @@ const Analytics = window.Analytics = {
     startSessionTracking() {
         // Track session duration
         this.pageLoadTime = Date.now();
+        let lastTrackedDuration = 0;
 
-        // Send session duration when user leaves (using sendBeacon for reliability)
-        const trackSessionEnd = () => {
+        // Send session duration when user leaves or periodically
+        const trackSessionEnd = async (isFinal = false) => {
             const duration = (Date.now() - this.pageLoadTime) / 1000; // seconds
-            console.log('Session duration:', duration + 's');
+            console.log('Session duration:', duration + 's', isFinal ? '(final)' : '(periodic)');
 
-            if (duration > 1) { // Only track if stayed more than 1 second
-                const today = new Date().toISOString().split('T')[0];
-                const page = window.location.pathname;
-                const referrer = document.referrer ? new URL(document.referrer).hostname : 'direct';
+            // Only track if stayed more than 3 seconds AND duration has increased by at least 2 seconds
+            if (duration > 3 && (duration - lastTrackedDuration) >= 2) {
+                lastTrackedDuration = duration;
 
-                const payload = {
-                    date: today,
-                    event_type: 'session_end',
-                    page: page,
-                    referrer: referrer,
-                    search_query: null,
-                    count: 1,
-                    session_duration: Math.round(duration)
-                };
+                try {
+                    const today = new Date().toISOString().split('T')[0];
+                    const page = window.location.pathname;
+                    const referrer = document.referrer ? new URL(document.referrer).hostname : 'direct';
 
-                // Use fetch with keepalive for reliable tracking on page unload
-                const url = `${SUPABASE_CONFIG.URL}/rest/v1/inflaatio_analytics`;
+                    const payload = {
+                        date: today,
+                        event_type: 'session_end',
+                        page: page,
+                        referrer: referrer,
+                        search_query: null,
+                        count: 1,
+                        session_duration: Math.round(duration)
+                    };
 
-                fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'apikey': SUPABASE_CONFIG.ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload),
-                    keepalive: true
-                }).catch(err => console.error('Session end track failed:', err));
+                    const { error } = await supabase.from('inflaatio_analytics').insert(payload);
 
-                console.log('Session end tracked:', Math.round(duration) + 's');
+                    if (error) {
+                        console.error('✗ Session track failed:', error);
+                    } else {
+                        console.log('✓ Session tracked:', Math.round(duration) + 's');
+                    }
+                } catch (err) {
+                    console.error('✗ Session track error:', err);
+                }
             }
         };
 
-        // Track on page unload
-        window.addEventListener('beforeunload', trackSessionEnd);
-        window.addEventListener('pagehide', trackSessionEnd);
+        // Track every 5 seconds while user is active
+        const intervalId = setInterval(() => {
+            if (!document.hidden) {
+                trackSessionEnd(false);
+            }
+        }, 5000);
 
-        // Also track on visibility change (tab switch, minimize)
-        let visibilityTracked = false;
+        // Track on page unload
+        window.addEventListener('beforeunload', () => {
+            clearInterval(intervalId);
+            trackSessionEnd(true);
+        });
+
+        window.addEventListener('pagehide', () => {
+            clearInterval(intervalId);
+            trackSessionEnd(true);
+        });
+
+        // Track on visibility change
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden && !visibilityTracked) {
-                visibilityTracked = true;
-                trackSessionEnd();
-            } else if (!document.hidden) {
-                // Reset timer and flag when coming back
-                this.pageLoadTime = Date.now();
-                visibilityTracked = false;
+            if (document.hidden) {
+                trackSessionEnd(true);
             }
         });
     },
