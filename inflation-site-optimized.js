@@ -98,29 +98,17 @@ const Analytics = window.Analytics = {
     },
 
     pageView() {
-        console.log('📍 Analytics.pageView() called');
-        try {
-            this.track('page_view');
-            this.startSessionTracking();
-        } catch (err) {
-            console.error('Error in pageView:', err);
-            // Start session tracking anyway
-            this.startSessionTracking();
-        }
+        this.track('page_view');
+        this.startSessionTracking();
     },
 
     startSessionTracking() {
-        console.log('🎯 Session tracking initialized');
-        // Track session duration
         this.pageLoadTime = Date.now();
         let lastTrackedDuration = 0;
 
-        // Send session duration - works for both periodic and final tracking
         const trackSessionEnd = (isFinal = false) => {
-            const duration = (Date.now() - this.pageLoadTime) / 1000; // seconds
-            console.log('⏱️ Session duration:', duration + 's', isFinal ? '(final)' : '(periodic)');
+            const duration = (Date.now() - this.pageLoadTime) / 1000;
 
-            // Only track if stayed more than 3 seconds AND duration has increased by at least 2 seconds
             if (duration > 3 && (duration - lastTrackedDuration) >= 2) {
                 lastTrackedDuration = duration;
 
@@ -140,7 +128,6 @@ const Analytics = window.Analytics = {
 
                 const url = `${SUPABASE_CONFIG.URL}/rest/v1/inflaatio_analytics`;
 
-                // Use fetch with keepalive for final tracking (more reliable on page unload)
                 if (isFinal) {
                     fetch(url, {
                         method: 'POST',
@@ -152,20 +139,9 @@ const Analytics = window.Analytics = {
                         },
                         body: JSON.stringify(payload),
                         keepalive: true
-                    }).then(() => {
-                        console.log('✓ Final session tracked:', Math.round(duration) + 's');
-                    }).catch(err => {
-                        console.error('✗ Final session track failed:', err);
-                    });
+                    }).catch(() => {});
                 } else {
-                    // For periodic tracking, use regular async insert
-                    supabase.from('inflaatio_analytics').insert(payload).then(({ error }) => {
-                        if (error) {
-                            console.error('✗ Periodic session track failed:', error);
-                        } else {
-                            console.log('✓ Periodic session tracked:', Math.round(duration) + 's');
-                        }
-                    });
+                    supabase.from('inflaatio_analytics').insert(payload);
                 }
             }
         };
