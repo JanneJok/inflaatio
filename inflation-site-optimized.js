@@ -98,8 +98,15 @@ const Analytics = window.Analytics = {
     },
 
     pageView() {
-        this.track('page_view');
-        this.startSessionTracking();
+        console.log('📍 Analytics.pageView() called');
+        try {
+            this.track('page_view');
+            this.startSessionTracking();
+        } catch (err) {
+            console.error('Error in pageView:', err);
+            // Start session tracking anyway
+            this.startSessionTracking();
+        }
     },
 
     startSessionTracking() {
