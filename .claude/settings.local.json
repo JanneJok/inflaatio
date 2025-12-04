@@ -20,7 +20,8 @@
       "Bash(where:*)",
       "Bash(git rm:*)",
       "Bash(timeout /t)",
-      "Bash(exit 0)"
+      "Bash(exit 0)",
+      "Bash(timeout /t 3)"
     ],
     "deny": [],
     "ask": []

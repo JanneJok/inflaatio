@@ -60,8 +60,6 @@ const supabase = (() => {
 
 // Anonymous analytics tracking (GDPR compliant - no personal data)
 const Analytics = window.Analytics = {
-    pageLoadTime: Date.now(),
-
     async track(eventType, metadata = {}) {
         try {
             const today = new Date().toISOString().split('T')[0];
@@ -74,21 +72,14 @@ const Analytics = window.Analytics = {
                                urlParams.get('query') || urlParams.get('s') ||
                                urlParams.get('utm_term') || null;
 
-            const payload = {
+            const { error } = await supabase.from('inflaatio_analytics').insert({
                 date: today,
                 event_type: eventType,
                 page: page,
                 referrer: referrer,
                 search_query: searchQuery,
                 count: 1
-            };
-
-            // Add session duration for session_end events
-            if (eventType === 'session_end' && metadata.duration) {
-                payload.session_duration = Math.round(metadata.duration);
-            }
-
-            const { error } = await supabase.from('inflaatio_analytics').insert(payload);
+            });
 
             if (error) console.error('Analytics error:', error);
         } catch (error) {
@@ -99,36 +90,6 @@ const Analytics = window.Analytics = {
 
     pageView() {
         this.track('page_view');
-        this.startSessionTracking();
-    },
-
-    startSessionTracking() {
-        // Track session duration
-        this.pageLoadTime = Date.now();
-
-        // Send session duration when user leaves
-        const trackSessionEnd = () => {
-            const duration = (Date.now() - this.pageLoadTime) / 1000; // seconds
-            if (duration > 1) { // Only track if stayed more than 1 second
-                this.track('session_end', { duration });
-            }
-        };
-
-        // Track on page unload
-        window.addEventListener('beforeunload', trackSessionEnd, { once: true });
-
-        // Also track on visibility change (tab switch, minimize)
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                const duration = (Date.now() - this.pageLoadTime) / 1000;
-                if (duration > 1) {
-                    this.track('session_end', { duration });
-                }
-            } else {
-                // Reset timer when coming back
-                this.pageLoadTime = Date.now();
-            }
-        });
     },
 
     chartInteraction(chartType) {
