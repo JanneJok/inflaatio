@@ -1134,11 +1134,16 @@ if (window.location.pathname === '/index.html') {
 
     // Initialize analytics tracking when Analytics module loads
     window.addEventListener('load', function() {
+        console.log('📊 Starting analytics tracking...');
+        console.log('  window.Analytics exists:', !!window.Analytics);
+        console.log('  window.Analytics.pageView type:', typeof window.Analytics?.pageView);
+
         if (window.Analytics && typeof window.Analytics.pageView === 'function') {
-            console.log('📊 Starting analytics tracking...');
+            console.log('  ✓ Calling Analytics.pageView()');
             window.Analytics.pageView();
         } else {
-            console.warn('⚠️ Analytics module not loaded');
+            console.warn('⚠️ Analytics module not loaded or pageView is not a function');
+            console.log('  Analytics object:', window.Analytics);
         }
     });
 
