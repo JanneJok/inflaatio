@@ -103,6 +103,7 @@ const Analytics = window.Analytics = {
     },
 
     startSessionTracking() {
+        console.log('🎯 Session tracking initialized');
         // Track session duration
         this.pageLoadTime = Date.now();
         let lastTrackedDuration = 0;
@@ -110,7 +111,7 @@ const Analytics = window.Analytics = {
         // Send session duration - works for both periodic and final tracking
         const trackSessionEnd = (isFinal = false) => {
             const duration = (Date.now() - this.pageLoadTime) / 1000; // seconds
-            console.log('Session duration:', duration + 's', isFinal ? '(final)' : '(periodic)');
+            console.log('⏱️ Session duration:', duration + 's', isFinal ? '(final)' : '(periodic)');
 
             // Only track if stayed more than 3 seconds AND duration has increased by at least 2 seconds
             if (duration > 3 && (duration - lastTrackedDuration) >= 2) {
