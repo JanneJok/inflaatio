@@ -107,8 +107,8 @@ const Analytics = window.Analytics = {
         this.pageLoadTime = Date.now();
         let lastTrackedDuration = 0;
 
-        // Send session duration when user leaves or periodically
-        const trackSessionEnd = async (isFinal = false) => {
+        // Send session duration - works for both periodic and final tracking
+        const trackSessionEnd = (isFinal = false) => {
             const duration = (Date.now() - this.pageLoadTime) / 1000; // seconds
             console.log('Session duration:', duration + 's', isFinal ? '(final)' : '(periodic)');
 
@@ -116,30 +116,48 @@ const Analytics = window.Analytics = {
             if (duration > 3 && (duration - lastTrackedDuration) >= 2) {
                 lastTrackedDuration = duration;
 
-                try {
-                    const today = new Date().toISOString().split('T')[0];
-                    const page = window.location.pathname;
-                    const referrer = document.referrer ? new URL(document.referrer).hostname : 'direct';
+                const today = new Date().toISOString().split('T')[0];
+                const page = window.location.pathname;
+                const referrer = document.referrer ? new URL(document.referrer).hostname : 'direct';
 
-                    const payload = {
-                        date: today,
-                        event_type: 'session_end',
-                        page: page,
-                        referrer: referrer,
-                        search_query: null,
-                        count: 1,
-                        session_duration: Math.round(duration)
-                    };
+                const payload = {
+                    date: today,
+                    event_type: 'session_end',
+                    page: page,
+                    referrer: referrer,
+                    search_query: null,
+                    count: 1,
+                    session_duration: Math.round(duration)
+                };
 
-                    const { error } = await supabase.from('inflaatio_analytics').insert(payload);
+                const url = `${SUPABASE_CONFIG.URL}/rest/v1/inflaatio_analytics`;
 
-                    if (error) {
-                        console.error('✗ Session track failed:', error);
-                    } else {
-                        console.log('✓ Session tracked:', Math.round(duration) + 's');
-                    }
-                } catch (err) {
-                    console.error('✗ Session track error:', err);
+                // Use fetch with keepalive for final tracking (more reliable on page unload)
+                if (isFinal) {
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'apikey': SUPABASE_CONFIG.ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=minimal'
+                        },
+                        body: JSON.stringify(payload),
+                        keepalive: true
+                    }).then(() => {
+                        console.log('✓ Final session tracked:', Math.round(duration) + 's');
+                    }).catch(err => {
+                        console.error('✗ Final session track failed:', err);
+                    });
+                } else {
+                    // For periodic tracking, use regular async insert
+                    supabase.from('inflaatio_analytics').insert(payload).then(({ error }) => {
+                        if (error) {
+                            console.error('✗ Periodic session track failed:', error);
+                        } else {
+                            console.log('✓ Periodic session tracked:', Math.round(duration) + 's');
+                        }
+                    });
                 }
             }
         };
