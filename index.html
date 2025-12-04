@@ -1131,7 +1131,22 @@ if (window.location.pathname === '/index.html') {
     window.STATIC_DATA_AVAILABLE = true;
 
     console.log('✅ Static data loaded:', STATIC_INFLATION_DATA.length, 'data points (inflation + HICP)');
-    
+
+    </script>
+
+    <!-- Initialize analytics tracking -->
+    <script>
+    // Wait for Analytics to be defined, then track page view
+    if (window.Analytics && typeof window.Analytics.pageView === 'function') {
+        window.Analytics.pageView();
+    } else {
+        // If Analytics not loaded yet, wait for it
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.Analytics && typeof window.Analytics.pageView === 'function') {
+                window.Analytics.pageView();
+            }
+        });
+    }
     </script>
 </body>
 </html>
