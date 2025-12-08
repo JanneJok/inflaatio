@@ -1,4 +1,4 @@
-// Configuration for proxy server
+// Configuration for proxy server (pre-commit hook test)
 const CONFIG = {
     SHEET_ID: '1tj7AbW3BkzmPZUd_pfrXmaHZrgpKgYwNljSoVoAObx8',
     API_KEY: 'AIzaSyDbeAW-uO-vEHuPdSJPVQwR_l1Axc7Cq7g',
