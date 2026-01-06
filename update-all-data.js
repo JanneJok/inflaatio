@@ -275,6 +275,58 @@ function generateInlineDataScript(inflationData) {
     `;
 }
 
+// Validate data quality before updating
+function validateData(newInflationData, currentHTML) {
+    console.log('\n=== Validating data quality ===\n');
+
+    // Extract current data count from HTML (if exists)
+    const currentDataMatch = currentHTML.match(/STATIC_INFLATION_DATA = \[([\s\S]*?)\];/);
+    let currentDataCount = 0;
+    if (currentDataMatch) {
+        // Count lines that start with ["
+        currentDataCount = (currentDataMatch[1].match(/\["/g) || []).length;
+    }
+
+    const newDataCount = newInflationData.length;
+
+    console.log(`Current data points: ${currentDataCount}`);
+    console.log(`New data points: ${newDataCount}`);
+
+    // Validation rules:
+    // 1. New data must not have FEWER rows than current (allows historical corrections)
+    if (currentDataCount > 0 && newDataCount < currentDataCount) {
+        throw new Error(`Data validation failed: New data has ${newDataCount} rows, but current has ${currentDataCount}. This suggests incomplete data from Google Sheets.`);
+    }
+
+    // 2. Check that recent months have data (last 3 months should exist)
+    const now = new Date();
+    const recentMonths = [];
+    for (let i = 0; i < 3; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        recentMonths.push(monthStr);
+    }
+
+    const dataMonths = newInflationData.map(d => d.date);
+    const missingRecent = recentMonths.filter(m => !dataMonths.includes(m));
+
+    if (missingRecent.length > 1) {
+        // Allow 1 missing month (current month might not be published yet)
+        console.warn(`Warning: Missing ${missingRecent.length} recent months: ${missingRecent.join(', ')}`);
+        console.warn('This is acceptable if data hasn\'t been published yet.');
+    }
+
+    // 3. Sanity check: Must have at least 300 data points (we have ~347 historical data)
+    if (newDataCount < 300) {
+        throw new Error(`Data validation failed: Only ${newDataCount} rows found. Expected at least 300. Data seems incomplete.`);
+    }
+
+    console.log('✓ Data validation passed');
+    console.log(`✓ Data count OK: ${newDataCount} rows (current: ${currentDataCount})`);
+
+    return true;
+}
+
 // Main update function
 async function updateAllData() {
     console.log('=== Starting data update ===\n');
@@ -290,6 +342,19 @@ async function updateAllData() {
     const yearlyAverages = calculateYearlyAverages(rawInflationData);
     const keyMetrics = processKeyMetrics(metricsData);
 
+    // Read current HTML to validate against
+    const htmlPath = './index.html';
+    let currentHTML = '';
+    try {
+        currentHTML = fs.readFileSync(htmlPath, 'utf8');
+        console.log(`Loaded existing index.html (${currentHTML.length} bytes)`);
+    } catch (e) {
+        console.log('No existing index.html found, creating new one');
+    }
+
+    // Validate data quality
+    validateData(inflationData, currentHTML);
+
     console.log('\n=== Generating HTML ===\n');
 
     // Generate HTML sections
@@ -297,14 +362,18 @@ async function updateAllData() {
     const dataCardsHTML = generateDataCardsHTML(keyMetrics);
     const inlineDataScript = generateInlineDataScript(inflationData);
 
-    // Read HTML
-    const htmlPath = './index.html';
-    let html = fs.readFileSync(htmlPath, 'utf8');
+    // Use the already loaded HTML for modifications
+    let html = currentHTML;
+    console.log(`HTML size for modifications: ${html.length} bytes`);
 
     // Update yearly table
     console.log('Updating yearly table...');
     const tableStart = html.indexOf('<div class="compact-table-grid">');
-    const tableEnd = html.indexOf('</div>\n            <div class="show-more-container">', tableStart);
+    // Handle both CRLF (Windows) and LF (Unix) line endings
+    let tableEnd = html.indexOf('</div>\r\n            <div class="show-more-container">', tableStart);
+    if (tableEnd === -1) {
+        tableEnd = html.indexOf('</div>\n            <div class="show-more-container">', tableStart);
+    }
     if (tableStart === -1 || tableEnd === -1) {
         throw new Error('Could not find yearly table section');
     }
@@ -315,7 +384,11 @@ async function updateAllData() {
     // Update data cards
     console.log('Updating data cards...');
     const cardsStart = html.indexOf('<div class="carousel-inner">');
-    const cardsEnd = html.indexOf('</div>\n        </section>', cardsStart);
+    // Handle both CRLF and LF
+    let cardsEnd = html.indexOf('</div>\r\n        </section>', cardsStart);
+    if (cardsEnd === -1) {
+        cardsEnd = html.indexOf('</div>\n        </section>', cardsStart);
+    }
     if (cardsStart === -1 || cardsEnd === -1) {
         throw new Error('Could not find data cards section');
     }
@@ -355,7 +428,7 @@ async function updateAllData() {
     }
 
     // Write updated HTML
-    fs.writeFileSync(htmlPath, html, 'utf8');
+    fs.writeFileSync('./index.html', html, 'utf8');
 
     console.log('\n=== Update complete ===');
     console.log(`✓ Yearly table: ${Object.keys(yearlyAverages).length} years`);
