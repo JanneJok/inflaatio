@@ -203,19 +203,34 @@ function generateYearlyTableHTML(yearlyAverages) {
 // Generate data cards HTML
 function generateDataCardsHTML(metrics) {
     // Map the metrics to the card structure
+    const currentYear = new Date().getFullYear();
     const cards = [
         { title: "Viimeisin inflaatiolukema", key: "Viimeisin inflaatio", description: "Viimeisin Eurostatin julkaisema vuosi-inflaatio. Perustuu kuluttajahintaindeksiin." },
         { title: "Muutos edelliseen kuukauteen", key: "Muutos edelliseen kuukauteen", description: "Kertoo, onko hintojen nousuvauhti kiihtynyt vai hidastunut edellisestä kuukaudesta." },
         { title: "12 kuukauden keskiarvo", key: "12 kk keskiarvo", description: "Keskimääräinen inflaatio viimeisten 12 kuukauden aikana. Vakaampi kuva hintakehityksestä." },
-        { title: "Vuoden 2025 keskiarvo", key: "Vuoden alun keskiarvo", description: "Inflaation keskiarvo vuoden alusta tähän hetkeen. Hyödyllinen budjetointiin ja analyysiin." },
+        { title: `Vuoden ${currentYear} keskiarvo`, key: "Vuoden alun keskiarvo", description: "Inflaation keskiarvo vuoden alusta tähän hetkeen. Hyödyllinen budjetointiin ja analyysiin." },
         { title: "Vuosi sitten (sama kuukausi)", key: "Sama kuukausi vuotta aiemmin", description: "Vertailu viime vuoden samaan kuukauteen näyttää, miten paljon inflaatio on muuttunut vuodessa." }
     ];
 
     let html = '';
 
     cards.forEach(card => {
-        const value = metrics[card.key] || '0.0 %';
+        let value = metrics[card.key] || '0.0 %';
+
+        // Parse numeric value
         const numValue = parseFloat(value.replace('%', '').replace(',', '.').trim());
+
+        // Handle NaN case (missing data)
+        if (isNaN(numValue)) {
+            console.warn(`Warning: NaN value for "${card.key}", using fallback "Ei dataa"`);
+            value = 'Ei dataa';
+            html += `                <div class="tile">
+                    <h3>${card.title}</h3>
+                    <p class="highlight neutral">${value}</p>
+                    <p>${card.description}</p>
+                </div>\n`;
+            return;
+        }
 
         let cssClass = 'neutral';
         let symbol = '';
