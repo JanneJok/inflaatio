@@ -6,6 +6,9 @@ on:
     - cron: '0 7 1 * *'  # Joka kuukauden 1. päivä klo 07:00 UTC
   workflow_dispatch:  # Mahdollistaa myös manuaalisen ajon GitHubissa
 
+permissions:
+  contents: write  # Required for pushing commits
+
 jobs:
   update-data:
     runs-on: ubuntu-latest
