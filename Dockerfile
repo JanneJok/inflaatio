@@ -1,12 +1,16 @@
 FROM nginx:alpine
 
+# Copy all files to temp location
+COPY . /tmp/build/
+
 # Copy static files
-COPY *.html /usr/share/nginx/html/
-COPY *.css /usr/share/nginx/html/
-COPY *.js /usr/share/nginx/html/
-COPY image/ /usr/share/nginx/html/image/
-COPY sitemap.xml /usr/share/nginx/html/ 2>/dev/null || true
-COPY robots.txt /usr/share/nginx/html/ 2>/dev/null || true
+RUN cp /tmp/build/*.html /usr/share/nginx/html/ && \
+    cp /tmp/build/*.css /usr/share/nginx/html/ && \
+    cp /tmp/build/*.js /usr/share/nginx/html/ && \
+    cp -r /tmp/build/image /usr/share/nginx/html/ && \
+    (cp /tmp/build/sitemap.xml /usr/share/nginx/html/ || true) && \
+    (cp /tmp/build/robots.txt /usr/share/nginx/html/ || true) && \
+    rm -rf /tmp/build
 
 # Create custom nginx config
 RUN echo 'server { \
