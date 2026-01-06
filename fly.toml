@@ -1,0 +1,27 @@
+# fly.toml app configuration file generated for inflaatio on 2026-01-06T20:40:00+02:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+
+app = 'inflaatio'
+primary_region = 'arn'  # Stockholm - closest to Finland
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+  [http_service.concurrency]
+    type = 'requests'
+    hard_limit = 250
+    soft_limit = 200
+
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1

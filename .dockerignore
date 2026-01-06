@@ -1,0 +1,26 @@
+# Git
+.git
+.gitignore
+.github
+
+# Node
+node_modules
+npm-debug.log
+
+# Development files
+.vscode
+.idea
+*.md
+!README.md
+
+# Local files
+stats-viewer.html
+update-all-data.js
+.claude
+.env
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+nul
