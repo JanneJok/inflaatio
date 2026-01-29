@@ -450,8 +450,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Update chart statistics display
-    function updateChartStats(range) {
+    // Update inflation chart statistics only
+    function updateInflationStats(range) {
         if (!inflationData || inflationData.length === 0) {
             console.log('No data available for stats calculation');
             return;
@@ -465,9 +465,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Calculate inflation stats
         const inflationStats = calculateInflationStats(filteredData);
 
-        // Calculate HICP stats
-        const hicpStats = calculateHicpStats(filteredData, inflationData, range);
-
         // Update inflation chart stats
         const inflationStatsContainer = document.querySelector('#analytiikka .chart:first-child .chart-stats');
         if (inflationStatsContainer) {
@@ -477,6 +474,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 <p><span class="percentage-badge">🔴</span> Maksimi ${inflationStats.max}%</p>
             `;
         }
+
+        console.log('📊 Inflation stats updated for range:', range, inflationStats);
+    }
+
+    // Update HICP chart statistics only
+    function updateHicpStats(range) {
+        if (!inflationData || inflationData.length === 0) {
+            console.log('No data available for stats calculation');
+            return;
+        }
+
+        // Get filtered data based on range
+        const rangeMonths = getRangeMonths(range);
+        const startIndex = Math.max(0, inflationData.length - rangeMonths);
+        const filteredData = inflationData.slice(startIndex);
+
+        // Calculate HICP stats
+        const hicpStats = calculateHicpStats(filteredData, inflationData, range);
 
         // Update HICP chart stats
         const hicpStatsContainer = document.querySelector('#analytiikka .chart:last-child .chart-stats');
@@ -491,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
 
-        console.log('📊 Chart stats updated for range:', range, inflationStats, hicpStats);
+        console.log('📈 HICP stats updated for range:', range, hicpStats);
     }
 
     // Function to update chart with filtered data
@@ -529,8 +544,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (inflationChart && fullInflationData) {
                     updateChart(inflationChart, fullInflationData, range);
-                    // Update chart statistics
-                    updateChartStats(range);
+                    // Update inflation chart statistics only
+                    updateInflationStats(range);
                 } else {
                     console.log('Waiting for inflation data from Google Sheets...');
                 }
@@ -559,8 +574,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (hicpChart && fullHicpData) {
                     updateChart(hicpChart, fullHicpData, range);
-                    // Update chart statistics
-                    updateChartStats(range);
+                    // Update HICP chart statistics only
+                    updateHicpStats(range);
                 } else {
                     console.log('Waiting for HICP data from Google Sheets...');
                 }
@@ -1020,7 +1035,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Update chart statistics (default to 5v on initial load)
-        updateChartStats('5v');
+        updateInflationStats('5v');
+        updateHicpStats('5v');
     }
 
     // Fetch data on load
