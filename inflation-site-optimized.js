@@ -339,10 +339,10 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('No data available to filter');
             return null;
         }
-
+        
         const totalPoints = data.labels.length;
         let pointsToShow;
-
+        
         switch(range) {
             case '6kk':
                 pointsToShow = Math.min(6, totalPoints);
@@ -361,9 +361,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 pointsToShow = totalPoints;
                 break;
         }
-
+        
         const startIndex = Math.max(0, totalPoints - pointsToShow);
-
+        
         return {
             labels: data.labels.slice(startIndex),
             datasets: data.datasets.map(dataset => ({
@@ -371,127 +371,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 data: dataset.data.slice(startIndex)
             }))
         };
-    }
-
-    // Calculate inflation statistics for the selected time range
-    function calculateInflationStats(filteredData) {
-        if (!filteredData || !filteredData.length) {
-            return { min: 0, max: 0, avg: 0 };
-        }
-
-        const inflationValues = filteredData.map(d => d.inflation).filter(v => !isNaN(v));
-
-        if (inflationValues.length === 0) {
-            return { min: 0, max: 0, avg: 0 };
-        }
-
-        const min = Math.min(...inflationValues);
-        const max = Math.max(...inflationValues);
-        const avg = inflationValues.reduce((sum, val) => sum + val, 0) / inflationValues.length;
-
-        return {
-            min: min.toFixed(1),
-            max: max.toFixed(1),
-            avg: avg.toFixed(1)
-        };
-    }
-
-    // Calculate HICP statistics for the selected time range
-    function calculateHicpStats(filteredData, fullData, range) {
-        if (!filteredData || !filteredData.length || !fullData || !fullData.length) {
-            return { growthRate: 0, indexValue: 0, yearlyChange: 0, yearlyChangeLabel: 'viimeisen 12kk vuosimuutos', indexLabel: 'viimeisin Indeksiarvo' };
-        }
-
-        // Latest index value (always from the most recent data point)
-        const latestIndex = fullData[fullData.length - 1].hicp;
-
-        // Growth rate based on selected time range
-        const firstIndex = filteredData[0].hicp;
-        const lastIndex = filteredData[filteredData.length - 1].hicp;
-        const monthsInRange = filteredData.length;
-
-        let growthRate = 0;
-        if (monthsInRange > 0 && firstIndex > 0) {
-            // Annualized growth rate
-            const totalGrowth = ((lastIndex - firstIndex) / firstIndex) * 100;
-            growthRate = (totalGrowth / monthsInRange) * 12; // Annualize
-        }
-
-        // Yearly change (always 12 months back from latest)
-        let yearlyChange = 0;
-        const yearlyChangeLabel = 'viimeisen 12kk vuosimuutos';
-        const indexLabel = 'viimeisin Indeksiarvo';
-
-        if (fullData.length >= 13) {
-            const indexYear12MonthsAgo = fullData[fullData.length - 13].hicp;
-            if (indexYear12MonthsAgo > 0) {
-                yearlyChange = ((latestIndex - indexYear12MonthsAgo) / indexYear12MonthsAgo) * 100;
-            }
-        }
-
-        return {
-            growthRate: growthRate.toFixed(1),
-            indexValue: latestIndex.toFixed(2),
-            yearlyChange: yearlyChange.toFixed(1),
-            yearlyChangeLabel: yearlyChangeLabel,
-            indexLabel: indexLabel
-        };
-    }
-
-    // Helper function to get number of months for a range
-    function getRangeMonths(range) {
-        switch(range) {
-            case '6kk': return 6;
-            case '1v': return 12;
-            case '3v': return 36;
-            case '5v': return 60;
-            case 'Max': return 9999;
-            default: return 60;
-        }
-    }
-
-    // Update chart statistics display
-    function updateChartStats(range) {
-        if (!inflationData || inflationData.length === 0) {
-            console.log('No data available for stats calculation');
-            return;
-        }
-
-        // Get filtered data based on range
-        const rangeMonths = getRangeMonths(range);
-        const startIndex = Math.max(0, inflationData.length - rangeMonths);
-        const filteredData = inflationData.slice(startIndex);
-
-        // Calculate inflation stats
-        const inflationStats = calculateInflationStats(filteredData);
-
-        // Calculate HICP stats
-        const hicpStats = calculateHicpStats(filteredData, inflationData, range);
-
-        // Update inflation chart stats
-        const inflationStatsContainer = document.querySelector('#analytiikka .chart:first-child .chart-stats');
-        if (inflationStatsContainer) {
-            inflationStatsContainer.innerHTML = `
-                <p><span class="percentage-badge">🔵</span> Minimi ${inflationStats.min}%</p>
-                <p><span class="percentage-badge">🟡</span> Keskiarvo ${inflationStats.avg}%</p>
-                <p><span class="percentage-badge">🔴</span> Maksimi ${inflationStats.max}%</p>
-            `;
-        }
-
-        // Update HICP chart stats
-        const hicpStatsContainer = document.querySelector('#analytiikka .chart:last-child .chart-stats');
-        if (hicpStatsContainer) {
-            const yearlyChangeSign = hicpStats.yearlyChange >= 0 ? '+' : '';
-            const growthRateSign = hicpStats.growthRate >= 0 ? '+' : '';
-
-            hicpStatsContainer.innerHTML = `
-                <p><span class="percentage-badge">📈</span> Nousutahti ${growthRateSign}${hicpStats.growthRate}%</p>
-                <p><span class="percentage-badge">📊</span> ${hicpStats.indexLabel} ${hicpStats.indexValue}</p>
-                <p><span class="percentage-badge">📅</span> ${hicpStats.yearlyChangeLabel} ${yearlyChangeSign}${hicpStats.yearlyChange}%</p>
-            `;
-        }
-
-        console.log('📊 Chart stats updated for range:', range, inflationStats, hicpStats);
     }
 
     // Function to update chart with filtered data
@@ -519,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 // Add active class to clicked button
                 this.classList.add('active');
-
+                
                 // Update inflation chart
                 const range = this.textContent;
                 console.log('📊 Inflation chart range changed to:', range);
@@ -529,8 +408,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (inflationChart && fullInflationData) {
                     updateChart(inflationChart, fullInflationData, range);
-                    // Update chart statistics
-                    updateChartStats(range);
                 } else {
                     console.log('Waiting for inflation data from Google Sheets...');
                 }
@@ -549,7 +426,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 // Add active class to clicked button
                 this.classList.add('active');
-
+                
                 // Update HICP chart
                 const range = this.textContent;
                 console.log('📈 HICP chart range changed to:', range);
@@ -559,8 +436,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (hicpChart && fullHicpData) {
                     updateChart(hicpChart, fullHicpData, range);
-                    // Update chart statistics
-                    updateChartStats(range);
                 } else {
                     console.log('Waiting for HICP data from Google Sheets...');
                 }
@@ -1018,9 +893,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const range = activeBtn ? activeBtn.textContent : '5v';
             updateChart(hicpChart, fullHicpData, range);
         }
-
-        // Update chart statistics (default to 5v on initial load)
-        updateChartStats('5v');
     }
 
     // Fetch data on load
