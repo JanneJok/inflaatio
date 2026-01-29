@@ -1,0 +1,12 @@
+{
+  "name": "inflaatio-site",
+  "version": "1.0.0",
+  "description": "Inflaatio.fi - Finnish inflation tracker",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "python -m http.server 8000"
+  },
+  "devDependencies": {
+    "terser": "^5.36.0"
+  }
+}
