@@ -4,6 +4,8 @@
   "description": "Inflaatio.fi - Finnish inflation tracker",
   "scripts": {
     "build": "node build.js",
+    "bump": "node scripts/bump-version.js",
+    "release": "node build.js && node scripts/bump-version.js",
     "dev": "python -m http.server 8000"
   },
   "devDependencies": {

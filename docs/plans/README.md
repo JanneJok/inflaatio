@@ -228,3 +228,24 @@ Ei API-avainta tarvita - avoin API.
 ## Jatkokehitys
 
 Katso: [ROADMAP.md](ROADMAP.md)
+
+
+---
+
+---
+
+## Frontend-muutokset (CSS/JS) - paivittainen rutiini
+
+Kun muutat `inflation-site-optimized.css` tai `inflation-site-optimized.js`, tee nain:
+
+1. Aja build (minifioi CSS + JS):
+   - `node build.js`
+2. Bumpaa versiot `index.html`:ssa yhdella komennolla:
+   - `node scripts/bump-version.js`
+   - Vaihtoehto: `npm run release` (build + bump yhdella)
+3. Commitoi kaikki muuttuneet tiedostot ja pushaa:
+   - `inflation-site-optimized.min.css`
+   - `inflation-site-optimized.min.js`
+   - `index.html`
+
+Miksi tama? Version bump pakottaa selaimen/CDN:n hakemaan uudet tiedostot eika kayttamaan vanhaa cachea.
