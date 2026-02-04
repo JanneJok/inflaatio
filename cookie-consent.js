@@ -405,7 +405,10 @@ class CookieConsent {
     setCookie(name, value, days) {
         const expires = new Date();
         expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
-        document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Strict;Secure`;
+        const secure = window.location.protocol === 'https:' ? ';Secure' : '';
+        document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Strict${secure}`;
+        // localStorage fallback for file:// protocol where cookies are blocked
+        try { localStorage.setItem(name, value); } catch(e) {}
     }
 
     getCookie(name) {
@@ -416,7 +419,8 @@ class CookieConsent {
             while (c.charAt(0) === ' ') c = c.substring(1, c.length);
             if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
         }
-        return null;
+        // localStorage fallback for file:// protocol
+        try { return localStorage.getItem(name); } catch(e) { return null; }
     }
 
     // Public API methods

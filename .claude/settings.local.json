@@ -23,7 +23,11 @@
       "Bash(exit 0)",
       "Bash(timeout /t 3)",
       "Bash(wc:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "WebFetch(domain:pxdata.stat.fi)",
+      "Bash(copy /y:*)",
+      "Bash(npm install:*)",
+      "Bash(npx clean-css:*)"
     ],
     "deny": [],
     "ask": []

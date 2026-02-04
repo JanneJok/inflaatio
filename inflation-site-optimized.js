@@ -191,6 +191,7 @@ const Analytics = window.Analytics = {
 
 // Global variables
 let inflationData = [];
+let cpiData = [];
 let keyMetrics = {};
 let dataCache = new Map();
 let lastFetch = 0;
@@ -223,6 +224,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let hicpChart = null;
     let fullInflationData = null;
     let fullHicpData = null;
+    let inflationDataSource = 'cpi'; // Per-chart data source for inflation % chart
+    let hicpDataSource = 'cpi'; // Per-chart data source for index chart
     
     // Carousel functionality
     const carousel = document.querySelector('.carousel-inner');
@@ -397,17 +400,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Calculate HICP statistics for the selected time range
-    function calculateHicpStats(filteredData, fullData, range) {
+    function calculateHicpStats(filteredData, fullData, indexField) {
         if (!filteredData || !filteredData.length || !fullData || !fullData.length) {
             return { growthRate: 0, indexValue: 0, yearlyChange: 0, yearlyChangeLabel: 'viimeisen 12kk vuosimuutos', indexLabel: 'viimeisin Indeksiarvo' };
         }
 
         // Latest index value (always from the most recent data point)
-        const latestIndex = fullData[fullData.length - 1].hicp;
+        const latestIndex = fullData[fullData.length - 1][indexField];
 
         // Growth rate based on selected time range
-        const firstIndex = filteredData[0].hicp;
-        const lastIndex = filteredData[filteredData.length - 1].hicp;
+        const firstIndex = filteredData[0][indexField];
+        const lastIndex = filteredData[filteredData.length - 1][indexField];
         const monthsInRange = filteredData.length;
 
         let growthRate = 0;
@@ -423,7 +426,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const indexLabel = 'viimeisin Indeksiarvo';
 
         if (fullData.length >= 13) {
-            const indexYear12MonthsAgo = fullData[fullData.length - 13].hicp;
+            const indexYear12MonthsAgo = fullData[fullData.length - 13][indexField];
             if (indexYear12MonthsAgo > 0) {
                 yearlyChange = ((latestIndex - indexYear12MonthsAgo) / indexYear12MonthsAgo) * 100;
             }
@@ -450,22 +453,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Update inflation chart statistics only
+    // Update inflation chart statistics (respects selected data source)
     function updateInflationStats(range) {
-        if (!inflationData || inflationData.length === 0) {
+        const data = inflationDataSource === 'cpi' ? cpiData : inflationData;
+        if (!data || data.length === 0) {
             console.log('No data available for stats calculation');
             return;
         }
 
-        // Get filtered data based on range
         const rangeMonths = getRangeMonths(range);
-        const startIndex = Math.max(0, inflationData.length - rangeMonths);
-        const filteredData = inflationData.slice(startIndex);
+        const startIndex = Math.max(0, data.length - rangeMonths);
+        const filteredData = data.slice(startIndex);
 
-        // Calculate inflation stats
         const inflationStats = calculateInflationStats(filteredData);
 
-        // Update inflation chart stats
         const inflationStatsContainer = document.querySelector('#analytiikka .chart:first-child .chart-stats');
         if (inflationStatsContainer) {
             inflationStatsContainer.innerHTML = `
@@ -478,22 +479,21 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('📊 Inflation stats updated for range:', range, inflationStats);
     }
 
-    // Update HICP chart statistics only
+    // Update index chart statistics (respects selected data source)
     function updateHicpStats(range) {
-        if (!inflationData || inflationData.length === 0) {
+        const data = hicpDataSource === 'cpi' ? cpiData : inflationData;
+        const indexField = hicpDataSource === 'cpi' ? 'cpi' : 'hicp';
+        if (!data || data.length === 0) {
             console.log('No data available for stats calculation');
             return;
         }
 
-        // Get filtered data based on range
         const rangeMonths = getRangeMonths(range);
-        const startIndex = Math.max(0, inflationData.length - rangeMonths);
-        const filteredData = inflationData.slice(startIndex);
+        const startIndex = Math.max(0, data.length - rangeMonths);
+        const filteredData = data.slice(startIndex);
 
-        // Calculate HICP stats
-        const hicpStats = calculateHicpStats(filteredData, inflationData, range);
+        const hicpStats = calculateHicpStats(filteredData, data, indexField);
 
-        // Update HICP chart stats
         const hicpStatsContainer = document.querySelector('#analytiikka .chart:last-child .chart-stats');
         if (hicpStatsContainer) {
             const yearlyChangeSign = hicpStats.yearlyChange >= 0 ? '+' : '';
@@ -506,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
 
-        console.log('📈 HICP stats updated for range:', range, hicpStats);
+        console.log('📈 Index stats updated for range:', range, hicpStats);
     }
 
     // Function to update chart with filtered data
@@ -528,13 +528,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (inflationControls) {
         inflationControls.querySelectorAll('button').forEach(btn => {
             btn.addEventListener('click', function() {
-                // Remove active class from siblings
-                this.parentElement.querySelectorAll('button').forEach(b => {
+                // Remove active class from time-range siblings only
+                this.parentElement.querySelectorAll('button[data-range]').forEach(b => {
                     b.classList.remove('active');
                 });
                 // Add active class to clicked button
                 this.classList.add('active');
-                
+
                 // Update inflation chart
                 const range = this.textContent;
                 console.log('📊 Inflation chart range changed to:', range);
@@ -558,13 +558,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (hicpControls) {
         hicpControls.querySelectorAll('button').forEach(btn => {
             btn.addEventListener('click', function() {
-                // Remove active class from siblings
-                this.parentElement.querySelectorAll('button').forEach(b => {
+                // Remove active class from time-range siblings only
+                this.parentElement.querySelectorAll('button[data-range]').forEach(b => {
                     b.classList.remove('active');
                 });
                 // Add active class to clicked button
                 this.classList.add('active');
-                
+
                 // Update HICP chart
                 const range = this.textContent;
                 console.log('📈 HICP chart range changed to:', range);
@@ -583,9 +583,57 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Initialize first button as active in each chart
+    // Add data source toggle buttons to each chart
+    document.querySelectorAll('.chart-controls').forEach((controls, idx) => {
+        const toggleContainer = document.createElement('div');
+        toggleContainer.className = 'data-source-toggle';
+        toggleContainer.dataset.chart = idx === 0 ? 'inflation' : 'index';
+        toggleContainer.style.cssText = 'display: inline-flex; gap: 6px; margin-right: 15px; padding-right: 15px; border-right: 1px solid rgba(255,255,255,0.2);';
+
+        // CPI is default (active), blue
+        const cpiBtn = document.createElement('button');
+        cpiBtn.textContent = 'CPI';
+        cpiBtn.dataset.source = 'cpi';
+        cpiBtn.className = 'active';
+        cpiBtn.style.cssText = 'background: rgba(76, 165, 186, 0.2);';
+
+        // HICP is secondary, orange
+        const hicpBtn = document.createElement('button');
+        hicpBtn.textContent = 'HICP';
+        hicpBtn.dataset.source = 'hicp';
+        hicpBtn.style.cssText = 'background: rgba(255, 153, 51, 0.2);';
+
+        toggleContainer.appendChild(cpiBtn);
+        toggleContainer.appendChild(hicpBtn);
+
+        controls.insertBefore(toggleContainer, controls.firstChild);
+    });
+
+    // Data source toggle event handlers (per-chart independent)
+    document.querySelectorAll('.data-source-toggle button').forEach(btn => {
+        btn.addEventListener('click', function() {
+            this.parentElement.querySelectorAll('button').forEach(b => {
+                b.classList.remove('active');
+            });
+            this.classList.add('active');
+
+            const chartType = this.closest('.data-source-toggle').dataset.chart;
+            if (chartType === 'inflation') {
+                inflationDataSource = this.dataset.source;
+                Analytics.chartInteraction('inflation_source_' + this.dataset.source);
+                updateInflationChart();
+            } else {
+                hicpDataSource = this.dataset.source;
+                Analytics.chartInteraction('index_source_' + this.dataset.source);
+                updateIndexChart();
+            }
+            console.log('📊 Data source changed for', chartType, ':', this.dataset.source);
+        });
+    });
+
+    // Initialize first button as active in each chart (time range)
     document.querySelectorAll('.chart-controls').forEach(controls => {
-        const defaultBtn = Array.from(controls.querySelectorAll('button')).find(btn => btn.textContent === '5v');
+        const defaultBtn = Array.from(controls.querySelectorAll('button[data-range]')).find(btn => btn.textContent === '5v');
         if (defaultBtn) {
             defaultBtn.classList.add('active');
         }
@@ -790,15 +838,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 hicp: row[2] || 0  // HICP index from column 3
             }));
 
-            console.log(`📊 Loaded ${inflationData.length} data points from static data (with HICP)`);
+            // Load CPI data if available
+            if (typeof STATIC_CPI_DATA !== 'undefined') {
+                cpiData = STATIC_CPI_DATA.map(row => ({
+                    date: row[0],
+                    inflation: row[1],
+                    cpi: row[2] || 0  // CPI index from column 3
+                }));
+                console.log(`📊 Loaded ${cpiData.length} CPI data points from static data`);
+            }
 
-            // Update year table note with current year data
-            updateYearTableNote(inflationData);
+            console.log(`📊 Loaded ${inflationData.length} HICP data points from static data`);
+
+            // Update yearly table, key metrics, and info banner with live data
+            updateYearlyTable();
+            updateKeyMetrics();
+            updateInfoBanner();
 
             updateChartsWithData();
 
-            // Static data cards are already in HTML, no need to update
-            return { historical: inflationData, metrics: {} };
+            return { historical: inflationData, cpi: cpiData, metrics: {} };
         }
 
         // FALLBACK: If no static data, use API (old behavior)
@@ -839,9 +898,12 @@ document.addEventListener('DOMContentLoaded', () => {
             dataCache.set(cacheKey, processedData);
             lastFetch = now;
 
-            // Update charts with fetched data
+            // Update charts and UI sections with fetched data
             updateChartsWithData();
-            
+            updateYearlyTable();
+            updateKeyMetrics();
+            updateInfoBanner();
+
             console.log('✅ Data loaded successfully through proxy');
             return processedData;
 
@@ -906,28 +968,185 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const sorted = processedData.sort((a, b) => new Date(a.date + '-01') - new Date(b.date + '-01'));
 
-        // Update year table note with current year data
-        updateYearTableNote(sorted);
-
         return sorted;
     }
 
-    // Update the year table note to show current year and month count
-    function updateYearTableNote(data) {
-        const noteElement = document.getElementById('yearTableNote');
-        if (!noteElement || !data || data.length === 0) return;
+    // --- Yearly table & key metrics toggles ---
+    let yearlyTableSource = 'cpi';
+    let metricsSource = 'cpi';
 
-        const currentYear = new Date().getFullYear();
-        const currentYearData = data.filter(item => {
-            const itemYear = parseInt(item.date.split('-')[0]);
-            return itemYear === currentYear;
+    // Compute yearly averages from monthly data array
+    function computeYearlyAverages(data) {
+        const byYear = {};
+        data.forEach(item => {
+            const year = item.date.split('-')[0];
+            if (!byYear[year]) byYear[year] = [];
+            if (!isNaN(item.inflation)) byYear[year].push(item.inflation);
+        });
+        const result = {};
+        Object.keys(byYear).forEach(year => {
+            const vals = byYear[year];
+            result[year] = vals.reduce((a, b) => a + b, 0) / vals.length;
+        });
+        return result;
+    }
+
+    // Render the yearly table grid from averages object
+    function renderYearlyTable(averages) {
+        const grid = document.getElementById('yearTableGrid');
+        if (!grid) return;
+
+        const years = Object.keys(averages).sort((a, b) => parseInt(b) - parseInt(a));
+        const visibleCount = 6;
+
+        let html = '';
+        years.forEach((year, i) => {
+            const val = averages[year];
+            const isNeg = val < 0;
+            const arrow = isNeg ? '<span class="trend-arrow down">↓</span>' : '<span class="trend-arrow up">↑</span>';
+            const cls = isNeg ? 'negative' : 'positive';
+            const formatted = val.toFixed(1).replace(/\.0$/, '').replace('.', ',');
+            const isOlder = i >= visibleCount;
+            const olderClass = isOlder ? ' older-year' : '';
+            const hiddenStyle = isOlder ? ' style="display: none;"' : '';
+            html += `<div class="year-item${olderClass}"${hiddenStyle}><span class="year">${year}</span><span class="value ${cls}">${formatted}% ${arrow}</span></div>`;
         });
 
-        if (currentYearData.length > 0) {
-            const baseText = 'Lähde: Eurostat HICP (Harmonised Index of Consumer Prices). Luvut edustavat vuosikeskiarvoja.';
-            const monthCount = currentYearData.length;
-            noteElement.textContent = `${baseText} ${currentYear} data perustuu ${monthCount} kuukauteen.`;
+        grid.innerHTML = html;
+
+        // Update show-more button text based on oldest visible year
+        const btn = document.getElementById('showMoreYearsBtn');
+        if (btn) {
+            const olderYears = years.slice(visibleCount);
+            if (olderYears.length > 0) {
+                const btnText = btn.querySelector('.btn-text');
+                if (btnText) {
+                    btnText.textContent = `Näytä edelliset vuodet (${olderYears[olderYears.length - 1]}–${olderYears[0]})`;
+                }
+            }
         }
+    }
+
+    // Update yearly table for selected source
+    function updateYearlyTable() {
+        const data = yearlyTableSource === 'cpi' ? cpiData : inflationData;
+        if (!data || data.length === 0) return;
+        const averages = computeYearlyAverages(data);
+        renderYearlyTable(averages);
+
+        const note = document.getElementById('yearTableNote');
+        if (note) {
+            const currentYear = new Date().getFullYear();
+            const currentYearData = data.filter(item => item.date.split('-')[0] === currentYear.toString());
+            const src = yearlyTableSource === 'cpi' ? 'Tilastokeskus CPI' : 'Eurostat HICP';
+            let text = `Lähde: ${src}. Luvut edustavat vuosikeskiarvoja.`;
+            if (currentYearData.length > 0) {
+                text += ` ${currentYear} data perustuu ${currentYearData.length} kuukauteen.`;
+            }
+            note.textContent = text;
+        }
+    }
+
+    // Compute the 5 key metrics from a monthly data array
+    function computeMetrics(data) {
+        if (!data || data.length === 0) return null;
+        const latest = data[data.length - 1].inflation;
+        const prev = data.length >= 2 ? data[data.length - 2].inflation : null;
+        const yearAgo = data.length >= 13 ? data[data.length - 13].inflation : null;
+
+        const last12 = data.slice(-12).map(d => d.inflation).filter(v => !isNaN(v));
+        const avg12 = last12.length > 0 ? last12.reduce((a, b) => a + b, 0) / last12.length : null;
+
+        const currentYear = new Date().getFullYear().toString();
+        const ytdVals = data.filter(d => d.date.startsWith(currentYear)).map(d => d.inflation).filter(v => !isNaN(v));
+        const ytdAvg = ytdVals.length > 0 ? ytdVals.reduce((a, b) => a + b, 0) / ytdVals.length : null;
+
+        return {
+            latest: latest,
+            monthChange: prev !== null ? latest - prev : null,
+            avg12: avg12,
+            ytdAvg: ytdAvg,
+            yearAgo: yearAgo
+        };
+    }
+
+    // Format a metric value for tile display
+    function formatMetricValue(val) {
+        if (val === null || val === undefined || isNaN(val)) return 'Ei dataa';
+        const sign = val > 0 ? '▲ ' : val < 0 ? '▼ ' : '';
+        return `${sign}${val.toFixed(1).replace('.', ',')} %`;
+    }
+
+    // Update the key metrics carousel tiles
+    function updateKeyMetrics() {
+        const data = metricsSource === 'cpi' ? cpiData : inflationData;
+        const m = computeMetrics(data);
+        if (!m) return;
+
+        const tiles = document.querySelectorAll('#tunnusluvut .tile');
+        const values = [m.latest, m.monthChange, m.avg12, m.ytdAvg, m.yearAgo];
+
+        tiles.forEach((tile, i) => {
+            if (i >= values.length) return;
+            const highlight = tile.querySelector('.highlight');
+            if (!highlight) return;
+
+            const val = values[i];
+            if (val === null || val === undefined || isNaN(val)) {
+                highlight.textContent = 'Ei dataa';
+                highlight.className = 'highlight neutral';
+            } else {
+                highlight.textContent = formatMetricValue(val);
+                highlight.className = 'highlight ' + (val > 0 ? 'positive' : val < 0 ? 'negative' : 'neutral');
+            }
+        });
+
+        // Update YTD tile title with current year
+        const ytdTile = tiles[3];
+        if (ytdTile) {
+            const h3 = ytdTile.querySelector('h3');
+            if (h3) h3.textContent = `Vuoden ${new Date().getFullYear()} keskiarvo`;
+        }
+    }
+
+    // Update info banner with latest CPI and HICP values
+    function updateInfoBanner() {
+        const cpiEl = document.getElementById('infoBannerCPI');
+        const hicpEl = document.getElementById('infoBannerHICP');
+        if (cpiEl && cpiData && cpiData.length > 0) {
+            const val = cpiData[cpiData.length - 1].inflation;
+            cpiEl.textContent = `CPI: ${val.toFixed(1).replace('.', ',')}%`;
+        }
+        if (hicpEl && inflationData && inflationData.length > 0) {
+            const val = inflationData[inflationData.length - 1].inflation;
+            hicpEl.textContent = `HICP: ${val.toFixed(1).replace('.', ',')}%`;
+        }
+    }
+
+    // Wire up yearly table toggle
+    const yearTableToggleContainer = document.getElementById('yearTableToggle');
+    if (yearTableToggleContainer) {
+        yearTableToggleContainer.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', function() {
+                yearTableToggleContainer.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                yearlyTableSource = this.dataset.source;
+                updateYearlyTable();
+            });
+        });
+    }
+
+    // Wire up metrics toggle
+    const metricsToggleContainer = document.getElementById('metricsToggle');
+    if (metricsToggleContainer) {
+        metricsToggleContainer.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', function() {
+                metricsToggleContainer.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                metricsSource = this.dataset.source;
+                updateKeyMetrics();
+            });
+        });
     }
 
     // Process key metrics
@@ -972,71 +1191,95 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Update charts with fetched data
+    // Update inflation % chart independently
+    function updateInflationChart() {
+        if (!inflationChart) return;
+        const useHICP = inflationDataSource === 'hicp';
+        const srcData = useHICP ? inflationData : cpiData;
+        if (!srcData || srcData.length === 0) return;
+
+        const labels = srcData.map(d => d.date.substr(2));
+        const values = srcData.map(d => d.inflation);
+        const label = useHICP ? 'HICP (Eurostat)' : 'CPI (Tilastokeskus)';
+        // CPI = blue, HICP = orange
+        const borderColor = useHICP ? '#ff9933' : '#4ca5ba';
+        const backgroundColor = useHICP ? 'rgba(255, 153, 51, 0.1)' : 'rgba(76, 165, 186, 0.1)';
+        const pointBgColor = useHICP ? '#ffcc99' : '#b8d4e3';
+        const pointBorderColor = useHICP ? '#cc7a29' : '#2a7ba0';
+
+        fullInflationData = {
+            labels: labels,
+            datasets: [{
+                label: label,
+                data: values,
+                borderColor: borderColor,
+                backgroundColor: backgroundColor,
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: pointBgColor,
+                pointBorderColor: pointBorderColor,
+                pointRadius: 3,
+                pointHoverRadius: 5
+            }]
+        };
+
+        const activeBtn = document.querySelector('#analytiikka .chart:first-child .chart-controls button[data-range].active');
+        const range = activeBtn ? activeBtn.textContent : '5v';
+        updateChart(inflationChart, fullInflationData, range);
+        updateInflationStats(range);
+    }
+
+    // Update index chart independently
+    function updateIndexChart() {
+        if (!hicpChart) return;
+        const useHICP = hicpDataSource === 'hicp';
+        const srcData = useHICP ? inflationData : cpiData;
+        if (!srcData || srcData.length === 0) return;
+
+        const indexField = useHICP ? 'hicp' : 'cpi';
+        const labels = srcData.map(d => d.date.substr(2));
+        const values = srcData.map(d => d[indexField]);
+        const label = useHICP ? 'HICP Index (Eurostat)' : 'CPI Index (Tilastokeskus)';
+        // CPI = blue, HICP = orange
+        const borderColor = useHICP ? '#ff9933' : '#3891a6';
+        const backgroundColor = useHICP ? 'rgba(255, 153, 51, 0.1)' : 'rgba(56, 145, 166, 0.1)';
+        const pointBgColor = useHICP ? '#ffcc99' : '#b8d4e3';
+        const pointBorderColor = useHICP ? '#cc7a29' : '#1e5a7d';
+
+        fullHicpData = {
+            labels: labels,
+            datasets: [{
+                label: label,
+                data: values,
+                borderColor: borderColor,
+                backgroundColor: backgroundColor,
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: pointBgColor,
+                pointBorderColor: pointBorderColor,
+                pointRadius: 3,
+                pointHoverRadius: 5
+            }]
+        };
+
+        const activeBtn = document.querySelector('#analytiikka .chart:last-child .chart-controls button[data-range].active');
+        const range = activeBtn ? activeBtn.textContent : '5v';
+        updateChart(hicpChart, fullHicpData, range);
+        updateHicpStats(range);
+    }
+
+    // Update both charts with fetched data
     function updateChartsWithData() {
-        if (!inflationData || inflationData.length === 0) {
+        if ((!inflationData || inflationData.length === 0) && (!cpiData || cpiData.length === 0)) {
             console.log('No data to update charts');
             return;
         }
 
-        console.log('📊 Updating charts with', inflationData.length, 'data points');
-
-        // Prepare data for charts
-        const labels = inflationData.map(d => d.date.substr(2)); // YY-MM format
-        const inflationValues = inflationData.map(d => d.inflation);
-        const hicpValues = inflationData.map(d => d.hicp);
-
-        // Update inflation chart
-        if (inflationChart) {
-            fullInflationData = {
-                labels: labels,
-                datasets: [{
-                    data: inflationValues,
-                    borderColor: '#4ca5ba',
-                    backgroundColor: 'rgba(76, 165, 186, 0.1)',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    fill: true,
-                    pointBackgroundColor: '#b8d4e3',
-                    pointBorderColor: '#2a7ba0',
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                }]
-            };
-
-            // Apply current filter (default 5v)
-            const activeBtn = document.querySelector('#analytiikka .chart:first-child .chart-controls button.active');
-            const range = activeBtn ? activeBtn.textContent : '5v';
-            updateChart(inflationChart, fullInflationData, range);
-        }
-
-        // Update HICP chart
-        if (hicpChart) {
-            fullHicpData = {
-                labels: labels,
-                datasets: [{
-                    data: hicpValues,
-                    borderColor: '#3891a6',
-                    backgroundColor: 'rgba(56, 145, 166, 0.1)',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    fill: true,
-                    pointBackgroundColor: '#b8d4e3',
-                    pointBorderColor: '#1e5a7d',
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                }]
-            };
-
-            // Apply current filter (default 5v)
-            const activeBtn = document.querySelector('#analytiikka .chart:last-child .chart-controls button.active');
-            const range = activeBtn ? activeBtn.textContent : '5v';
-            updateChart(hicpChart, fullHicpData, range);
-        }
-
-        // Update chart statistics (default to 5v on initial load)
-        updateInflationStats('5v');
-        updateHicpStats('5v');
+        console.log('📊 Updating charts with', inflationData.length, 'HICP data points,', cpiData.length, 'CPI data points');
+        updateInflationChart();
+        updateIndexChart();
     }
 
     // Fetch data on load
