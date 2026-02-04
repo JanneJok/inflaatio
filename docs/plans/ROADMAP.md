@@ -3,38 +3,6 @@
 ## Tavoite
 Kasvattaa sivuston uniikkien kävijöiden määrä 50 000:een kuukaudessa mainosverkostoihin liittymiseksi.
 
----
-
-## Vaihe 1: Tilastokeskuksen CPI-data (API-integraatio)
-**Prioriteetti:** Korkea
-**Status:** Ei aloitettu
-
-### Tavoite
-Näytetään MOLEMMAT datat rinnakkain:
-- Eurostat HICP (nykyinen)
-- Tilastokeskus CPI (uusi)
-
-### Tilastokeskuksen PxWeb API
-- **Vuosimuutos (inflaatio):** `https://pxdata.stat.fi/PxWeb/api/v1/fi/StatFin/khi/statfin_khi_pxt_122p.px`
-- **Kokonaisindeksi:** `https://pxdata.stat.fi/PxWeb/api/v1/fi/StatFin/khi/statfin_khi_pxt_11xs.px`
-- **Dokumentaatio:** [PxWeb taulukkolista](https://pxdata.stat.fi/PXWeb/pxweb/fi/StatFin/StatFin__khi/?tablelist=true)
-
-### Toteutus
-1. [ ] Luo `fetch-tilastokeskus.js` - hakee CPI-datan Tilastokeskukselta
-2. [ ] Päivitä `update-all-data.js` - integroi molemmat datalähteet
-3. [ ] Lisää STATIC_CPI_DATA index.html:ään
-4. [ ] Päivitä kaaviot näyttämään molemmat viivat
-5. [ ] Lisää selitysteksti HICP vs CPI -eroista
-
-### UI-muutokset
-- Kaavioissa: kaksi viivaa (HICP sininen, CPI oranssi)
-- Toggle-nappi: "Näytä Tilastokeskus / Eurostat / Molemmat"
-- Info-ikoni selityksellä miksi luvut eroavat
-
-### HICP vs CPI -ero
-> "Sivuston inflaatiolaskenta eroaa Tilastokeskuksen luvuista, koska käytämme Eurostatin HICP-indeksiä, kun taas Tilastokeskus raportoi kansallista CPI-indeksiä. Ero johtuu mm. asuntokustannusten (esim. lainakorot) sisällyttämisestä CPI:hen, mutta ei HICP:hen."
-
----
 
 ## Vaihe 2: Blogi-osio
 **Prioriteetti:** Kriittinen (suurin kasvuvaikutus)

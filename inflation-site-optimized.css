@@ -21,6 +21,7 @@
     /* GLOBAALIT FONTTI JA VÄRI MÄÄRITYKSET */
     --site-font: 'Inter', sans-serif;
     --site-text-color: rgba(255, 255, 255, 0.8);
+    --section-max-width: var(--section-max-width);
 }
 
 body {
@@ -98,7 +99,7 @@ body {
 }
 
 .nav-container {
-    max-width: 1400px;
+    max-width: var(--section-max-width);
     margin: 0 auto;
     display: flex;
     justify-content: space-between;
@@ -136,7 +137,6 @@ body {
 
 /* Main container */
 .container {
-    max-width: 1400px;
     margin: 0 auto;
     padding: 120px 2rem 4rem;
     position: relative;
@@ -156,7 +156,7 @@ body {
     grid-template-columns: 1fr 1fr;
     gap: 4rem;
     align-items: center;
-    max-width: 1200px;
+    max-width: var(--section-max-width);
     margin: 0 auto;
 }
 
@@ -196,7 +196,7 @@ body {
     border-radius: 16px;
     padding: 1.5rem;
     margin: 3rem auto 4rem;
-    max-width: 1200px;
+    max-width: var(--section-max-width);
     backdrop-filter: blur(10px);
     position: relative;
     overflow: hidden;
@@ -294,7 +294,7 @@ body {
 .carousel {
     position: relative;
     width: 100%;
-    margin: 3rem 0;
+    margin: 3rem auto;
     overflow: hidden;
 }
 
@@ -412,7 +412,7 @@ body {
 
 /* Chart Section */
 .charts {
-    max-width: 1400px;
+    max-width: var(--section-max-width);
     margin: 4rem auto;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
@@ -457,6 +457,33 @@ body {
     background: rgb(42, 123, 160);
     border-color: rgb(42, 123, 160);
     color: #ffffff;
+}
+
+/* Data source toggles (CPI / HICP) */
+.data-source-toggle button,
+.year-table-toggle button,
+#metricsToggle button {
+    opacity: 0.7;
+    transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.data-source-toggle button.active,
+.year-table-toggle button.active,
+#metricsToggle button.active {
+    opacity: 1;
+    transform: translateY(-1px);
+}
+
+.data-source-toggle button[data-source="cpi"].active,
+.year-table-toggle button[data-source="cpi"].active,
+#metricsToggle button[data-source="cpi"].active {
+    box-shadow: 0 0 0 2px rgba(76, 165, 186, 0.9), 0 6px 14px rgba(0, 0, 0, 0.25);
+}
+
+.data-source-toggle button[data-source="hicp"].active,
+.year-table-toggle button[data-source="hicp"].active,
+#metricsToggle button[data-source="hicp"].active {
+    box-shadow: 0 0 0 2px rgba(255, 153, 51, 0.9), 0 6px 14px rgba(0, 0, 0, 0.25);
 }
 
 .chart-placeholder {
@@ -962,7 +989,7 @@ body {
 
 /* Tietoa-osio - näyttävä design */
 #tietoa {
-    max-width: 1200px;
+    max-width: var(--section-max-width);
     margin: 5rem auto;
     padding: 0 2rem;
 }
@@ -1181,7 +1208,7 @@ body {
 }
 
 .footer-container {
-    max-width: 1200px;
+    max-width: var(--section-max-width);
     margin: 0 auto;
     padding: 0 2rem;
 }
@@ -1351,7 +1378,7 @@ body {
 
 /* Vuosittainen inflaatiotaulukko - Kompakti grid-layout */
 .yearly-inflation-table {
-    max-width: 900px;
+    max-width: var(--section-max-width);
     margin: 4rem auto;
     padding: 0 2rem;
 }
@@ -1530,7 +1557,7 @@ body {
 
 /* FAQ-osio */
 .faq-section {
-    max-width: 1200px;
+    max-width: var(--section-max-width);
     margin: 4rem auto;
     padding: 0 2rem;
 }
@@ -1672,3 +1699,31 @@ body {
     }
 }
 
+
+
+/* Desktop section width alignment */
+@media (min-width: 1024px) {
+    .info-banner,
+    .yearly-inflation-table,
+    .carousel,
+    .charts,
+    .faq-section,
+    #tietoa {
+        width: min(100%, var(--section-max-width));
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .yearly-inflation-table,
+    .faq-section,
+    #tietoa {
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .carousel-header,
+    .carousel-inner {
+        padding-left: 0;
+        padding-right: 0;
+    }
+}
