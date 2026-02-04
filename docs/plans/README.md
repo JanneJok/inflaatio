@@ -1,72 +1,114 @@
 # Inflaatio.fi - Dokumentaatio
 
+---
+
+## Quick Start (AI / new contributor)
+
+Goal: ymmarra projektin data-flow, kriittiset tiedostot ja yleisimmat rutiinit ilman turhaa selailua.
+
+### Mika tama projekti on
+Staattinen sivusto (`index.html`), jossa data on upotettuna (inline) ja CSS/JS on minifioitu tuotantoa varten.
+Data paivittyy kahdessa vaiheessa:
+1. Google Apps Script paivittaa Google Sheetsin.
+2. GitHub Actions hakee datan Sheetsista ja paivittaa `index.html`.
+
+### Kriittiset tiedostot (aloita naista)
+- `index.html`
+  Paasivu. Sisaltaa inline data-aiset (HICP + CPI) ja lataa minified CSS/JS.
+- `inflation-site-optimized.css`
+  CSS-lahde. Muokkaa tata, ja buildaa minified CSS.
+- `inflation-site-optimized.js`
+  JS-lahde. Muokkaa tata, ja buildaa minified JS.
+- `inflation-site-optimized.min.css` / `inflation-site-optimized.min.js`
+  Tuotantoon ladattavat assetit. Paivittyvat buildilla.
+- `build.js`
+  Minifioi CSS + JS.
+- `update-all-data.js`
+  Hakee datan Google Sheetsista ja kirjoittaa `index.html` (taulukot + inline data).
+- `.github/workflows/update-yearly-data.yml`
+  Ajoittaa data-paivitykset ja committaa muutokset.
+- `docs/plans/google-apps-script.js`
+  Kopio Apps Scriptista (oikea scripti on Google Sheetsissa).
+
+### Data flow (yhdella rivilla)
+Eurostat API -> Google Apps Script -> Google Sheets -> GitHub Actions -> index.html -> deploy
+
+### Tuotannon cache (tarkea)
+Tuotanto lataa minified assetit `?v=...` -versionumerolla.
+Jos `v=` ei muutu, selain/CDN voi kayttaa vanhaa cachea.
+
+### Yleisimmat tehtavat
+CSS/JS-muutos:
+1. Muokkaa `inflation-site-optimized.css` ja/tai `inflation-site-optimized.js`
+2. Aja `node build.js`
+3. Bumpaa versiot `index.html`:ssa (tai `node scripts/bump-version.js`)
+4. Commit + push
+
+Data pipeline -muutos:
+1. Paivita Apps Script Google Sheetsissa (ei tassa repossa)
+2. Paivita `update-all-data.js` ja/tai workflow
+3. Commit + push
+
+Vanhat versiot tuotannossa:
+- Tarkista etta minified tiedostot on commitattu
+- Tarkista `v=` arvot `index.html`:ssa
+- Cache voi pitaa vanhaa jos versionumero ei muutu
+
+---
+
 ## Projektin rakenne
 
-### Datan päivitys - kaksi erillistä järjestelmää
+### Datan paivitys - kaksi erillista jarjestelmaa
 
-Projektissa on **KAKSI** erillistä järjestelmää datan päivitykseen:
+Projektissa on KAKSI erillista jarjestelmaa datan paivitykseen:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    GOOGLE SHEETS                            │
-│  (Google Apps Script - google-apps-script.js)               │
-│                                                             │
-│  1. Hakee datan Eurostatista API:n kautta                  │
-│  2. Päivittää Google Sheetin                                │
-│  3. Lähettää sähköpostin jos data muuttui                   │
-│                                                             │
-│  Triggeröidään: Päivittäin klo 07:00                        │
-│  Sijainti: Google Sheets → Extensions → Apps Script         │
-│  Tiedosto: docs/plans/google-apps-script.js (kopio)        │
-└─────────────────────────────────────────────────────────────┘
-                            ↓
-                    (Päivittää Sheetin)
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│                 GITHUB ACTIONS WORKFLOW                     │
-│  (.github/workflows/update-yearly-data.yml)                 │
-│                                                             │
-│  1. Triggeröidään päivittäin klo 07:00 UTC                  │
-│  2. Ajaa update-all-data.js -skriptin                       │
-│  3. Skripti hakee datan Google Sheetsistä                   │
-│  4. Päivittää index.html:n                                  │
-│  5. Committaa muutokset GitHubiin                           │
-│                                                             │
-│  Tiedostot:                                                 │
-│  - .github/workflows/update-yearly-data.yml                 │
-│  - update-all-data.js                                       │
-└─────────────────────────────────────────────────────────────┘
-```
+GOOGLE SHEETS
+- Google Apps Script (google-apps-script.js)
+- Hakee datan Eurostatista API:n kautta
+- Paivittaa Google Sheetin
+- Lahettaa sahkopostin jos data muuttui
+- Triggeroidaan: paivittain klo 07:00
+- Sijainti: Google Sheets -> Extensions -> Apps Script
+- Tiedosto: docs/plans/google-apps-script.js (kopio)
+
+GITHUB ACTIONS WORKFLOW
+- .github/workflows/update-yearly-data.yml
+- Triggeroidaan paivittain klo 07:00 UTC
+- Ajaa update-all-data.js
+- Hakee datan Google Sheetsista
+- Paivittaa index.html
+- Ajaa build.js (minify CSS + JS)
+- Committaa muutokset GitHubiin
 
 ---
 
 ## 1. Google Apps Script (Googlen puolella)
 
 ### Sijainti
-**TÄRKEÄ:** Tämä koodi EI ole tässä GitHub-repositoriossa vaan **Google Sheetsissä**.
+TARKEA: Tama koodi EI ole tassa GitHub-repositoriossa vaan Google Sheetsissa.
 
-- Avaa Google Sheets: [Inflaatio-data](https://docs.google.com/spreadsheets/d/1tj7AbW3BkzmPZUd_pfrXmaHZrgpKgYwNljSoVoAObx8/)
-- Mene: **Extensions → Apps Script**
-- Siellä on `tarkistaJaPaivitaInflaatio()` -funktio
+- Avaa Google Sheets: Inflaatio-data
+- Mene: Extensions -> Apps Script
+- Siella on `tarkistaJaPaivitaInflaatio()` -funktio
 
-### Mitä se tekee
+### Mita se tekee
 
-1. **Hakee datan Eurostatista** (HICP-indeksi)
-2. **Vertaa** uusinta dataa Google Sheetin viimeiseen riviin:
+1. Hakee datan Eurostatista (HICP-indeksi)
+2. Vertaa uusinta dataa Google Sheetin viimeiseen riviin:
    - Onko kuukausi muuttunut? TAI
    - Onko inflaatioarvo muuttunut?
-3. **Päivittää Google Sheetin** jos muutoksia
-4. **Lähettää sähköpostin** osoitteeseen `janne.jokela@live.fi`
+3. Paivittaa Google Sheetin jos muutoksia
+4. Lahettaa sahkopostin osoitteeseen `janne.jokela@live.fi`
 
-### Triggeröinti
+### Triggerointi
 
-Google Sheetsissä on ajastettu trigger:
-- **Päivittäin klo 07:00** (Suomen aikaa)
-- Asetettu: Apps Script → Triggers
+Google Sheetsissa on ajastettu trigger:
+- Paivittain klo 07:00 (Suomen aikaa)
+- Asetettu: Apps Script -> Triggers
 
 ### Koodi
 
-Katso: [google-apps-script.js](google-apps-script.js)
+Katso: `docs/plans/google-apps-script.js`
 
 ---
 
@@ -75,69 +117,55 @@ Katso: [google-apps-script.js](google-apps-script.js)
 ### Sijainti
 `.github/workflows/update-yearly-data.yml`
 
-### Mitä se tekee
+### Mita se tekee
 
-1. Triggeröidään päivittäin klo 07:00 UTC
-2. Ajaa `update-all-data.js` Node.js-skriptin
+1. Triggeroidaan paivittain klo 07:00 UTC
+2. Ajaa `update-all-data.js`
 3. Skripti:
-   - Hakee datan **Google Sheetistä** (ei Eurostatista)
-   - Päivittää `index.html`:n (vuositaulukko, kaaviot, metriikat)
-   - Minifioi JavaScriptin
-4. Committaa muutokset GitHubiin
-
-### Koodi
-
-- Workflow: `.github/workflows/update-yearly-data.yml`
-- Päivitysskripti: `update-all-data.js`
+   - Hakee datan Google Sheetsista (ei Eurostatista)
+   - Paivittaa `index.html`:n (vuositaulukko, kaaviot, metriikat)
+4. Ajaa `build.js` (minifioi CSS + JS)
+5. Committaa muutokset GitHubiin
 
 ---
 
 ## Tiedonkulku
 
-```
 Eurostat API
-     ↓
-Google Apps Script (Googlen palvelimilla)
-     ↓
-Google Sheets päivittyy
-     ↓  (sähköposti lähetetään)
-     ↓
-GitHub Actions (GitHubin palvelimilla)
-     ↓
-Hakee datan Google Sheetsistä
-     ↓
-Päivittää index.html
-     ↓
-Committaa GitHubiin
-     ↓
-Fly.io deployment (automaattinen)
-     ↓
-Inflaatio.fi sivusto päivittyy
-```
+ -> Google Apps Script (Googlen palvelimilla)
+ -> Google Sheets paivittyy
+ -> (sahkoposti lahetetaan)
+ -> GitHub Actions (GitHubin palvelimilla)
+ -> Hakee datan Google Sheetsista
+ -> Paivittaa index.html
+ -> Ajaa build.js
+ -> Committaa GitHubiin
+ -> Fly.io deployment (automaattinen)
+ -> Inflaatio.fi sivusto paivittyy
 
 ---
 
-## Sähköposti-ilmoitukset
+## Sahkoposti-ilmoitukset
 
-### Milloin lähetetään?
+### Milloin lahetetaan?
 
-Sähköposti lähetetään **vain jos**:
+Sahkoposti lahetetaan vain jos:
 - Uusi kuukausi on saatavilla TAI
 - Inflaatioarvo on muuttunut samalle kuukaudelle
 
 ### Vastaanottaja
 `janne.jokela@live.fi`
 
-### Viestin sisältö
+### Viestin sisalto (esimerkki)
 ```
-Aihe: Inflaatiodata päivitetty (2025-12)
+Aihe: Inflaatiodata paivitetty (2025-12)
 
 Hei!
 
-Eurostatin inflaatiodata on päivittynyt kuukaudelle 2025-12.
+Eurostatin inflaatiodata on paivitetty kuukaudelle 2025-12.
 Uusin inflaatioarvo: 1.7 %
 
-Tiedot on nyt päivitetty Google Sheetiin.
+Tiedot on nyt paivitetty Google Sheetiin.
 
 Terveisin,
 Inflaatio-botti
@@ -149,19 +177,37 @@ Inflaatio-botti
 
 ### Google Apps Script -koodin muokkaus
 
-1. Avaa [Google Sheets](https://docs.google.com/spreadsheets/d/1tj7AbW3BkzmPZUd_pfrXmaHZrgpKgYwNljSoVoAObx8/)
-2. Extensions → Apps Script
+1. Avaa Google Sheets
+2. Extensions -> Apps Script
 3. Muokkaa koodia
 4. Tallenna (Ctrl+S)
-5. Tarvittaessa testaa: Run → tarkistaJaPaivitaInflaatio
+5. Tarvittaessa testaa: Run -> `tarkistaJaPaivitaInflaatio`
 
-**HUOM:** Päivitä myös kopio tähän repositorioon: `docs/plans/google-apps-script.js`
+HUOM: Paivita myos kopio tahan repositorioon: `docs/plans/google-apps-script.js`
 
 ### GitHub Actions -koodin muokkaus
 
 1. Muokkaa `.github/workflows/update-yearly-data.yml` tai `update-all-data.js`
 2. Committaa GitHubiin
-3. Workflow ajautuu automaattisesti seuraavalla triggerillä
+3. Workflow ajautuu automaattisesti seuraavalla triggerilla
+
+---
+
+## Frontend-muutokset (CSS/JS) - paivittainen rutiini
+
+Kun muutat `inflation-site-optimized.css` tai `inflation-site-optimized.js`, tee nain:
+
+1. Aja build (minifioi CSS + JS):
+   - `node build.js`
+2. Bumpaa versiot `index.html`:ssa yhdella komennolla:
+   - `node scripts/bump-version.js`
+   - Vaihtoehto: `npm run release` (build + bump yhdella)
+3. Commitoi kaikki muuttuneet tiedostot ja pushaa:
+   - `inflation-site-optimized.min.css`
+   - `inflation-site-optimized.min.js`
+   - `index.html`
+
+Miksi tama? Version bump pakottaa selaimen/CDN:n hakemaan uudet tiedostot eika kayttamaan vanhaa cachea.
 
 ---
 
@@ -186,30 +232,25 @@ Ei API-avainta tarvita - avoin API.
 
 ---
 
-## Vianmääritys
+## Troubleshooting / FAQ
 
-### Sähköposti ei tule
+### 1) Tuotanto nayttaa vanhaa versiota
+- Varmista etta `inflation-site-optimized.min.css` ja `inflation-site-optimized.min.js` on commitattu
+- Varmista etta `index.html` `v=` on bumpattu
+- Cache pysyy jos versionumero ei muutu
 
-1. Tarkista Google Apps Script -loki:
-   - Apps Script → Executions
-2. Tarkista trigger:
-   - Apps Script → Triggers
-3. Tarkista Gmail-kansiot (Spam, All Mail)
+### 2) Mobiilissa hamburger-menu puuttuu
+- Tarkista etta minified CSS on paivitetty
+- Varmista etta media queryt ovat minified-versiossa
 
-### GitHub Actions ei päivitä
+### 3) CPI/HICP nayttaa "?" info-bannerissa
+- Tarkista etta JS minified on paivitetty
+- Varmista etta `index.html` sisaltaa `STATIC_*` data -arrayt
 
-1. Tarkista GitHub Actions -loki:
-   - GitHub → Actions → Latest workflow run
-2. Tarkista onko Google Sheets päivittynyt
-3. Tarkista API-avain: `update-all-data.js`
-
-### Data ei päivity Googlessa
-
-1. Tarkista Eurostat API:
-   - Avaa URL suoraan selaimessa
-2. Tarkista Google Apps Script -oikeudet:
-   - Apps Script → Services → Advanced Google services
-3. Tarkista loki: Apps Script → Executions
+### 4) GitHub Actions ei paivita dataa
+- Katso Actions-logit
+- Tarkista etta Sheets on paivittynyt
+- Tarkista API-avaimet
 
 ---
 
@@ -217,35 +258,15 @@ Ei API-avainta tarvita - avoin API.
 
 | Tiedosto | Sijainti | Tarkoitus |
 |----------|----------|-----------|
-| `google-apps-script.js` | **Google Sheets** (Apps Script) | Hakee datan Eurostatista, päivittää Sheetin, lähettää sähköpostin |
-| `docs/plans/google-apps-script.js` | GitHub (kopio) | Dokumentaatio, ei käytössä |
-| `update-all-data.js` | GitHub | Hakee datan Google Sheetsistä, päivittää index.html |
+| `google-apps-script.js` | Google Sheets (Apps Script) | Hakee datan Eurostatista, paivittaa Sheetin, lahettaa sahkopostin |
+| `docs/plans/google-apps-script.js` | GitHub (kopio) | Dokumentaatio, ei kaytossa |
+| `update-all-data.js` | GitHub | Hakee datan Google Sheetsista, paivittaa index.html |
+| `build.js` | GitHub | Minifioi CSS + JS |
 | `.github/workflows/update-yearly-data.yml` | GitHub | GitHub Actions workflow |
-| `index.html` | GitHub → Fly.io | Sivuston pääsivu |
+| `index.html` | GitHub -> Fly.io | Sivuston paasivu |
 
 ---
 
 ## Jatkokehitys
 
-Katso: [ROADMAP.md](ROADMAP.md)
-
-
----
-
----
-
-## Frontend-muutokset (CSS/JS) - paivittainen rutiini
-
-Kun muutat `inflation-site-optimized.css` tai `inflation-site-optimized.js`, tee nain:
-
-1. Aja build (minifioi CSS + JS):
-   - `node build.js`
-2. Bumpaa versiot `index.html`:ssa yhdella komennolla:
-   - `node scripts/bump-version.js`
-   - Vaihtoehto: `npm run release` (build + bump yhdella)
-3. Commitoi kaikki muuttuneet tiedostot ja pushaa:
-   - `inflation-site-optimized.min.css`
-   - `inflation-site-optimized.min.js`
-   - `index.html`
-
-Miksi tama? Version bump pakottaa selaimen/CDN:n hakemaan uudet tiedostot eika kayttamaan vanhaa cachea.
+Katso: `docs/plans/ROADMAP.md`
