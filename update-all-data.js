@@ -196,9 +196,8 @@ function processKeyMetrics(rawData) {
     return metrics;
 }
 
-// Generate yearly table HTML
+// Generate yearly table HTML (flat layout, no column wrappers)
 function generateYearlyTableHTML(yearlyAverages) {
-    const currentYear = new Date().getFullYear();
     const years = Object.keys(yearlyAverages).map(Number).sort((a, b) => b - a);
 
     if (years.length < 6) {
@@ -208,47 +207,27 @@ function generateYearlyTableHTML(yearlyAverages) {
     const visibleYears = years.slice(0, 6);
     const olderYears = years.slice(6);
 
-    const generateItem = (year, value, isCurrent = false) => {
+    const generateItem = (year, value, isOlder = false) => {
         const arrow = value >= 0 ? '↑' : '↓';
         const arrowClass = value >= 0 ? 'up' : 'down';
         const valueClass = value >= 0 ? 'positive' : 'negative';
 
-        if (isCurrent) {
-            return `                    <div class="year-item current-year-item">
-                        <span class="current-year-badge">Kuluva vuosi</span>
-                        <span class="year">${year}</span>
-                        <span class="value ${valueClass}">${value}% <span class="trend-arrow ${arrowClass}">${arrow}</span></span>
-                    </div>`;
+        if (isOlder) {
+            return `                <div class="year-item older-year" style="display: none;"><span class="year">${year}</span><span class="value ${valueClass}">${value}% <span class="trend-arrow ${arrowClass}">${arrow}</span></span></div>`;
         }
-        return `                    <div class="year-item"><span class="year">${year}</span><span class="value ${valueClass}">${value}% <span class="trend-arrow ${arrowClass}">${arrow}</span></span></div>`;
+        return `                <div class="year-item"><span class="year">${year}</span><span class="value ${valueClass}">${value}% <span class="trend-arrow ${arrowClass}">${arrow}</span></span></div>`;
     };
 
     let html = '\n';
 
-    // Visible columns
-    html += '                <div class="year-column">\n';
-    html += generateItem(visibleYears[0], yearlyAverages[visibleYears[0]], visibleYears[0] === currentYear) + '\n';
-    html += generateItem(visibleYears[3], yearlyAverages[visibleYears[3]]) + '\n';
-    html += '                </div>\n';
-
-    html += '                <div class="year-column">\n';
-    html += generateItem(visibleYears[1], yearlyAverages[visibleYears[1]]) + '\n';
-    html += generateItem(visibleYears[4], yearlyAverages[visibleYears[4]]) + '\n';
-    html += '                </div>\n';
-
-    html += '                <div class="year-column">\n';
-    html += generateItem(visibleYears[2], yearlyAverages[visibleYears[2]]) + '\n';
-    html += generateItem(visibleYears[5], yearlyAverages[visibleYears[5]]) + '\n';
-    html += '                </div>\n';
+    // Visible years (first 6)
+    for (const year of visibleYears) {
+        html += generateItem(year, yearlyAverages[year]) + '\n';
+    }
 
     // Older years (hidden)
-    for (let i = 0; i < olderYears.length; i += 2) {
-        html += '                <div class="year-column older-years" style="display: none;">\n';
-        html += generateItem(olderYears[i], yearlyAverages[olderYears[i]]) + '\n';
-        if (olderYears[i + 1]) {
-            html += generateItem(olderYears[i + 1], yearlyAverages[olderYears[i + 1]]) + '\n';
-        }
-        html += '                </div>\n';
+    for (const year of olderYears) {
+        html += generateItem(year, yearlyAverages[year], true) + '\n';
     }
 
     html += '            ';
@@ -452,16 +431,24 @@ async function updateAllData() {
 
     // Update yearly table
     console.log('Updating yearly table...');
-    const tableStart = html.indexOf('<div class="compact-table-grid">');
-    // Handle both CRLF (Windows) and LF (Unix) line endings
-    let tableEnd = html.indexOf('</div>\r\n            <div class="show-more-container">', tableStart);
-    if (tableEnd === -1) {
-        tableEnd = html.indexOf('</div>\n            <div class="show-more-container">', tableStart);
-    }
-    if (tableStart === -1 || tableEnd === -1) {
+    const tableStartIdx = html.indexOf('<div class="compact-table-grid"');
+    if (tableStartIdx === -1) {
         throw new Error('Could not find yearly table section');
     }
-    html = html.substring(0, tableStart + '<div class="compact-table-grid">'.length) +
+    // Find the closing > of the opening tag (handles optional id attribute)
+    const tableTagEnd = html.indexOf('>', tableStartIdx);
+    if (tableTagEnd === -1) {
+        throw new Error('Could not find yearly table tag end');
+    }
+    // Handle both CRLF (Windows) and LF (Unix) line endings
+    let tableEnd = html.indexOf('</div>\r\n            <div class="show-more-container">', tableStartIdx);
+    if (tableEnd === -1) {
+        tableEnd = html.indexOf('</div>\n            <div class="show-more-container">', tableStartIdx);
+    }
+    if (tableEnd === -1) {
+        throw new Error('Could not find yearly table end marker');
+    }
+    html = html.substring(0, tableTagEnd + 1) +
            yearlyTableHTML +
            html.substring(tableEnd);
 
