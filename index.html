@@ -351,32 +351,58 @@ if (window.location.pathname === '/index.html') {
                 <button data-source="hicp" style="background: rgba(255, 153, 51, 0.2); padding: 5px 12px; border: 1px solid rgba(255,153,51,0.4); border-radius: 4px; color: #fff; cursor: pointer; font-size: 0.85rem;">HICP</button>
             </div>
             <div class="compact-table-grid" id="yearTableGrid">
-                <div class="year-item"><span class="year">2025</span><span class="value positive">1.8% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item"><span class="year">2024</span><span class="value positive">1% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item"><span class="year">2023</span><span class="value positive">4.4% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item"><span class="year">2022</span><span class="value positive">7.2% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item"><span class="year">2021</span><span class="value positive">2.1% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item"><span class="year">2020</span><span class="value positive">0.4% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2019</span><span class="value positive">1.1% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2018</span><span class="value positive">1.2% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2017</span><span class="value positive">0.8% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2016</span><span class="value positive">0.4% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2015</span><span class="value negative">-0.1% <span class="trend-arrow down">↓</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2014</span><span class="value positive">1.2% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2013</span><span class="value positive">2.2% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2012</span><span class="value positive">3.1% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2011</span><span class="value positive">3.3% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2010</span><span class="value positive">1.7% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2009</span><span class="value positive">1.6% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2008</span><span class="value positive">3.9% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2007</span><span class="value positive">1.6% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2006</span><span class="value positive">1.3% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2005</span><span class="value positive">0.8% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2004</span><span class="value positive">0.1% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2003</span><span class="value positive">1.3% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2002</span><span class="value positive">2% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2001</span><span class="value positive">2.7% <span class="trend-arrow up">↑</span></span></div>
-                <div class="year-item older-year" style="display: none;"><span class="year">2000</span><span class="value positive">2.9% <span class="trend-arrow up">↑</span></span></div>
+                <div class="year-column">
+                    <div class="year-item"><span class="year">2025</span><span class="value positive">1.8% <span class="trend-arrow up">↑</span></span></div>
+                    <div class="year-item"><span class="year">2022</span><span class="value positive">7.2% <span class="trend-arrow up">↑</span></span></div>
+                </div>
+                <div class="year-column">
+                    <div class="year-item"><span class="year">2024</span><span class="value positive">1% <span class="trend-arrow up">↑</span></span></div>
+                    <div class="year-item"><span class="year">2021</span><span class="value positive">2.1% <span class="trend-arrow up">↑</span></span></div>
+                </div>
+                <div class="year-column">
+                    <div class="year-item"><span class="year">2023</span><span class="value positive">4.4% <span class="trend-arrow up">↑</span></span></div>
+                    <div class="year-item"><span class="year">2020</span><span class="value positive">0.4% <span class="trend-arrow up">↑</span></span></div>
+                </div>
+                <div class="year-column older-years" style="display: none;">
+                    <div class="year-item"><span class="year">2019</span><span class="value positive">1.1% <span class="trend-arrow up">↑</span></span></div>
+                    <div class="year-item"><span class="year">2018</span><span class="value positive">1.2% <span class="trend-arrow up">↑</span></span></div>
+                </div>
+                <div class="year-column older-years" style="display: none;">
+                    <div class="year-item"><span class="year">2017</span><span class="value positive">0.8% <span class="trend-arrow up">↑</span></span></div>
+                    <div class="year-item"><span class="year">2016</span><span class="value positive">0.4% <span class="trend-arrow up">↑</span></span></div>
+                </div>
+                <div class="year-column older-years" style="display: none;">
+                    <div class="year-item"><span class="year">2015</span><span class="value negative">-0.1% <span class="trend-arrow down">↓</span></span></div>
+                    <div class="year-item"><span class="year">2014</span><span class="value positive">1.2% <span class="trend-arrow up">↑</span></span></div>
+                </div>
+                <div class="year-column older-years" style="display: none;">
+                    <div class="year-item"><span class="year">2013</span><span class="value positive">2.2% <span class="trend-arrow up">↑</span></span></div>
+                    <div class="year-item"><span class="year">2012</span><span class="value positive">3.1% <span class="trend-arrow up">↑</span></span></div>
+                </div>
+                <div class="year-column older-years" style="display: none;">
+                    <div class="year-item"><span class="year">2011</span><span class="value positive">3.3% <span class="trend-arrow up">↑</span></span></div>
+                    <div class="year-item"><span class="year">2010</span><span class="value positive">1.7% <span class="trend-arrow up">↑</span></span></div>
+                </div>
+                <div class="year-column older-years" style="display: none;">
+                    <div class="year-item"><span class="year">2009</span><span class="value positive">1.6% <span class="trend-arrow up">↑</span></span></div>
+                    <div class="year-item"><span class="year">2008</span><span class="value positive">3.9% <span class="trend-arrow up">↑</span></span></div>
+                </div>
+                <div class="year-column older-years" style="display: none;">
+                    <div class="year-item"><span class="year">2007</span><span class="value positive">1.6% <span class="trend-arrow up">↑</span></span></div>
+                    <div class="year-item"><span class="year">2006</span><span class="value positive">1.3% <span class="trend-arrow up">↑</span></span></div>
+                </div>
+                <div class="year-column older-years" style="display: none;">
+                    <div class="year-item"><span class="year">2005</span><span class="value positive">0.8% <span class="trend-arrow up">↑</span></span></div>
+                    <div class="year-item"><span class="year">2004</span><span class="value positive">0.1% <span class="trend-arrow up">↑</span></span></div>
+                </div>
+                <div class="year-column older-years" style="display: none;">
+                    <div class="year-item"><span class="year">2003</span><span class="value positive">1.3% <span class="trend-arrow up">↑</span></span></div>
+                    <div class="year-item"><span class="year">2002</span><span class="value positive">2% <span class="trend-arrow up">↑</span></span></div>
+                </div>
+                <div class="year-column older-years" style="display: none;">
+                    <div class="year-item"><span class="year">2001</span><span class="value positive">2.7% <span class="trend-arrow up">↑</span></span></div>
+                    <div class="year-item"><span class="year">2000</span><span class="value positive">2.9% <span class="trend-arrow up">↑</span></span></div>
+                </div>
             </div>
             <div class="show-more-container">
                 <button class="show-more-btn" id="showMoreYearsBtn" onclick="toggleOlderYears()">
@@ -421,47 +447,6 @@ if (window.location.pathname === '/index.html') {
                     <h3>Vuosi sitten (sama kuukausi)</h3>
                     <p class="highlight positive">▲ 1.6 %</p>
                     <p>Vertailu viime vuoden samaan kuukauteen näyttää, miten paljon inflaatio on muuttunut vuodessa.</p>
-                </div>
-            </div>
-            <button type="button" class="arrow arrow-right" aria-label="Next items">›</button>
-        </section>
-
-        <section class="charts" id="analytiikka">
-            <div class="chart">
-                <h2>Vuosi-inflaation kehitys</h2>
-                <div class="chart-controls">
-                    <button data-range="6kk">6kk</button>
-                    <button data-range="1v">1v</button>
-                    <button data-range="3v">3v</button>
-                    <button data-range="5v">5v</button>
-                    <button data-range="max">Max</button>
-                </div>
-                <div class="chart-placeholder">
-                    <canvas id="inflationChart"></canvas>
-                </div>
-                <div class="chart-stats">
-                    <p><span class="percentage-badge">🔵</span> Minimi 0.5%</p>
-                    <p><span class="percentage-badge">🟡</span> Keskiarvo 1.6%</p>
-                    <p><span class="percentage-badge">🔴</span> Maksimi 2.3%</p>
-                </div>
-            </div>
-
-            <div class="chart">
-                <h2>Indeksin kehitys</h2>
-                <div class="chart-controls">
-                    <button data-range="6kk">6kk</button>
-                    <button data-range="1v">1v</button>
-                    <button data-range="3v">3v</button>
-                    <button data-range="5v">5v</button>
-                    <button data-range="max">Max</button>
-                </div>
-                <div class="chart-placeholder">
-                    <canvas id="hicpChart"></canvas>
-                </div>
-                <div class="chart-stats">
-                    <p><span class="percentage-badge">📈</span> Nousutahti +1.9%</p>
-                    <p><span class="percentage-badge">📊</span> Indeksiarvo 119.91</p>
-                    <p><span class="percentage-badge">📅</span> Vuosimuutos +2.1%</p>
                 </div>
             </div>
         </section>
@@ -782,7 +767,7 @@ if (window.location.pathname === '/index.html') {
 
     <script>
     // === STATIC DATA (Auto-generated by update-all-data.js) ===
-    // Last updated: 2026-02-04T08:44:50.574Z
+    // Last updated: 2026-02-07T09:50:18.327Z
     // This data is embedded directly in the page to avoid API calls
 
     // Eurostat HICP data - Format: [date, inflation%, HICP index]
