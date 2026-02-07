@@ -452,18 +452,11 @@ async function updateAllData() {
 
     // Update yearly table
     console.log('Updating yearly table...');
-    const tableStart = html.indexOf('<div class="compact-table-grid">');
-    // Handle both CRLF (Windows) and LF (Unix) line endings
-    let tableEnd = html.indexOf('</div>\r\n            <div class="show-more-container">', tableStart);
-    if (tableEnd === -1) {
-        tableEnd = html.indexOf('</div>\n            <div class="show-more-container">', tableStart);
-    }
-    if (tableStart === -1 || tableEnd === -1) {
+    const tableRegex = /(<div class="compact-table-grid"[^>]*>)[\s\S]*?(<\/div>\s*<div class="show-more-container">)/;
+    if (!tableRegex.test(html)) {
         throw new Error('Could not find yearly table section');
     }
-    html = html.substring(0, tableStart + '<div class="compact-table-grid">'.length) +
-           yearlyTableHTML +
-           html.substring(tableEnd);
+    html = html.replace(tableRegex, `$1${yearlyTableHTML}$2`);
 
     // Update data cards
     console.log('Updating data cards...');
