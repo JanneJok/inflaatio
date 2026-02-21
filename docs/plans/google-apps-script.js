@@ -28,9 +28,10 @@ function tarkistaJaPaivitaInflaatio() {
   uusinHICPInflaatio = inflaatiot[inflaatiot.length - 1];
 
   // Lue viimeisin kuukausi suoraan sheetistä — ei Script Properties
+  // Huom: getValue() palauttaa Date-objektin jos Google Sheets tulkitsee solun päivämääräksi
   const hicpSheet = getOrCreateSheet("Raakadata");
   const hicpLastRow = hicpSheet.getLastRow();
-  const viimHICPKkSheetissa = hicpLastRow > 1 ? hicpSheet.getRange(hicpLastRow, 1).getValue() : null;
+  const viimHICPKkSheetissa = hicpLastRow > 1 ? sheetArvoStringiksi(hicpSheet.getRange(hicpLastRow, 1).getValue()) : null;
 
   if (viimHICPKkSheetissa !== uusinHICPKuukausi) {
     eurostatMuuttunut = true;
@@ -72,6 +73,9 @@ function tarkistaJaPaivitaInflaatio() {
     };
 
     const cpiResp = UrlFetchApp.fetch(cpiUrl, cpiOpts);
+    if (cpiResp.getResponseCode() !== 200) {
+      throw new Error(`Inflaatio-API palautti ${cpiResp.getResponseCode()}: ${cpiResp.getContentText()}`);
+    }
     const cpiData = JSON.parse(cpiResp.getContentText());
 
     const cpiLabels = cpiData.dimension.Kuukausi.category.label;
@@ -87,7 +91,7 @@ function tarkistaJaPaivitaInflaatio() {
     // Lue viimeisin kuukausi suoraan sheetistä — ei Script Properties
     const cpiSheet = getOrCreateSheet("Raakadata CPI");
     const cpiLastRow = cpiSheet.getLastRow();
-    const viimCPIKkSheetissa = cpiLastRow > 1 ? cpiSheet.getRange(cpiLastRow, 1).getValue() : null;
+    const viimCPIKkSheetissa = cpiLastRow > 1 ? sheetArvoStringiksi(cpiSheet.getRange(cpiLastRow, 1).getValue()) : null;
 
     if (viimCPIKkSheetissa !== uusiCPIKk) {
       tilastokeskusMuuttunut = true;
@@ -124,6 +128,15 @@ function tarkistaJaPaivitaInflaatio() {
   } else {
     Logger.log("Ei muutoksia kummassakaan datassa");
   }
+}
+
+// Muuntaa sheettisolu "2025-12"-muotoon — getValue() palauttaa Date-objektin
+// jos Google Sheets on tulkinnut solun päivämääräksi
+function sheetArvoStringiksi(val) {
+  if (val instanceof Date) {
+    return Utilities.formatDate(val, Session.getScriptTimeZone(), "yyyy-MM");
+  }
+  return val ? val.toString() : null;
 }
 
 function haeInflaatioDataJaMetrics(data, indexData) {
@@ -239,8 +252,13 @@ function haeTilastokeskusData() {
     };
 
     const inflResp = UrlFetchApp.fetch(inflUrl, inflOpts);
+    if (inflResp.getResponseCode() !== 200) {
+      throw new Error(`Inflaatio-API palautti ${inflResp.getResponseCode()}: ${inflResp.getContentText()}`);
+    }
     const inflData = JSON.parse(inflResp.getContentText());
 
+    // Hae indeksidata — jos epäonnistuu, jatketaan ilman indeksiä
+    let idxData = null;
     const idxUrl = 'https://pxdata.stat.fi/PxWeb/api/v1/fi/StatFin/khi/statfin_khi_pxt_11xs.px';
     const idxQuery = {
       "query": [
@@ -272,7 +290,11 @@ function haeTilastokeskusData() {
     };
 
     const idxResp = UrlFetchApp.fetch(idxUrl, idxOpts);
-    const idxData = JSON.parse(idxResp.getContentText());
+    if (idxResp.getResponseCode() === 200) {
+      idxData = JSON.parse(idxResp.getContentText());
+    } else {
+      Logger.log(`⚠️ Indeksi-API palautti ${idxResp.getResponseCode()} — tallennetaan ilman indeksiä, back-calculation laskee puuttuvat`);
+    }
 
     tallennaTilastokeskusData(inflData, idxData);
     Logger.log("✓ Tilastokeskuksen CPI-data haettu ja tallennettu");
@@ -286,12 +308,14 @@ function tallennaTilastokeskusData(inflData, idxData) {
   const labels = inflData.dimension.Kuukausi.category.label;
   const inflVals = inflData.value;
 
-  // Build index lookup map by month code (idxData may have different month coverage than inflData)
-  const idxLabels = idxData.dimension.Kuukausi.category.label;
+  // Rakenna indeksi-hakumap — idxData voi olla null jos API epäonnistui
   const idxMap = {};
-  Object.keys(idxLabels).forEach((code, i) => {
-    idxMap[code] = idxData.value[i];
-  });
+  if (idxData) {
+    const idxLabels = idxData.dimension.Kuukausi.category.label;
+    Object.keys(idxLabels).forEach((code, i) => {
+      idxMap[code] = idxData.value[i];
+    });
+  }
 
   // Collect all months into sortable array
   const inflCodes = Object.keys(labels);
