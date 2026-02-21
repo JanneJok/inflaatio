@@ -7,6 +7,7 @@
 
 const https = require('https');
 const fs = require('fs');
+const { fetchTilastokeskusData } = require('./fetch-tilastokeskus');
 
 const SHEET_ID = '1tj7AbW3BkzmPZUd_pfrXmaHZrgpKgYwNljSoVoAObx8';
 const API_KEY = 'AIzaSyDbeAW-uO-vEHuPdSJPVQwR_l1Axc7Cq7g';
@@ -413,16 +414,17 @@ function validateData(newInflationData, newCPIData, currentHTML) {
 async function updateAllData() {
     console.log('=== Starting data update ===\n');
 
-    // Fetch all data (A:C to include HICP/CPI index)
-    const [rawInflationData, rawCPIData, metricsData] = await Promise.all([
+    // Fetch HICP and metrics from Google Sheets, CPI directly from Tilastokeskus
+    const [rawInflationData, metricsData, tilastokeskusData] = await Promise.all([
         fetchRange('Raakadata!A:C'),      // Eurostat HICP data
-        fetchRange('Raakadata CPI!A:C'),  // Tilastokeskus CPI data
-        fetchRange('Key Metrics!A:B')
+        fetchRange('Key Metrics!A:B'),
+        fetchTilastokeskusData()          // CPI directly from Tilastokeskus (bypasses Google Sheets)
     ]);
 
     // Process data
     const inflationData = processInflationData(rawInflationData);
-    const cpiData = processCPIData(rawCPIData);
+    // Map Tilastokeskus format {date, inflation, index} → {date, inflation, cpi}
+    const cpiData = tilastokeskusData.map(d => ({ date: d.date, inflation: d.inflation, cpi: d.index || 0 }));
     const yearlyAverages = calculateYearlyAverages(rawInflationData);
     const keyMetrics = processKeyMetrics(metricsData);
 

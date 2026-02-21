@@ -270,10 +270,10 @@ function haeTilastokeskusData() {
           }
         },
         {
-          "code": "Indeksisarja",
+          "code": "Tiedot",
           "selection": {
             "filter": "item",
-            "values": ["0_2015"]
+            "values": ["ip_0_2015"]
           }
         }
       ],

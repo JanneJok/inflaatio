@@ -85,7 +85,7 @@ async function fetchInflationData() {
 async function fetchIndexData() {
     console.log('Fetching CPI index data from Tilastokeskus...');
 
-    // Query: All months, Indeksisarja = "0_2015" (2015=100 baseline index)
+    // Query: All months, Tiedot = "ip_0_2015" (2015=100 baseline index)
     const query = {
         "query": [
             {
@@ -96,10 +96,10 @@ async function fetchIndexData() {
                 }
             },
             {
-                "code": "Indeksisarja",
+                "code": "Tiedot",
                 "selection": {
                     "filter": "item",
-                    "values": ["0_2015"]
+                    "values": ["ip_0_2015"]
                 }
             }
         ],
