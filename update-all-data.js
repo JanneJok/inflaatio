@@ -460,13 +460,16 @@ async function updateAllData() {
 
     // Update data cards
     console.log('Updating data cards...');
-    const cardsStart = html.indexOf('<div class="carousel-inner">');
-    // Handle both CRLF and LF
-    let cardsEnd = html.indexOf('</div>\r\n        </section>', cardsStart);
-    if (cardsEnd === -1) {
-        cardsEnd = html.indexOf('</div>\n        </section>', cardsStart);
-    }
-    if (cardsStart === -1 || cardsEnd === -1) {
+    // Anchor to the carousel section explicitly to avoid accidentally matching
+    // closing tags in sections that follow (e.g. the charts section).
+    const carouselSectionStart = html.indexOf('<section class="carousel"');
+    const carouselSectionEnd = html.indexOf('</section>', carouselSectionStart);
+    const cardsStart = html.indexOf('<div class="carousel-inner">', carouselSectionStart);
+    // lastIndexOf finds the carousel-inner's closing </div> — the last </div> before </section>
+    // This is robust regardless of buttons or other elements between </div> and </section>
+    const cardsEnd = html.lastIndexOf('</div>', carouselSectionEnd);
+
+    if (carouselSectionStart === -1 || carouselSectionEnd === -1 || cardsStart === -1 || cardsEnd === -1) {
         throw new Error('Could not find data cards section');
     }
     html = html.substring(0, cardsStart + '<div class="carousel-inner">'.length) + '\n' +

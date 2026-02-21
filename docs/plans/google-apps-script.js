@@ -1,6 +1,4 @@
 function tarkistaJaPaivitaInflaatio() {
-  const scriptProps = PropertiesService.getScriptProperties();
-
   let eurostatMuuttunut = false;
   let tilastokeskusMuuttunut = false;
   let uusinHICPKuukausi, uusinHICPInflaatio;
@@ -9,9 +7,6 @@ function tarkistaJaPaivitaInflaatio() {
   // 1. TARKISTA EUROSTAT HICP-DATA
   // ========================================
   Logger.log("=== Tarkistetaan Eurostat HICP-data ===");
-
-  const viimHICPKk = scriptProps.getProperty('LAST_HICP_MONTH');
-  const viimHICPInfl = scriptProps.getProperty('LAST_HICP_INFLATION');
 
   const url = 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_manr?geo=FI&coicop=CP00&unit=RCH_A';
   const indexUrl = 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_midx?geo=FI&coicop=CP00&unit=I15';
@@ -32,28 +27,21 @@ function tarkistaJaPaivitaInflaatio() {
   const inflaatiot = sortedPeriods.map((k, i) => data.value[i]);
   uusinHICPInflaatio = inflaatiot[inflaatiot.length - 1];
 
-  // Tarkista HICP-muutos
-  if (viimHICPKk === null) {
-    eurostatMuuttunut = true;
-    Logger.log("HICP: Ensimmäinen ajo");
-  } else {
-    const kkMuuttui = (uusinHICPKuukausi !== viimHICPKk);
-    const inflMuuttui = viimHICPInfl !== null && Math.abs(uusinHICPInflaatio - parseFloat(viimHICPInfl)) > 0.001;
+  // Lue viimeisin kuukausi suoraan sheetistä — ei Script Properties
+  const hicpSheet = getOrCreateSheet("Raakadata");
+  const hicpLastRow = hicpSheet.getLastRow();
+  const viimHICPKkSheetissa = hicpLastRow > 1 ? hicpSheet.getRange(hicpLastRow, 1).getValue() : null;
 
-    if (kkMuuttui || inflMuuttui) {
-      eurostatMuuttunut = true;
-      Logger.log(`HICP muuttunut: ${viimHICPKk} → ${uusinHICPKuukausi}, ${viimHICPInfl}% → ${uusinHICPInflaatio}%`);
-    } else {
-      Logger.log(`HICP ei muutoksia: ${uusinHICPKuukausi}, ${uusinHICPInflaatio}%`);
-    }
+  if (viimHICPKkSheetissa !== uusinHICPKuukausi) {
+    eurostatMuuttunut = true;
+    Logger.log(`HICP muuttunut: ${viimHICPKkSheetissa} → ${uusinHICPKuukausi}`);
+  } else {
+    Logger.log(`HICP ei muutoksia: ${uusinHICPKuukausi}, ${uusinHICPInflaatio}%`);
   }
 
-  // Päivitä Eurostat-data jos muuttunut
   if (eurostatMuuttunut) {
     Logger.log("Päivitetään Eurostat HICP-data...");
     haeInflaatioDataJaMetrics(data, indexData);
-    scriptProps.setProperty('LAST_HICP_MONTH', uusinHICPKuukausi);
-    scriptProps.setProperty('LAST_HICP_INFLATION', uusinHICPInflaatio.toString());
   }
 
   // ========================================
@@ -61,10 +49,6 @@ function tarkistaJaPaivitaInflaatio() {
   // ========================================
   Logger.log("=== Tarkistetaan Tilastokeskus CPI-data ===");
 
-  const viimCPIKk = scriptProps.getProperty('LAST_CPI_MONTH');
-  const viimCPIInfl = scriptProps.getProperty('LAST_CPI_INFLATION');
-
-  // Hae Tilastokeskuksen uusin data
   try {
     const cpiUrl = 'https://pxdata.stat.fi/PxWeb/api/v1/fi/StatFin/khi/statfin_khi_pxt_122p.px';
     const cpiQuery = {
@@ -100,28 +84,21 @@ function tarkistaJaPaivitaInflaatio() {
     const uusiCPIKk = parts[0] + '-' + parts[1];
     const uusiCPIInfl = cpiValues[cpiValues.length - 1];
 
-    // Tarkista CPI-muutos
-    if (viimCPIKk === null) {
-      tilastokeskusMuuttunut = true;
-      Logger.log("CPI: Ensimmäinen ajo");
-    } else {
-      const cpiKkMuuttui = (uusiCPIKk !== viimCPIKk);
-      const cpiInflMuuttui = viimCPIInfl !== null && Math.abs(uusiCPIInfl - parseFloat(viimCPIInfl)) > 0.001;
+    // Lue viimeisin kuukausi suoraan sheetistä — ei Script Properties
+    const cpiSheet = getOrCreateSheet("Raakadata CPI");
+    const cpiLastRow = cpiSheet.getLastRow();
+    const viimCPIKkSheetissa = cpiLastRow > 1 ? cpiSheet.getRange(cpiLastRow, 1).getValue() : null;
 
-      if (cpiKkMuuttui || cpiInflMuuttui) {
-        tilastokeskusMuuttunut = true;
-        Logger.log(`CPI muuttunut: ${viimCPIKk} → ${uusiCPIKk}, ${viimCPIInfl}% → ${uusiCPIInfl}%`);
-      } else {
-        Logger.log(`CPI ei muutoksia: ${uusiCPIKk}, ${uusiCPIInfl}%`);
-      }
+    if (viimCPIKkSheetissa !== uusiCPIKk) {
+      tilastokeskusMuuttunut = true;
+      Logger.log(`CPI muuttunut: ${viimCPIKkSheetissa} → ${uusiCPIKk}`);
+    } else {
+      Logger.log(`CPI ei muutoksia: ${uusiCPIKk}, ${uusiCPIInfl}%`);
     }
 
-    // Päivitä Tilastokeskus-data jos muuttunut
     if (tilastokeskusMuuttunut) {
       Logger.log("Päivitetään Tilastokeskus CPI-data...");
       haeTilastokeskusData();
-      scriptProps.setProperty('LAST_CPI_MONTH', uusiCPIKk);
-      scriptProps.setProperty('LAST_CPI_INFLATION', uusiCPIInfl.toString());
     }
 
   } catch (error) {
@@ -359,16 +336,4 @@ function tallennaTilastokeskusData(inflData, idxData) {
   });
 
   Logger.log(`✓ Tallennettu ${months.length} kuukauden CPI-data (${backCalcCount} indeksia back-calculated)`);
-}
-
-// ========================================
-// HUOMIO: Script Properties -muistin nollaus
-// ========================================
-function nollaaLahetettyTieto() {
-  const scriptProps = PropertiesService.getScriptProperties();
-  scriptProps.deleteProperty('LAST_HICP_MONTH');
-  scriptProps.deleteProperty('LAST_HICP_INFLATION');
-  scriptProps.deleteProperty('LAST_CPI_MONTH');
-  scriptProps.deleteProperty('LAST_CPI_INFLATION');
-  Logger.log("✓ Viimeksi lähetetty tieto nollattu");
 }
