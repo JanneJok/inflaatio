@@ -124,29 +124,52 @@ function processCPIData(inflationData, indexData) {
     const indexLabels = indexData.dimension.Kuukausi.category.label;
     const indexValues = indexData.value;
 
+    // Build lookup map: monthCode → index value
+    // Cannot use positional index i — the two APIs may have different month ranges
+    const indexByCode = {};
+    Object.keys(indexLabels).forEach((code, i) => {
+        indexByCode[code] = indexValues[i];
+    });
+
     const processed = [];
 
-    // Convert month codes to labels (e.g., "2024M01" → "2024-01")
     Object.keys(monthLabels).forEach((monthCode, i) => {
-        const monthLabel = monthLabels[monthCode];
-
-        // Convert "2024M01" to "2024-01"
         const [year, month] = monthCode.split('M');
         const dateStr = `${year}-${month}`;
 
         const inflation = inflationValues[i];
-        const index = indexValues[i] || null;
+        const indexVal = indexByCode[monthCode];
 
         if (inflation !== null && inflation !== undefined) {
             processed.push({
                 date: dateStr,
                 inflation: parseFloat(inflation),
-                index: index !== null ? parseFloat(index) : 0
+                index: (indexVal !== null && indexVal !== undefined) ? parseFloat(indexVal) : null
             });
         }
     });
 
-    console.log(`Processed ${processed.length} CPI data points`);
+    // Back-calculate missing index values: index[M] = index[M+12] / (1 + inflation[M+12] / 100)
+    // Works backwards so one known anchor propagates to all earlier months
+    const codeToI = {};
+    processed.forEach((d, i) => { codeToI[d.date] = i; });
+
+    let backCalcCount = 0;
+    for (let i = processed.length - 1; i >= 0; i--) {
+        if (processed[i].index !== null) continue;
+        const [y, m] = processed[i].date.split('-');
+        const futureDate = (parseInt(y) + 1) + '-' + m;
+        const fi = codeToI[futureDate];
+        if (fi !== undefined && processed[fi].index !== null) {
+            processed[i].index = processed[fi].index / (1 + processed[fi].inflation / 100);
+            backCalcCount++;
+        }
+    }
+
+    // Replace any remaining nulls with 0
+    processed.forEach(d => { if (d.index === null) d.index = 0; });
+
+    console.log(`Processed ${processed.length} CPI data points (${backCalcCount} index values back-calculated)`);
     return processed;
 }
 
