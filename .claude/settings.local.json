@@ -27,7 +27,12 @@
       "WebFetch(domain:pxdata.stat.fi)",
       "Bash(copy /y:*)",
       "Bash(npm install:*)",
-      "Bash(npx clean-css:*)"
+      "Bash(npx clean-css:*)",
+      "Bash(grep -r \"CPI\\\\|Tilastokeskus\" /c/Users/janne/OneDrive/Tiedostot/GitHub/inflaatio --include=*.js --include=*.py --include=*.md)",
+      "Bash(grep -r \"SHEET_ID\\\\|API_KEY\" /c/Users/janne/OneDrive/Tiedostot/GitHub/inflaatio --include=*.js --include=*.py)",
+      "WebFetch(domain:ec.europa.eu)",
+      "WebSearch",
+      "WebFetch(domain:data.ecb.europa.eu)"
     ],
     "deny": [],
     "ask": []

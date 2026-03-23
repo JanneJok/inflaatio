@@ -8,8 +8,11 @@ function tarkistaJaPaivitaInflaatio() {
   // ========================================
   Logger.log("=== Tarkistetaan Eurostat HICP-data ===");
 
-  const url = 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_manr?geo=FI&coicop=CP00&unit=RCH_A';
-  const indexUrl = 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_midx?geo=FI&coicop=CP00&unit=I15';
+  // HUOM: Tammikuusta 2026 alkaen Eurostat siirtyi ECOICOP ver.2 -luokitukseen.
+  // Vanha prc_hicp_manr/prc_hicp_midx on arkistoitu ja jäädytetty 2025-12:een.
+  // Uusi dataset prc_hicp_minr sisältää sekä inflaation (RCH_A) että indeksin (I15).
+  const url = 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_minr?geo=FI&coicop18=TOTAL&unit=RCH_A';
+  const indexUrl = 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_minr?geo=FI&coicop18=TOTAL&unit=I15';
 
   const response = UrlFetchApp.fetch(url);
   const data = JSON.parse(response.getContentText());
@@ -155,7 +158,7 @@ function haeInflaatioDataJaMetrics(data, indexData) {
 
   const unitLabel = data.dimension.unit.category.label["RCH_A"];
   const geoLabel = data.dimension.geo.category.label["FI"];
-  const coicopLabel = data.dimension.coicop.category.label["CP00"];
+  const coicopLabel = data.dimension.coicop18.category.label["TOTAL"];
 
   const raakadataSheet = getOrCreateSheet("Raakadata");
   raakadataSheet.clearContents();
