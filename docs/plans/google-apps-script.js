@@ -34,7 +34,7 @@ function tarkistaJaPaivitaInflaatio() {
   // Huom: getValue() palauttaa Date-objektin jos Google Sheets tulkitsee solun päivämääräksi
   const hicpSheet = getOrCreateSheet("Raakadata");
   const hicpLastRow = hicpSheet.getLastRow();
-  const viimHICPKkSheetissa = hicpLastRow > 1 ? sheetArvoStringiksi(hicpSheet.getRange(hicpLastRow, 1).getValue()) : null;
+  const viimHICPKkSheetissa = hicpLastRow > 1 ? hicpSheet.getRange(hicpLastRow, 1).getDisplayValue() : null;
 
   if (viimHICPKkSheetissa !== uusinHICPKuukausi) {
     eurostatMuuttunut = true;
@@ -94,7 +94,7 @@ function tarkistaJaPaivitaInflaatio() {
     // Lue viimeisin kuukausi suoraan sheetistä — ei Script Properties
     const cpiSheet = getOrCreateSheet("Raakadata CPI");
     const cpiLastRow = cpiSheet.getLastRow();
-    const viimCPIKkSheetissa = cpiLastRow > 1 ? sheetArvoStringiksi(cpiSheet.getRange(cpiLastRow, 1).getValue()) : null;
+    const viimCPIKkSheetissa = cpiLastRow > 1 ? cpiSheet.getRange(cpiLastRow, 1).getDisplayValue() : null;
 
     if (viimCPIKkSheetissa !== uusiCPIKk) {
       tilastokeskusMuuttunut = true;
@@ -136,7 +136,7 @@ function tarkistaJaPaivitaInflaatio() {
 // Muuntaa sheettisolu "2025-12"-muotoon — getValue() palauttaa Date-objektin
 // jos Google Sheets on tulkinnut solun päivämääräksi
 function sheetArvoStringiksi(val) {
-  if (val instanceof Date) {
+  if (Object.prototype.toString.call(val) === '[object Date]') {
     return Utilities.formatDate(val, Session.getScriptTimeZone(), "yyyy-MM");
   }
   return val ? val.toString() : null;
@@ -162,6 +162,7 @@ function haeInflaatioDataJaMetrics(data, indexData) {
 
   const raakadataSheet = getOrCreateSheet("Raakadata");
   raakadataSheet.clearContents();
+  raakadataSheet.getRange(1, 1, raakadataSheet.getMaxRows(), 1).setNumberFormat('@');
   raakadataSheet.appendRow(["Kuukausi", "Inflaatio %", "Indeksi", "Yksikkö", "Alue", "Kategoria"]);
   for (let i = 0; i < labels.length; i++) {
     const inflaatio = values[i] !== undefined ? values[i] + " %" : "—";
@@ -354,6 +355,7 @@ function tallennaTilastokeskusData(inflData, idxData) {
   // Write to sheet
   const sheet = getOrCreateSheet("Raakadata CPI");
   sheet.clearContents();
+  sheet.getRange(1, 1, sheet.getMaxRows(), 1).setNumberFormat('@');
   sheet.appendRow(["Kuukausi", "Inflaatio %", "Indeksi", "Lähde", "Indeksisarja"]);
 
   months.forEach(m => {
