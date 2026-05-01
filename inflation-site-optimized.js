@@ -481,9 +481,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update index chart statistics (respects selected data source)
     function updateHicpStats(range) {
-        const data = hicpDataSource === 'cpi' ? cpiData : inflationData;
+        const rawData = hicpDataSource === 'cpi' ? cpiData : inflationData;
         const indexField = hicpDataSource === 'cpi' ? 'cpi' : 'hicp';
-        if (!data || data.length === 0) {
+        // Drop rows missing the index value (e.g. Eurostat flash estimate
+        // publishes the inflation rate before the HICP index is available)
+        const data = (rawData || []).filter(d => d[indexField] > 0);
+        if (!data.length) {
             console.log('No data available for stats calculation');
             return;
         }
@@ -1234,10 +1237,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateIndexChart() {
         if (!hicpChart) return;
         const useHICP = hicpDataSource === 'hicp';
-        const srcData = useHICP ? inflationData : cpiData;
-        if (!srcData || srcData.length === 0) return;
+        const rawData = useHICP ? inflationData : cpiData;
+        if (!rawData || rawData.length === 0) return;
 
         const indexField = useHICP ? 'hicp' : 'cpi';
+        // Drop rows missing the index value (e.g. Eurostat flash estimate
+        // publishes the inflation rate before the HICP index is available)
+        const srcData = rawData.filter(d => d[indexField] > 0);
+        if (srcData.length === 0) return;
         const labels = srcData.map(d => d.date.substr(2));
         const values = srcData.map(d => d[indexField]);
         const label = useHICP ? 'HICP Index (Eurostat)' : 'CPI Index (Tilastokeskus)';
