@@ -7,8 +7,11 @@
 const https = require('https');
 
 // PxWeb API endpoints
-const INFLATION_URL = 'https://pxdata.stat.fi/PxWeb/api/v1/fi/StatFin/khi/statfin_khi_pxt_122p.px';
-const INDEX_URL = 'https://pxdata.stat.fi/PxWeb/api/v1/fi/StatFin/khi/statfin_khi_pxt_11xs.px';
+// NOTE: Tilastokeskus migrated the table IDs to the short form (e.g. 122p.px)
+// and renamed the variable codes (Kuukausi -> timeperiod_m, Tiedot -> contentscode)
+// around 2026-06. The old long IDs / codes now return HTTP 400.
+const INFLATION_URL = 'https://pxdata.stat.fi/PxWeb/api/v1/fi/StatFin/khi/122p.px';
+const INDEX_URL = 'https://pxdata.stat.fi/PxWeb/api/v1/fi/StatFin/khi/11xs.px';
 
 /**
  * Make a POST request to PxWeb API
@@ -62,7 +65,7 @@ async function fetchInflationData() {
     const query = {
         "query": [
             {
-                "code": "Kuukausi",
+                "code": "timeperiod_m",
                 "selection": {
                     "filter": "all",
                     "values": ["*"]
@@ -75,7 +78,7 @@ async function fetchInflationData() {
     };
 
     const data = await fetchPxWebData(INFLATION_URL, query);
-    console.log(`✓ Fetched inflation data: ${Object.keys(data.dimension.Kuukausi.category.label).length} months`);
+    console.log(`✓ Fetched inflation data: ${Object.keys(data.dimension.timeperiod_m.category.label).length} months`);
     return data;
 }
 
@@ -89,14 +92,14 @@ async function fetchIndexData() {
     const query = {
         "query": [
             {
-                "code": "Kuukausi",
+                "code": "timeperiod_m",
                 "selection": {
                     "filter": "all",
                     "values": ["*"]
                 }
             },
             {
-                "code": "Tiedot",
+                "code": "contentscode",
                 "selection": {
                     "filter": "item",
                     "values": ["ip_0_2015"]
@@ -109,7 +112,7 @@ async function fetchIndexData() {
     };
 
     const data = await fetchPxWebData(INDEX_URL, query);
-    console.log(`✓ Fetched index data: ${Object.keys(data.dimension.Kuukausi.category.label).length} months`);
+    console.log(`✓ Fetched index data: ${Object.keys(data.dimension.timeperiod_m.category.label).length} months`);
     return data;
 }
 
@@ -118,10 +121,10 @@ async function fetchIndexData() {
  * Returns array of: [{date: "YYYY-MM", inflation: 1.5, index: 123.4}, ...]
  */
 function processCPIData(inflationData, indexData) {
-    const monthLabels = inflationData.dimension.Kuukausi.category.label;
+    const monthLabels = inflationData.dimension.timeperiod_m.category.label;
     const inflationValues = inflationData.value;
 
-    const indexLabels = indexData.dimension.Kuukausi.category.label;
+    const indexLabels = indexData.dimension.timeperiod_m.category.label;
     const indexValues = indexData.value;
 
     // Build lookup map: monthCode → index value
