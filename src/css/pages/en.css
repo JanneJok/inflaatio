@@ -1,0 +1,3 @@
+/* Page styles: /en/ + English calculators (module en, owner EXTRAS).
+   Scope every rule under [data-page="en"] (set by layout({ page })) or a
+   page-specific class, and use tokens only. */

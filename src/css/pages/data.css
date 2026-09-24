@@ -1,0 +1,174 @@
+/* Page styles: /data/ (module data, owner EXTRAS).
+   Scope every rule under [data-page="data"] (set by layout({ page })) or a
+   page-specific class, and use tokens only. */
+
+/* ------------------------------------------------------------ file cards */
+
+[data-page='data'] .data-files {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 30rem), 1fr));
+  gap: var(--space-4);
+  list-style: none;
+}
+
+[data-page='data'] .data-file {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  scroll-margin-top: calc(var(--header-h) + var(--space-4));
+}
+
+[data-page='data'] .data-file__title {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-snug);
+}
+
+[data-page='data'] .data-file__desc {
+  color: var(--text-2);
+  font-size: var(--fs-small);
+}
+
+[data-page='data'] .data-file__meta {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-1) var(--space-4);
+  font-size: var(--fs-small);
+}
+
+[data-page='data'] .data-file__meta > div {
+  display: contents;
+}
+
+[data-page='data'] .data-file__meta dt {
+  color: var(--text-3);
+}
+
+[data-page='data'] .data-file__meta dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+[data-page='data'] .data-file__column-list {
+  padding-left: 1.6em;
+  font-size: var(--fs-small);
+}
+
+[data-page='data'] .data-file__column-list li + li {
+  margin-top: var(--space-1);
+}
+
+[data-page='data'] .data-file__downloads {
+  margin-top: auto;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+/* ------------------------------------------------------------- JSON list */
+
+[data-page='data'] .json-files {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  gap: 0 var(--space-6);
+  list-style: none;
+}
+
+[data-page='data'] .json-file {
+  padding-block: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+[data-page='data'] .json-file__desc {
+  color: var(--text-2);
+  font-size: var(--fs-small);
+}
+
+[data-page='data'] .json-file__updated {
+  color: var(--text-3);
+}
+
+/* ---------------------------------------------------------------- format */
+
+[data-page='data'] .data-format {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-2) var(--space-5);
+  max-width: var(--measure);
+  margin-bottom: var(--space-6);
+}
+
+[data-page='data'] .data-format > div {
+  display: contents;
+}
+
+[data-page='data'] .data-format dt {
+  color: var(--text-2);
+  font-weight: var(--fw-semibold);
+}
+
+[data-page='data'] .data-format dd {
+  margin: 0;
+}
+
+@media (max-width: 479px) {
+  [data-page='data'] .data-format,
+  [data-page='data'] .data-file__meta {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  [data-page='data'] .data-format dd,
+  [data-page='data'] .data-file__meta dd {
+    margin-bottom: var(--space-2);
+  }
+}
+
+[data-page='data'] .accordion {
+  max-width: var(--measure);
+}
+
+/* ------------------------------------------------------------- citations */
+
+[data-page='data'] .citations {
+  display: grid;
+  gap: var(--space-4);
+  max-width: var(--measure);
+}
+
+[data-page='data'] .citation {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2) var(--space-4);
+  align-items: start;
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--brand);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+[data-page='data'] .citation__label {
+  grid-column: 1 / -1;
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+[data-page='data'] .citation__text {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 479px) {
+  [data-page='data'] .citation {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
