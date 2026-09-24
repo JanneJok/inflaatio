@@ -1,0 +1,6 @@
+[
+  { "recordid": "1", "allDay": true, "unit": "C4", "period": "September 2026", "euroind": true, "start": "2026-10-02T11:00Z", "datasetCodes": "prc_hicp_fp", "title": "Flash estimate inflation euro area" },
+  { "recordid": "2", "allDay": true, "unit": "C4", "period": "September 2026", "euroind": true, "start": "2026-10-16T11:00Z", "datasetCodes": "prc_hicp_manr", "title": "Inflation (HICP)" },
+  { "recordid": "3", "allDay": true, "unit": "C2", "period": "August 2026", "euroind": true, "start": "2026-10-03T11:00Z", "datasetCodes": "", "title": "Unemployment" },
+  { "recordid": "4", "allDay": true, "unit": "C4", "period": "October 2026", "euroind": true, "start": "2026-11-04T11:00Z", "datasetCodes": "prc_hicp_fp", "title": "Flash estimate inflation euro area" }
+]

@@ -1,0 +1,95 @@
+{
+  "generatedAt": "2026-09-24T11:48:48.393Z",
+  "sources": {
+    "khi": {
+      "name": "Kuluttajahintaindeksi (KHI)",
+      "publisher": "Tilastokeskus",
+      "table": "122p (vuosimuutos), 11xs (pisteluvut), 15b5 (2025=100, kuukausimuutos)",
+      "url": "https://pxdata.stat.fi/PxWeb/pxweb/fi/StatFin/StatFin__khi/122p.px/",
+      "license": "CC BY 4.0",
+      "updated": "2026-09-14T05:00:00Z",
+      "latest": "2026-08"
+    },
+    "khiAnnual": {
+      "name": "Kuluttajahintaindeksi, vuositiedot",
+      "publisher": "Tilastokeskus",
+      "table": "122q (vuosimuutos), 11xt (vuosikeskiarvot)",
+      "url": "https://pxdata.stat.fi/PxWeb/pxweb/fi/StatFin/StatFin__khi/122q.px/",
+      "license": "CC BY 4.0",
+      "updated": "2026-01-14T06:00:00Z",
+      "latest": "2025"
+    },
+    "elinkustannusindeksi": {
+      "name": "Elinkustannusindeksi",
+      "publisher": "Tilastokeskus",
+      "table": "11xl, 11xm, 11xn, 11xy",
+      "url": "https://pxdata.stat.fi/PxWeb/pxweb/fi/StatFin/StatFin__khi/11xl.px/",
+      "license": "CC BY 4.0",
+      "updated": "2026-09-14T05:00:00Z",
+      "latest": "2026-08"
+    },
+    "ykhi": {
+      "name": "Yhdenmukaistettu kuluttajahintaindeksi (YKHI, HICP)",
+      "publisher": "Eurostat",
+      "dataset": "prc_hicp_minr",
+      "url": "https://ec.europa.eu/eurostat/databrowser/view/prc_hicp_minr/default/table?lang=en",
+      "license": "Eurostat reuse policy (CC BY 4.0)",
+      "updated": "2026-09-17T11:00:00+02:00",
+      "latest": "2026-08"
+    },
+    "ykhiAnnual": {
+      "name": "Yhdenmukaistettu kuluttajahintaindeksi, vuositiedot",
+      "publisher": "Eurostat",
+      "dataset": "prc_hicp_ainr",
+      "url": "https://ec.europa.eu/eurostat/databrowser/view/prc_hicp_ainr/default/table?lang=en",
+      "license": "Eurostat reuse policy (CC BY 4.0)",
+      "updated": "2026-09-17T11:00:00+02:00",
+      "latest": "2025"
+    },
+    "hyodykkeet": {
+      "name": "Kuluttajahintaindeksi hyödykeryhmittäin ja painot",
+      "publisher": "Tilastokeskus",
+      "table": "15b5 (hyödykeryhmät), 15bc (painot 2026)",
+      "url": "https://pxdata.stat.fi/PxWeb/pxweb/fi/StatFin/StatFin__khi/15b5.px/",
+      "license": "CC BY 4.0",
+      "updated": "2026-09-14T05:00:00Z",
+      "latest": "2026-08"
+    },
+    "hyodykesarjat": {
+      "name": "Kuluttajahintaindeksi, valitut hyödykkeet",
+      "publisher": "Tilastokeskus",
+      "table": "15b5 (hyödykkeet)",
+      "url": "https://pxdata.stat.fi/PxWeb/pxweb/fi/StatFin/StatFin__khi/15b5.px/",
+      "license": "CC BY 4.0",
+      "updated": "2026-09-14T05:00:00Z",
+      "latest": "2026-08"
+    },
+    "polttoaineet": {
+      "name": "Polttonesteiden keskihinnat",
+      "publisher": "Tilastokeskus",
+      "table": "11xx",
+      "url": "https://pxdata.stat.fi/PxWeb/pxweb/fi/StatFin/StatFin__khi/11xx.px/",
+      "license": "CC BY 4.0",
+      "updated": "2026-08-31T05:00:00Z",
+      "latest": "2026-08"
+    },
+    "ansiot": {
+      "name": "Ansiotasoindeksi ja reaaliansiot",
+      "publisher": "Tilastokeskus",
+      "table": "14um",
+      "url": "https://pxdata.stat.fi/PxWeb/pxweb/fi/StatFin/StatFin__ati/14um.px/",
+      "license": "CC BY 4.0",
+      "updated": "2026-08-26T05:00:00Z",
+      "latest": "2026-Q2"
+    },
+    "korot": {
+      "name": "EKP:n talletuskorko ja 12 kk euribor",
+      "publisher": "Euroopan keskuspankki (EKP)",
+      "dataset": "FM.B.U2.EUR.4F.KR.DFR.LEV, FM.M.U2.EUR.RT.MM.EURIBOR1YD_.HSTA",
+      "url": "https://data.ecb.europa.eu/data/datasets/FM",
+      "license": "ECB statistics reuse policy (lähde mainittava)",
+      "updated": "2026-09-10T14:22:33.000Z",
+      "latest": "2026-08"
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "title": "Kuluttajahintaindeksin kokonaisindeksit muuttujina Kuukausi ja Tiedot",
+  "variables": [
+    {
+      "code": "timeperiod_m",
+      "text": "Kuukausi",
+      "values": [
+        "2026M06",
+        "2026M07",
+        "2026M08"
+      ],
+      "valueTexts": [
+        "2026M06",
+        "2026M07",
+        "2026M08"
+      ],
+      "time": true
+    },
+    {
+      "code": "contentscode",
+      "text": "Tiedot",
+      "values": [
+        "ip_0_1972",
+        "ip_0_1977",
+        "ip_0_1981",
+        "ip_0_1985",
+        "ip_0_1990",
+        "ip_0_1995",
+        "ip_0_2000",
+        "ip_0_2005",
+        "ip_0_2010",
+        "ip_0_2015",
+        "ip_0_2025"
+      ],
+      "valueTexts": [
+        "Pisteluku, 1972=100",
+        "Pisteluku, 1977=100",
+        "Pisteluku, 1981=100",
+        "Pisteluku, 1985=100",
+        "Pisteluku, 1990=100",
+        "Pisteluku, 1995=100",
+        "Pisteluku, 2000=100",
+        "Pisteluku, 2005=100",
+        "Pisteluku, 2010=100",
+        "Pisteluku, 2015=100",
+        "Pisteluku, 2025=100"
+      ]
+    }
+  ]
+}
