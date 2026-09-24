@@ -11,7 +11,7 @@ import fs from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { build, computeLatest, cspProblems, ROOT } from '../scripts/build.js';
+import { build, computeLatest, cspProblems, ROOT, themeBootScript } from '../scripts/build.js';
 import { checkLinks } from '../scripts/check-links.js';
 import * as fmt from '../src/js/lib/format.js';
 import {
@@ -721,6 +721,7 @@ async function stubCtx(d) {
     safeJson: htmlLib.safeJson,
     asset: (name) => `/assets/${name}`,
     assetImports: () => [],
+    themeBoot: themeBootScript(),
     warn: (m) => warnings.push(m),
     warnings,
   };

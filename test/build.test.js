@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { build, cspProblems, assertSafeOutDir, computeLatest, parseArgs, ROOT } from '../scripts/build.js';
+import { build, cspProblems, assertSafeOutDir, computeLatest, parseArgs, ROOT, themeBootScript, scriptHash, cspScriptHashes } from '../scripts/build.js';
 import { checkLinks } from '../scripts/check-links.js';
 
 let tmp;
@@ -30,7 +30,7 @@ test('writes the page, hashed assets, fonts and static files', async () => {
   const assets = await list(path.join(out, 'assets'));
   assert.ok(assets.some((f) => /^main-[A-Z0-9]{8}\.css$/.test(f)), 'main.css hashed');
   assert.ok(assets.some((f) => /^site-[A-Z0-9]{8}\.js$/.test(f)), 'site.js hashed');
-  assert.ok(assets.some((f) => /^theme-boot-[A-Z0-9]{8}\.js$/.test(f)), 'theme-boot.js hashed');
+  assert.ok(!assets.some((f) => f.startsWith('theme-boot-')), 'theme-boot is inlined, not a separate file');
   assert.ok((await list(path.join(out, 'assets', 'pages'))).some((f) => /^tyylit-[A-Z0-9]{8}\.js$/.test(f)));
   const fonts = await list(path.join(out, 'fonts'));
   assert.ok(fonts.some((f) => /^inter-latin-wght-normal-[A-Z0-9]{8}\.woff2$/.test(f)));
@@ -40,9 +40,8 @@ test('writes the page, hashed assets, fonts and static files', async () => {
   assert.equal(result.manifest.get('site.js')?.startsWith('/assets/site-'), true);
 });
 
-test('theme-boot is a classic script (no ESM syntax) and main.css bundles every import', async () => {
-  const boot = (await list(path.join(out, 'assets'))).find((f) => f.startsWith('theme-boot-'));
-  const js = await fs.readFile(path.join(out, 'assets', boot), 'utf8');
+test('inline theme-boot is a classic script (no ESM syntax) and main.css bundles every import', async () => {
+  const js = themeBootScript().code;
   assert.doesNotMatch(js, /^\s*(import|export)\b/m);
   assert.match(js, /localStorage/);
   const cssFile = (await list(path.join(out, 'assets'))).find((f) => f.endsWith('.css'));
@@ -63,8 +62,10 @@ test('sitemap excludes noindex / sitemap:false pages; robots points to it', asyn
 
 test('HTML is CSP-safe: no inline scripts, styles or handlers', () => {
   assert.deepEqual(cspProblems(page), []);
-  const inlineScript = /<script(?![^>]*\bsrc=)(?![^>]*type="application\/(?:ld\+)?json")[^>]*>/i;
-  assert.doesNotMatch(page, inlineScript);
+  // The only inline script is the theme script, allowed by its CSP hash.
+  const inlineScript = /<script(?![^>]*\bsrc=)(?![^>]*type="application\/(?:ld\+)?json")[^>]*>/gi;
+  assert.equal([...page.matchAll(inlineScript)].length, 1);
+  assert.ok(page.includes(`<script>${themeBootScript().code}</script>`));
   assert.doesNotMatch(page, /<style[\s>]/i);
   assert.doesNotMatch(page, /<[^>]+\sstyle\s*=/i);
   assert.doesNotMatch(page, /<[^>]+\son[a-z]+\s*=/i);
@@ -84,10 +85,11 @@ test('head metadata follows the layout contract', () => {
   assert.match(page, /<meta name="theme-color" content="#F7F8FA" media="\(prefers-color-scheme: light\)">/);
   assert.match(page, /<link rel="manifest" href="\/site\.webmanifest">/);
   assert.match(page, /<link rel="preload" href="\/fonts\/inter-latin-wght-normal-[A-Z0-9]{8}\.woff2" as="font" type="font\/woff2" crossorigin>/);
-  assert.match(page, /<script src="\/assets\/theme-boot-[A-Z0-9]{8}\.js"><\/script>/);
+  const boot = themeBootScript();
+  assert.ok(page.includes(`<script>${boot.code}</script>`), 'theme-boot inlined verbatim');
   assert.match(page, /<script type="module" src="\/assets\/site-[A-Z0-9]{8}\.js"><\/script>/);
   // theme-boot runs before the stylesheet and the module scripts
-  assert.ok(page.indexOf('theme-boot-') < page.indexOf('rel="stylesheet"'));
+  assert.ok(page.indexOf(boot.code) < page.indexOf('rel="stylesheet"'));
   for (const m of page.matchAll(/<script type="application\/ld\+json">([^<]*)<\/script>/g)) JSON.parse(m[1]);
 });
 
@@ -139,6 +141,18 @@ test('CSP violations in page output fail the build', async () => {
     "export default async (ctx) => [{ path: '/bad/', html: ctx.layout({ title: 'A', description: 'B', path: '/bad/', main: ctx.raw('<script>1</script>') }) }];\n",
   );
   await assert.rejects(build({ out: path.join(tmp, 'bad'), pagesDir, quiet: true }), /CSP violations[\s\S]*inline <script>/);
+});
+
+test('inline theme script: hash allowed by both CSP files, other inline scripts are not', async () => {
+  const boot = themeBootScript();
+  assert.equal(boot.hash, scriptHash(boot.code));
+  for (const f of ['security-headers.conf', 'security-headers-embed.conf']) {
+    const hashes = cspScriptHashes(await fs.readFile(path.join(ROOT, 'deploy', f), 'utf8'));
+    assert.ok(hashes.has(boot.hash), `${f} allows '${boot.hash}'`);
+  }
+  assert.deepEqual(cspProblems(`<script>${boot.code}</script>`), []);
+  assert.match(cspProblems(`<script>${boot.code};</script>`)[0], /inline <script>/);
+  assert.deepEqual(cspProblems('<script>x</script>', new Set([scriptHash('x')])), []);
 });
 
 test('cspProblems detects each forbidden pattern', () => {

@@ -16,7 +16,8 @@
  */
 import { build as esbuild } from 'esbuild';
 import fs from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
@@ -145,21 +146,14 @@ async function bundleAssets(outDir, { minify }) {
     splitting: true,
     loader: { '.woff2': 'file', '.woff': 'file' },
   });
-  // The theme script runs as a classic blocking script: separate IIFE build.
-  const boot = await esbuild({
-    ...common,
-    entryPoints: { 'assets/theme-boot': 'src/js/theme-boot.js' },
-    entryNames: '[dir]/[name]-[hash]',
-    format: 'iife',
-    sourcemap: false,
-  });
-  entries['theme-boot.js'] = 'src/js/theme-boot.js';
+  // The theme script (src/js/theme-boot.js) is not bundled: the layout inlines
+  // it into <head> and the CSP allows it by hash (themeBootScript()).
 
   const bySource = new Map(Object.entries(entries).map(([name, src]) => [src, name]));
   const manifest = new Map();
   const imports = new Map();
   const files = [];
-  const outputs = { ...main.metafile.outputs, ...boot.metafile.outputs };
+  const outputs = { ...main.metafile.outputs };
   const urlOf = (p) => `/${toPosix(path.relative(outDir, path.resolve(ROOT, p)))}`;
   for (const [outPath, info] of Object.entries(outputs)) {
     const url = urlOf(outPath);
@@ -374,23 +368,66 @@ const TAG_RE = /<([a-zA-Z][a-zA-Z0-9-]*)((?:\s+[^\s"'>/=]+(?:\s*=\s*(?:"[^"]*"|'
 const ATTR_RE = /([^\s"'>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
 const DATA_SCRIPT_TYPES = new Set(['application/ld+json', 'application/json']);
 
+const INLINE_SCRIPT_RE = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;
+
+/** CSP source expression for an inline script: `sha256-<base64>` (without quotes). */
+export function scriptHash(code) {
+  return `sha256-${createHash('sha256').update(code, 'utf8').digest('base64')}`;
+}
+
+/**
+ * The blocking theme script, inlined into <head> by the layout (one
+ * render-blocking request less). Its leading comment block is dropped; the
+ * CSP must allow the returned hash in script-src (checked by build()).
+ * @returns {{code: string, hash: string}}
+ */
+export function themeBootScript() {
+  const src = readFileSync(path.join(ROOT, 'src', 'js', 'theme-boot.js'), 'utf8');
+  const code = src.replace(/^\/\*[\s\S]*?\*\/\s*/, '').trim();
+  if (/<\/script/i.test(code)) throw new Error('src/js/theme-boot.js must not contain "</script"');
+  return { code, hash: scriptHash(code) };
+}
+
+/**
+ * Inline-script hashes allowed by the script-src of a headers conf file.
+ * @param {string} confText contents of deploy/security-headers*.conf
+ * @returns {Set<string>} e.g. 'sha256-…' (without quotes)
+ */
+export function cspScriptHashes(confText) {
+  const csp = confText.match(/Content-Security-Policy\s+"([^"]*)"/)?.[1] ?? '';
+  const scriptSrc = csp.split(';').map((d) => d.trim()).find((d) => d.startsWith('script-src')) ?? '';
+  return new Set([...scriptSrc.matchAll(/'(sha256-[A-Za-z0-9+/=]+)'/g)].map((m) => m[1]));
+}
+
+let confHashes;
+/** Hashes allowed by deploy/security-headers.conf (read once). */
+function allowedScriptHashes() {
+  confHashes ??= cspScriptHashes(readFileSync(path.join(ROOT, 'deploy', 'security-headers.conf'), 'utf8'));
+  return confHashes;
+}
+
 /**
  * Find CSP violations in generated HTML (SPEC §10): inline scripts (other than
- * JSON-LD / JSON data islands), <style> elements, style="" and on*="" attributes
- * and javascript: URLs.
+ * JSON-LD / JSON data islands and scripts whose hash the CSP allows),
+ * <style> elements, style="" and on*="" attributes and javascript: URLs.
  * @param {string} doc
+ * @param {Set<string>} [allowed] inline-script hashes allowed by the CSP
  * @returns {string[]} problems (empty when safe)
  */
-export function cspProblems(doc) {
+export function cspProblems(doc, allowed = allowedScriptHashes()) {
   const problems = [];
+  for (const m of doc.matchAll(INLINE_SCRIPT_RE)) {
+    const attrs = {};
+    for (const a of (m[1] ?? '').matchAll(ATTR_RE)) attrs[a[1].toLowerCase()] = a[2] ?? a[3] ?? a[4] ?? '';
+    if ('src' in attrs || DATA_SCRIPT_TYPES.has((attrs.type ?? '').toLowerCase())) continue;
+    if (allowed.has(scriptHash(m[2]))) continue;
+    problems.push(`inline <script${attrs.type ? ` type="${attrs.type}"` : ''}>`);
+  }
   for (const m of doc.matchAll(TAG_RE)) {
     const tag = m[1].toLowerCase();
     const attrs = {};
     for (const a of (m[2] ?? '').matchAll(ATTR_RE)) attrs[a[1].toLowerCase()] = a[2] ?? a[3] ?? a[4] ?? '';
     if (tag === 'style') problems.push('<style> element');
-    if (tag === 'script' && !('src' in attrs) && !DATA_SCRIPT_TYPES.has((attrs.type ?? '').toLowerCase())) {
-      problems.push(`inline <script${attrs.type ? ` type="${attrs.type}"` : ''}>`);
-    }
     for (const [name, value] of Object.entries(attrs)) {
       if (name === 'style') problems.push(`style="" on <${tag}>`);
       else if (name.startsWith('on')) problems.push(`${name}="" handler on <${tag}>`);
@@ -457,7 +494,18 @@ export async function build(options = {}) {
   const site = (await import(pathToFileURL(path.join(SRC, 'site.config.js')).href)).default;
   const assets = await bundleAssets(outDir, opts);
 
+  // The inline theme script must be allowed by every CSP variant.
+  const themeBoot = themeBootScript();
+  for (const f of ['security-headers.conf', 'security-headers-embed.conf']) {
+    const hashes = cspScriptHashes(await fs.readFile(path.join(ROOT, 'deploy', f), 'utf8'));
+    if (!hashes.has(themeBoot.hash)) {
+      throw new Error(`deploy/${f}: script-src does not allow the inline theme script (src/js/theme-boot.js changed?). Add '${themeBoot.hash}' to script-src.`);
+    }
+  }
+
   const ctx = {
+    /** Inline blocking theme script for <head> ({code, hash}). */
+    themeBoot,
     site,
     baseUrl: site.baseUrl,
     buildDate: fmt.isoDate(),

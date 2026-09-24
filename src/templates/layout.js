@@ -539,7 +539,7 @@ ${alts.map((a) => html`<link rel="alternate" hreflang="${a.hreflang}" href="${a.
 <meta name="theme-color" content="${ctx.site.themeColors.light}" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="${ctx.site.themeColors.dark}" media="(prefers-color-scheme: dark)">
 <meta name="color-scheme" content="light dark">
-<script src="${ctx.asset('theme-boot.js')}"></script>
+<script>${new SafeString(ctx.themeBoot.code)}</script>
 <meta property="og:type" content="${ogType}">
 <meta property="og:site_name" content="${brand}">
 <meta property="og:locale" content="${lang === 'en' ? 'en_GB' : 'fi_FI'}">

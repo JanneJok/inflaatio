@@ -7,7 +7,7 @@ import { parseHeadersConf, loadHeaderSets, cacheControl, contentType, createServ
 import { ROOT } from '../scripts/build.js';
 
 const SPEC_CSP =
-  "default-src 'self'; script-src 'self' https://www.googletagmanager.com; connect-src 'self' https://ysuhexvvgjoizrcdrxso.supabase.co https://api.emailjs.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com; img-src 'self' data: https://*.google-analytics.com https://www.googletagmanager.com; style-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests";
+  "default-src 'self'; script-src 'self' 'sha256-jPKVHX9ljZgx69o9taZ79IjAj29CX8MPrJ/jNHqYzAc=' https://www.googletagmanager.com; connect-src 'self' https://ysuhexvvgjoizrcdrxso.supabase.co https://api.emailjs.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com; img-src 'self' data: https://*.google-analytics.com https://www.googletagmanager.com; style-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests";
 
 const readConf = async (f) => parseHeadersConf(await fs.readFile(path.join(ROOT, 'deploy', f), 'utf8'));
 const asObject = (list) => Object.fromEntries(list.map((h) => [h.name, h.value]));

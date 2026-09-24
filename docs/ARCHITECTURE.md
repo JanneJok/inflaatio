@@ -50,7 +50,7 @@ page `/tyylit/` (every component rendered with real data, light and dark).
    deploy/security-headers.conf        cache rules, redirects and 404)
              │
              v
-   Browser: theme-boot.js (blocking, before paint) → main.css → site.js (module)
+   Browser: inline theme script (blocking, before paint) → main.css → site.js (module)
             → pages/<name>.js (module, optional) → lazy chunks (Chart.js, EmailJS)
 ```
 
@@ -127,9 +127,9 @@ Steps (`build()` in `scripts/build.js`):
 2. **Bundle assets with esbuild.** Entries: `src/css/main.css` → `/assets/main-HASH.css`,
    `src/js/site.js` → `/assets/site-HASH.js`, every `src/js/pages/*.js` →
    `/assets/pages/<name>-HASH.js` (ESM, code splitting: shared modules and
-   dynamic imports become `/assets/chunks/*-HASH.js`), and
-   `src/js/theme-boot.js` → `/assets/theme-boot-HASH.js` (separate IIFE build,
-   runs as a classic blocking script). Fonts referenced from CSS are emitted
+   dynamic imports become `/assets/chunks/*-HASH.js`). `src/js/theme-boot.js` is
+   not bundled: the layout inlines it into `<head>` (`ctx.themeBoot`, leading
+   comment dropped) and the CSP allows it by its SHA-256 hash. Fonts referenced from CSS are emitted
    as `/fonts/<name>-HASH.woff2`. Target `es2020`; minified unless `--no-minify`;
    `console.log`/`console.debug` are dropped in minified builds.
    A manifest maps logical names to URLs: `ctx.asset('site.js')`,
@@ -887,13 +887,17 @@ The CSP is defined once in `deploy/security-headers.conf` (nginx) and applied
 identically by `scripts/serve.js`:
 
 ```
-default-src 'self'; script-src 'self' https://www.googletagmanager.com; connect-src 'self' <supabase> https://api.emailjs.com <google-analytics>;
+default-src 'self'; script-src 'self' 'sha256-jPKVHX9ljZgx69o9taZ79IjAj29CX8MPrJ/jNHqYzAc=' https://www.googletagmanager.com; connect-src 'self' <supabase> https://api.emailjs.com <google-analytics>;
 img-src 'self' data: <google-analytics>; style-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests
 ```
 
 Consequences (the build fails on the first three):
 
-- No inline `<script>` — JSON-LD and JSON data islands (`type="application/json"`) are fine.
+- No inline `<script>` — JSON-LD and JSON data islands (`type="application/json"`) are fine,
+  and so is the inline theme script, whose hash is in `script-src`. **If you edit
+  `src/js/theme-boot.js`, the build stops and prints the new `sha256-…` value:**
+  replace the old hash with it in both `deploy/security-headers.conf` and
+  `deploy/security-headers-embed.conf` (and in `test/serve.test.js`).
 - No `<style>` elements and no `style=""` attributes (`attrs()` refuses `style`).
   Set dynamic values from JS through the CSSOM (`el.style.setProperty`).
 - No `on*=""` handler attributes and no `javascript:` URLs (`attrs()` refuses `on*`).

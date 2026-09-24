@@ -256,10 +256,29 @@ export function pageView() {
   if (!counted) return;
   // A prerendered page may never be shown: count it only when it is activated.
   if (document.prerendering) {
-    document.addEventListener('prerenderingchange', () => sendPageView(), { once: true });
+    document.addEventListener('prerenderingchange', () => sendLater(), { once: true });
     return;
   }
-  sendPageView();
+  sendLater();
+}
+
+/**
+ * Send the page view off the critical path: after the load event, when the
+ * browser is idle. A visitor who leaves before that is still counted on
+ * `pagehide` (the request is `keepalive`).
+ */
+function sendLater() {
+  let sent = false;
+  const send = () => {
+    if (sent) return;
+    sent = true;
+    sendPageView();
+  };
+  const idle = window.requestIdleCallback ?? ((cb) => window.setTimeout(cb, 1));
+  const afterLoad = () => idle(send, { timeout: 3000 });
+  if (document.readyState === 'complete') afterLoad();
+  else window.addEventListener('load', afterLoad, { once: true });
+  window.addEventListener('pagehide', send, { once: true });
 }
 
 /* ------------------------------------------------ Google Analytics (2) */

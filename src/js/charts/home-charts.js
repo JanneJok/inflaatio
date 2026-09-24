@@ -3,8 +3,8 @@
  * chart (KHI + YKHI, optional euro area, core inflation and event markers)
  * and the "Hintataso" price-level chart. Both replace a server-rendered SVG
  * of the same size, so nothing moves when Chart.js arrives. Chart.js itself
- * is loaded lazily by charts/setup.js: when a chart comes near the viewport,
- * or earlier on idle time as a prefetch.
+ * is loaded lazily by charts/setup.js, only when a chart comes near the
+ * viewport.
  *
  * Data come from the `etusivu-data` island (src/pages/home.js); the texts
  * that go with every view (summary, stats, labels) are precomputed there.
@@ -12,7 +12,7 @@
 import * as fmt from '../lib/format.js';
 import { onVisible } from '../lib/dom.js';
 import { sliceRange } from '../lib/stats.js';
-import { createChart, lineDataset, targetLine, eventLine, downloadPng, applyTheme, loadChartJs } from './setup.js';
+import { createChart, lineDataset, targetLine, eventLine, downloadPng, applyTheme } from './setup.js';
 import { decodeSeries, monthAxis, priceLevel, wrapText, METRIC_INFO, DEFAULT_BASE } from './home-model.js';
 
 /** Series of the main chart, in dataset order. */
@@ -225,15 +225,11 @@ export function initHomeCharts(data, getState) {
 
   /* ------------------------------------------------------------ loading */
 
-  if (trendBox) onVisible(trendBox.parentElement ?? trendBox, createTrend);
-  if (levelBox) onVisible(levelBox.parentElement ?? levelBox, createLevel);
-
-  // Prefetch the Chart.js chunk when the browser is idle (not on data saver).
-  const saveData = /** @type {any} */ (navigator).connection?.saveData === true;
-  if (!saveData) {
-    const idle = window.requestIdleCallback ?? ((cb) => window.setTimeout(cb, 2500));
-    window.addEventListener('load', () => idle(() => loadChartJs().catch(() => {}), { timeout: 5000 }), { once: true });
-  }
+  // Chart.js (≈ 70 kB gzip) loads only when a chart comes near the viewport
+  // (800 px ahead of it), so visitors who never scroll that far do not
+  // download it. The server-rendered SVG chart is shown until then.
+  if (trendBox) onVisible(trendBox.parentElement ?? trendBox, createTrend, '800px 0px');
+  if (levelBox) onVisible(levelBox.parentElement ?? levelBox, createLevel, '800px 0px');
 
   return {
     update() {

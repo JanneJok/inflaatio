@@ -9,7 +9,7 @@ import fs from 'node:fs/promises';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { build, computeLatest, cspProblems, ROOT } from '../scripts/build.js';
+import { build, computeLatest, cspProblems, ROOT, themeBootScript } from '../scripts/build.js';
 import { html } from '../scripts/lib/html.js';
 import * as fmt from '../src/js/lib/format.js';
 import * as stats from '../src/js/lib/stats.js';
@@ -464,6 +464,7 @@ function makeCtx(d, c) {
     safeJson: htmlLib.safeJson,
     asset: (n) => `/assets/${n}`,
     assetImports: () => [],
+    themeBoot: themeBootScript(),
     warn: (m) => warnings.push(m),
     warnings,
   };
