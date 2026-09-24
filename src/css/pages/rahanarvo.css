@@ -1,0 +1,39 @@
+/* Page styles: /rahanarvo/ (module rahanarvo, owner CALC) and the English
+   value-of-money page (/en/value-of-money/, same data-page).
+   Shared calculator blocks (.calc*) live in laskurit.css. Tokens only. */
+
+/* Quick choices for the start month. */
+.raha-presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.raha-presets__label {
+  color: var(--text-3);
+  font-size: var(--fs-small);
+}
+
+.raha-presets .button {
+  padding-inline: var(--space-2);
+}
+
+/* The chart sits below the calculator grid. */
+.calc + .raha-figure {
+  margin-top: var(--space-6);
+}
+
+.raha-chart [data-chart-fallback][hidden],
+.raha-chart .chart-canvas[hidden] {
+  display: none;
+}
+
+/* Savings calculators (/rahanarvo/#saastot, /en/value-of-money/#savings). */
+.raha-saastot .calc {
+  margin-top: var(--space-2);
+}
+
+.raha-saastot .callout {
+  margin-top: var(--space-6);
+}

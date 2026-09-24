@@ -1,0 +1,12 @@
+/* Page styles: /404.html (module notfound, owner EXTRAS).
+   Scope every rule under [data-page="notfound"] (set by layout({ page })) or a
+   page-specific class, and use tokens only. */
+
+[data-page='notfound'] .notfound {
+  display: grid;
+  gap: var(--space-5);
+}
+
+[data-page='notfound'] .notfound .callout {
+  max-width: var(--measure);
+}

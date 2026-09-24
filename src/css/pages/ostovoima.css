@@ -1,0 +1,11 @@
+/* Page styles: /ostovoima/ (module ostovoima, owner CALC).
+   Shared calculator blocks (.calc*) live in laskurit.css. Tokens only. */
+
+[data-page='ostovoima'] .calc__verdict {
+  color: var(--text);
+  font-weight: var(--fw-semibold);
+}
+
+[data-page='ostovoima'] #tunnusluvut .kpi-grid {
+  margin-top: 0;
+}

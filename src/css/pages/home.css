@@ -1,0 +1,457 @@
+/* Page styles: / (module home, owner HOME).
+   Scope every rule under [data-page="home"] (set by layout({ page })) or a
+   page-specific class, and use tokens only. */
+
+/* Old in-page anchors (#home, #analytiikka, #faq, #tietoa) keep working. */
+.home-anchor {
+  display: block;
+  height: 0;
+}
+
+/* ------------------------------------------------------------------ hero */
+
+.home-hero {
+  padding-block: var(--space-8) var(--space-7);
+}
+
+.home-hero__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: var(--space-7);
+  align-items: end;
+}
+
+.home-hero__title {
+  font-size: var(--fs-h1);
+}
+
+.home-hero__figure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.home-hero__value {
+  color: var(--text);
+  font-size: var(--fs-display);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-display);
+  line-height: var(--lh-tight);
+}
+
+.home-hero__unit {
+  color: var(--text-2);
+  font-size: 0.5em;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0;
+}
+
+.home-hero__figure .delta {
+  font-size: var(--fs-small);
+}
+
+.home-hero__lede {
+  max-width: 54ch;
+  margin-top: var(--space-4);
+  color: var(--text-2);
+  font-size: 1.125rem;
+  line-height: 1.55;
+}
+
+.home-hero__meta {
+  margin-top: var(--space-4);
+  color: var(--text-3);
+  font-size: var(--fs-small);
+}
+
+.home-hero__side {
+  min-width: 0;
+}
+
+.home-hero__spark {
+  --chart-halo: var(--surface);
+  padding: var(--space-4) var(--space-5) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.home-hero__spark-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.home-hero__spark-title {
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.home-hero__spark-head .legend {
+  font-size: var(--fs-caption);
+}
+
+/* The solid 0 % line of the sparkline (chart-ref--muted) in its legend. */
+.home-hero__spark .series--muted {
+  color: var(--border-strong);
+}
+
+.home-hero__spark-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-1);
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-spark--narrow {
+  display: none;
+}
+
+.home-hero__facts {
+  margin-top: var(--space-4);
+  border-top: 0;
+}
+
+.home-hero__facts dd {
+  font-size: 1.125rem;
+}
+
+@media (max-width: 860px) {
+  .home-hero {
+    padding-block: var(--space-6) var(--space-5);
+  }
+
+  .home-hero__grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+}
+
+@media (max-width: 720px) {
+  .home-hero__value {
+    font-size: clamp(3.25rem, 14vw, 4rem);
+  }
+
+  .home-hero__lede {
+    font-size: var(--fs-body);
+  }
+
+  .home-hero__spark {
+    padding: var(--space-3) var(--space-4) var(--space-2);
+  }
+
+  .home-spark--wide {
+    display: none;
+  }
+
+  .home-spark--narrow {
+    display: block;
+  }
+
+  .home-hero__facts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-3);
+  }
+
+  .home-hero__facts dd {
+    font-size: 1rem;
+  }
+}
+
+/* Three columns leave ~105 px per fact on a 375 px phone: too narrow for the
+   single-word caps label "POHJAINFLAATIO". Two columns, the third fact wraps. */
+@media (max-width: 440px) {
+  .home-hero__facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ----------------------------------------------- metric panels (KHI|YKHI) */
+
+/* Without JS both panels are shown one after the other; with JS only the
+   selected one (theme-boot.js adds .js before the first paint). */
+.js .home[data-mittari='khi'] [data-metric-panel='ykhi'],
+.js .home[data-mittari='ykhi'] [data-metric-panel='khi'] {
+  display: none;
+}
+
+html:not(.js) .home-panel + .home-panel {
+  margin-top: var(--space-6);
+}
+
+.home-panel__head {
+  margin-bottom: var(--space-4);
+  color: var(--text-2);
+  font-size: var(--fs-small);
+}
+
+.home-panel__name {
+  color: var(--text);
+  font-weight: var(--fw-semibold);
+}
+
+.home-panel__head strong {
+  color: var(--text);
+}
+
+.home-switch {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .home-switch {
+    width: 100%;
+  }
+}
+
+/* ------------------------------------------------------ what drives prices */
+
+.home #hinnat-kaavio .chart-figure__body {
+  max-width: 50rem;
+}
+
+/* ------------------------------------------------------------ main chart */
+
+.home-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+  min-width: 0;
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  border: 0;
+}
+
+.home-toggles__legend {
+  float: left;
+  margin-right: var(--space-2);
+  padding: 0;
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.home-toggles .check {
+  align-items: center;
+  min-height: var(--tap);
+}
+
+/* Fixed chart box: the SVG fallback and the Chart.js canvas have the same
+   size, so replacing one with the other causes no layout shift. */
+.home-chart {
+  position: relative;
+  height: 380px;
+}
+
+.home-chart--level {
+  height: 300px;
+}
+
+.home-chart > .chart-canvas {
+  position: absolute;
+  inset: 0;
+  height: auto;
+}
+
+.home-chart > .chart-canvas.is-loading {
+  visibility: hidden;
+}
+
+.home-chart__svg--narrow {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .home-chart {
+    height: 280px;
+  }
+
+  .home-chart--level {
+    height: 240px;
+  }
+
+  .home-chart__svg--wide {
+    display: none;
+  }
+
+  .home-chart__svg--narrow {
+    display: block;
+  }
+}
+
+/* Event markers are vertical dotted lines in the chart. */
+.home #kehitys-kaavio .legend__item[data-series='events'] .legend__swatch {
+  width: 0;
+  height: 14px;
+  border-top: 0;
+  border-left: 1px dashed var(--border-strong);
+}
+
+.home-stats__caption {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  font-weight: var(--fw-semibold);
+}
+
+.home-stats {
+  margin-top: var(--space-3);
+  padding-top: 0;
+  border-top: 0;
+}
+
+.home-events {
+  margin-top: var(--space-4);
+}
+
+.home-events__list {
+  display: grid;
+  gap: var(--space-2);
+  max-width: var(--measure);
+  padding-left: 0;
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  list-style: none;
+}
+
+.home-events__list time {
+  display: inline-block;
+  min-width: 5.5rem;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-events__list strong {
+  color: var(--text);
+  font-weight: var(--fw-semibold);
+}
+
+/* ----------------------------------------------------------- annual table */
+
+.home-annual-table {
+  margin-top: var(--space-6);
+}
+
+/* "2026 tammi–elo": the month span stays on one line. */
+.home-annual-table .data-table__partial {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .home-annual-table .data-table__partial {
+    display: block;
+    margin-left: 0;
+  }
+
+  /* "KHI:n muutos, %-yks." may wrap so the four columns fit a phone. */
+  .home-annual-table thead th.num {
+    white-space: normal;
+  }
+}
+
+.home-more {
+  margin-top: var(--space-5);
+}
+
+/* -------------------------------------------------------------------- FAQ */
+
+.home-faq__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--space-5) var(--space-7);
+  align-items: start;
+}
+
+.home-faq__intro .section-head {
+  margin-bottom: 0;
+}
+
+@media (min-width: 961px) {
+  .home-faq__intro {
+    position: sticky;
+    top: calc(var(--header-h) + var(--space-5));
+  }
+}
+
+@media (max-width: 960px) {
+  .home-faq__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.home-faq .disclosure__body a {
+  font-weight: var(--fw-medium);
+}
+
+/* ---------------------------------------------------- sources and updates */
+
+.home-sources {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-6);
+  margin-bottom: var(--space-5);
+}
+
+@media (max-width: 860px) {
+  .home-sources {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+}
+
+.home-sources__title {
+  margin-bottom: var(--space-3);
+  font-size: var(--fs-h3);
+}
+
+.home-sources__note {
+  margin-top: var(--space-3);
+  color: var(--text-3);
+  font-size: var(--fs-small);
+}
+
+.home-list,
+.home-links {
+  display: grid;
+  gap: var(--space-3);
+  padding-left: 0;
+  font-size: var(--fs-small);
+  list-style: none;
+}
+
+.home-list li {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr);
+  gap: var(--space-3);
+  color: var(--text-2);
+}
+
+.home-list time {
+  color: var(--text);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-links li {
+  color: var(--text-2);
+}
+
+.home-downloads {
+  margin-bottom: var(--space-4);
+}

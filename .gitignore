@@ -1,2 +1,20 @@
-# Analytics dashboard - local only, not for production
+# Dependencies and build output
+node_modules/
+dist/
+.tmp/
+.playwright-mcp/
+
+# Local environment and logs
+.env
+.env.*
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Analytics dashboard – local only, not for production
 stats-viewer.html
+
+# Personal Claude Code settings
+.claude/settings.local.json

@@ -1,0 +1,249 @@
+# Data update: fetch the official statistics (npm run fetch), verify, commit
+# "data: …" to main and deploy to Fly.io – all in this one workflow, because a
+# push made with GITHUB_TOKEN does not trigger other workflows (deploy.yml).
+#
+# If a source fails, the fetcher keeps that source's previous file and exits 1;
+# the sources that succeeded are still verified, committed and deployed, and
+# the run is marked failed at the end so GitHub notifies the owner.
+# Pipeline rules: docs/DATA.md · operations: docs/OPERATIONS.md
+name: Päivitä data
+
+on:
+  schedule:
+    # Off the full hour: GitHub delays jobs scheduled on the hour the most.
+    - cron: '17 6 * * *'   # 09.17 kesäaikaan / 08.17 talviaikaan (Tilastokeskus julkaisee klo 8.00)
+    - cron: '47 13 * * *'  # 16.47 / 15.47 (Eurostat julkaisee klo 12.00, EKP:n korot iltapäivällä)
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Julkaise Fly.io:hon, vaikka data ei muuttunut
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: data-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Hae, tarkista ja commitoi data
+    # Data is committed to main only (a manual run on another branch does nothing).
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+      sha: ${{ steps.commit.outputs.sha }}
+      subject: ${{ steps.commit.outputs.subject }}
+      fetch_status: ${{ steps.fetch.outputs.status }}
+    steps:
+      # persist-credentials: false – the write token is NOT stored in
+      # .git/config, where the dependency code run by npm ci / fetch / build
+      # could read it. Only the push step below gets it.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Node.js 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+
+      # --ignore-scripts: no install script of any dependency runs.
+      - name: Asenna riippuvuudet
+        run: npm ci --ignore-scripts
+
+      # Never fails the step: the exit status is recorded and checked in the
+      # last job, after the successful sources have been committed.
+      - name: Hae data (npm run fetch)
+        id: fetch
+        run: |
+          set +e
+          npm run fetch
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ "$status" -ne 0 ]; then
+            echo "::warning title=Datan haku::npm run fetch päättyi koodiin $status. Epäonnistunut lähde säilytti edellisen datansa; onnistuneet lähteet commitoidaan."
+          fi
+          exit 0
+
+      - name: Muuttuiko data?
+        id: diff
+        run: |
+          git status --porcelain -- data src/content/julkaisukalenteri.json | tee "$RUNNER_TEMP/changes.txt"
+          if [ -s "$RUNNER_TEMP/changes.txt" ]; then echo "changed=true"; else echo "changed=false"; fi >> "$GITHUB_OUTPUT"
+
+      # Nothing is committed unless the new data passes the data contract, the
+      # full build and the link check (main stays green).
+      - name: Tarkista datasopimus, build ja linkit
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          node --test test/data-contract.test.js
+          npm run build
+          node scripts/check-links.js
+
+      - name: Commitoi ja pushaa mainiin
+        id: commit
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          FETCH_STATUS: ${{ steps.fetch.outputs.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # The write token exists only in this step (GitHub masks it in logs).
+          GH_PUSH_TOKEN: ${{ github.token }}
+        run: |
+          # Sources whose latest period or source timestamp changed, e.g.
+          # "khi 2026-09, hyodykkeet 2026-09".
+          old="$(git show HEAD:data/meta.json 2>/dev/null || echo '{}')"
+          sources="$(jq -r --argjson old "$old" '
+            [(.sources // {}) | to_entries[]
+             | select((($old.sources // {})[.key].latest // null) != .value.latest
+                      or (($old.sources // {})[.key].updated // null) != .value.updated)
+             | "\(.key) \(.value.latest)"] | join(", ")' data/meta.json)"
+          if [ -n "$sources" ]; then
+            subject="data: $sources"
+          elif grep -q 'julkaisukalenteri' "$RUNNER_TEMP/changes.txt"; then
+            subject="data: julkaisukalenteri päivitetty"
+          else
+            subject="data: päivitys $(date -u +%F)"
+          fi
+          if [ "$FETCH_STATUS" = "0" ]; then fetch_line="Haku: kaikki lähteet onnistuivat."; else fetch_line="Haku: npm run fetch päättyi koodiin $FETCH_STATUS (ks. ajon yhteenveto)."; fi
+          {
+            echo "$subject"
+            echo
+            echo "Muuttuneet tiedostot:"
+            cat "$RUNNER_TEMP/changes.txt"
+            echo
+            echo "$fetch_line"
+            echo "Ajo: $RUN_URL"
+          } > "$RUNNER_TEMP/commit-message.txt"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- data src/content/julkaisukalenteri.json
+          git commit -q -F "$RUNNER_TEMP/commit-message.txt"
+          remote="https://x-access-token:${GH_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          for attempt in 1 2 3; do
+            if git pull -q --rebase "$remote" main && git push -q "$remote" HEAD:main; then
+              break
+            fi
+            git rebase --abort 2>/dev/null || true
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error title=Push::Datakommitin push epäonnistui kolmesti."
+              exit 1
+            fi
+            sleep $((attempt * 10))
+          done
+          {
+            echo "changed=true"
+            echo "sha=$(git rev-parse HEAD)"
+            echo "subject=$subject"
+          } >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Julkaise Fly.io:hon
+    needs: update
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && needs.update.result == 'success' && (needs.update.outputs.changed == 'true' || (github.event_name == 'workflow_dispatch' && inputs.deploy)) }}
+    environment: production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # Shared with deploy.yml: never two deployments at once. A newer pending
+    # deployment replaces an older pending one, so each deployment ships the
+    # main of the moment it starts (below), never an older commit.
+    concurrency:
+      group: fly-deploy
+      cancel-in-progress: false
+    steps:
+      # main, not the data commit's SHA: main contains the data commit, and a
+      # code commit pushed on top of it in the meantime (whose own deploy.yml
+      # run this job may have replaced in the queue) goes live as well. The
+      # smoke test reads data/meta.json from this same checkout.
+      - name: Checkout (main)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+
+      # Pinned like in deploy.yml (docs/OPERATIONS.md → Päivitykset).
+      - name: flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be # 1.5
+        with:
+          version: '0.4.104'
+
+      - name: flyctl deploy --remote-only
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Node.js 24 (savutestiä varten)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+
+      # Straight to the Fly app: headers, redirects, 404 and that the page
+      # shows the latest KHI month of the data that was just committed.
+      - name: Savutesti julkaistuun sovellukseen
+        run: |
+          app="$(sed -n "s/^app = '\(.*\)'.*/\1/p" fly.toml)"
+          SMOKE_URL="https://$app.fly.dev" SMOKE_EXPECT_LATEST=1 \
+            node --test --test-name-pattern='^smoke' test/ops.test.js
+
+  status:
+    name: Tila ja yhteenveto
+    needs: [update, deploy]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Yhteenveto (epäonnistuu, jos haku tai julkaisu epäonnistui)
+        env:
+          UPDATE_RESULT: ${{ needs.update.result }}
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
+          FETCH_STATUS: ${{ needs.update.outputs.fetch_status }}
+          CHANGED: ${{ needs.update.outputs.changed }}
+          SUBJECT: ${{ needs.update.outputs.subject }}
+          SHA: ${{ needs.update.outputs.sha }}
+        run: |
+          change="${SUBJECT:-ei muutoksia}"
+          if [ -n "$SHA" ]; then change="$change (${SHA:0:7})"; fi
+          {
+            echo "### Datapäivitys"
+            echo
+            echo "| Vaihe | Tulos |"
+            echo "|---|---|"
+            echo "| Haku (npm run fetch) | exit ${FETCH_STATUS:-–} |"
+            echo "| Tarkistus ja commit | $UPDATE_RESULT |"
+            echo "| Muutos | $change |"
+            echo "| Julkaisu Fly.io:hon | $DEPLOY_RESULT |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$UPDATE_RESULT" = "skipped" ]; then
+            echo "Ajo muulla kuin main-haaralla: ei tehty mitään."
+            exit 0
+          fi
+          if [ "$UPDATE_RESULT" != "success" ]; then
+            echo "::error::Datan tarkistus tai commit epäonnistui – tuotannossa on edelleen edellinen data."
+            exit 1
+          fi
+          if [ "$DEPLOY_RESULT" = "failure" ]; then
+            echo "::error::Julkaisu Fly.io:hon epäonnistui – data on commitoitu mainiin, mutta ei tuotannossa."
+            exit 1
+          fi
+          if [ "$DEPLOY_RESULT" = "cancelled" ]; then
+            # A newer deployment in the fly-deploy queue replaced this one. Both
+            # workflows deploy main as it is when they start (deploy.yml: the
+            # pushed commit, which is on top of this data commit), so the
+            # replacement contains this data.
+            echo "::warning::Julkaisu korvautui uudemmalla julkaisulla (fly-deploy-jono)."
+          fi
+          if [ "$FETCH_STATUS" != "0" ]; then
+            echo "::error::Ainakin yksi datalähde epäonnistui tai on vanhentunut (npm run fetch exit ${FETCH_STATUS:-?}). Katso hakuvaiheen yhteenveto; lähde säilytti edellisen datansa."
+            exit 1
+          fi
+          echo "Kaikki kunnossa."

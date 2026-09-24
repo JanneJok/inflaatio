@@ -1,0 +1,209 @@
+/* Page styles: /upotus/ + /upotus/ohje/ (module upotus, owner EXTRAS).
+   Scope every rule under [data-page="upotus"] (set by layout({ page })) or a
+   page-specific class, and use tokens only. */
+
+/* ============================================================ /upotus/ widget
+   The widget fills its iframe (about 320×140; any width from 240 px up).
+   Media queries see the iframe's own width, so narrow frames drop the
+   sparkline and the previous-month note. */
+
+.is-bare[data-page='upotus'] {
+  min-height: 0;
+  background: var(--surface);
+}
+
+.is-bare[data-page='upotus'] .site-main {
+  display: block;
+}
+
+[data-page='upotus'] .widget {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  height: 100vh;
+  max-height: 16rem;
+  min-height: 8.75rem;
+  overflow: hidden;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  line-height: var(--lh-snug);
+}
+
+[data-page='upotus'] .widget__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+[data-page='upotus'] .widget__title {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-caps);
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+[data-page='upotus'] .widget__month {
+  flex-shrink: 0;
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+  white-space: nowrap;
+}
+
+[data-page='upotus'] .widget__body {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+[data-page='upotus'] .widget__value {
+  flex: 0 0 auto;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+[data-page='upotus'] .widget__number {
+  font-size: 2.25rem;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-tight);
+}
+
+[data-page='upotus'] .widget__unit {
+  color: var(--text-2);
+  font-size: 1.25rem;
+  font-weight: var(--fw-semibold);
+}
+
+[data-page='upotus'] .widget__value .delta {
+  margin-left: var(--space-2);
+  padding: 1px 8px;
+  font-size: var(--fs-caption);
+  vertical-align: 0.4em;
+}
+
+[data-page='upotus'] .widget__spark {
+  flex: 1 1 6rem;
+  min-width: 4.5rem;
+  max-width: 22rem;
+  margin-left: auto;
+}
+
+[data-page='upotus'] .widget__caption {
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-page='upotus'] .widget__prev {
+  color: var(--text-3);
+}
+
+[data-page='upotus'] .widget__source {
+  font-size: var(--fs-caption);
+  white-space: nowrap;
+}
+
+[data-page='upotus'] .widget__source a {
+  color: var(--brand);
+  font-weight: var(--fw-semibold);
+}
+
+@media (max-width: 339px) {
+  [data-page='upotus'] .widget__prev {
+    display: none;
+  }
+}
+
+@media (max-width: 299px) {
+  [data-page='upotus'] .widget__spark {
+    display: none;
+  }
+}
+
+/* ======================================================= /upotus/ohje/ page */
+
+[data-page='upotus'] .embed-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-6);
+  margin-bottom: var(--space-5);
+}
+
+[data-page='upotus'] .embed-options__label {
+  margin-bottom: var(--space-2);
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+@media (max-width: 599px) {
+  [data-page='upotus'] .embed-options__group {
+    width: 100%;
+  }
+
+  [data-page='upotus'] .embed-options .segmented {
+    width: 100%;
+  }
+}
+
+[data-page='upotus'] .embed-preview {
+  padding: var(--space-5);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+
+[data-page='upotus'] .embed-preview__frame {
+  display: block;
+  max-width: 100%;
+  border: 0;
+  background: var(--surface);
+}
+
+[data-page='upotus'] .embed-preview[data-leveys='full'] .embed-preview__frame {
+  width: 100%;
+}
+
+[data-page='upotus'] .embed-preview__note {
+  max-width: var(--measure);
+  margin-top: var(--space-3);
+  color: var(--text-2);
+  font-size: var(--fs-small);
+}
+
+[data-page='upotus'] .code-block {
+  max-width: 50rem;
+}
+
+[data-page='upotus'] .embed-steps,
+[data-page='upotus'] .embed-rules {
+  max-width: var(--measure);
+  padding-left: 1.4em;
+}
+
+[data-page='upotus'] .embed-steps li + li,
+[data-page='upotus'] .embed-rules li + li {
+  margin-top: var(--space-2);
+}
+
+[data-page='upotus'] .accordion {
+  max-width: var(--measure);
+}

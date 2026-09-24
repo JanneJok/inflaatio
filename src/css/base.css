@@ -1,0 +1,431 @@
+/* =========================================================================
+   Base: self-hosted Inter, modern reset, typography, links, focus, motion,
+   layout utilities. Tokens come from tokens.css.
+   ========================================================================= */
+
+/* Inter variable (weights 100–900), latin + latin-ext. Files are copied by
+   the build to /fonts/ with a content hash; the latin file is preloaded. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../../node_modules/@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* Metric-matched fallback: while Inter loads, Arial is scaled to Inter's
+   width and vertical metrics (UPM 2048, ascender 1984, descender 494), so the
+   swap causes almost no layout shift (CLS). */
+@font-face {
+  font-family: 'InterFallback';
+  src: local('Arial'), local('ArialMT'), local('Helvetica Neue'), local('Helvetica');
+  size-adjust: 107%;
+  ascent-override: 90.5%;
+  descent-override: 22.5%;
+  line-gap-override: 0%;
+}
+
+/* ---------------------------------------------------------------- reset */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-padding-top: calc(var(--header-h) + var(--space-4));
+  hanging-punctuation: first last;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font: var(--fw-regular) var(--fs-body) / var(--lh-body) var(--font-sans);
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+figure,
+blockquote,
+dl,
+dd,
+ol,
+ul {
+  margin: 0;
+}
+
+ol,
+ul {
+  padding: 0;
+}
+
+:where(ul, ol)[role='list'],
+:where(ul, ol).list-reset {
+  list-style: none;
+}
+
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+img {
+  height: auto;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+textarea {
+  resize: vertical;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+abbr[title] {
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  cursor: help;
+}
+
+hr {
+  height: 1px;
+  margin: var(--space-6) 0;
+  border: 0;
+  background: var(--border);
+}
+
+::selection {
+  background: var(--brand-soft);
+  color: var(--text);
+}
+
+/* ------------------------------------------------------------ typography */
+
+h1,
+h2,
+h3,
+h4,
+.h1,
+.h2,
+.h3 {
+  color: var(--text);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--tracking-tight);
+  text-wrap: balance;
+  /* Long Finnish compounds ("Vuokrankorotuslaskuri") must not overflow a 360 px phone. */
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+h1,
+.h1 {
+  font-size: var(--fs-h1);
+  line-height: 1.15;
+}
+
+/* Small phones: one-word titles such as "Vuokrankorotuslaskuri" fit on one line
+   (browsers without Finnish hyphenation would otherwise break them mid-word). */
+@media (max-width: 400px) {
+  h1,
+  .h1 {
+    font-size: 1.75rem;
+  }
+}
+
+h2,
+.h2 {
+  font-size: var(--fs-h2);
+  line-height: 1.2;
+}
+
+h3,
+.h3 {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0;
+}
+
+h4 {
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0;
+}
+
+p,
+li,
+dd {
+  text-wrap: pretty;
+}
+
+small {
+  font-size: var(--fs-small);
+}
+
+strong,
+b {
+  font-weight: var(--fw-semibold);
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+code {
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+pre {
+  overflow-x: auto;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  line-height: 1.5;
+}
+
+pre code {
+  padding: 0;
+  background: none;
+}
+
+/* Numbers never jump: tabular figures wherever values are shown. Tables get
+   them per numeric cell (.num), not as a whole, so text cells keep normal
+   hyphens ("IP-osoite", not "IP - osoite"). */
+.num,
+.tabular,
+time,
+data {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Units next to tabular numbers ("%-yks."): proportional glyphs, otherwise
+   Inter's tabular figures give the hyphen a digit-wide advance. */
+.unit,
+.chart-unit,
+thead th {
+  font-variant-numeric: normal;
+}
+
+/* ------------------------------------------------------------------ links */
+
+a {
+  color: var(--brand);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: color var(--dur) var(--ease), text-decoration-color var(--dur) var(--ease);
+}
+
+a:hover {
+  color: var(--brand-hover);
+  text-decoration-thickness: 2px;
+}
+
+/* ------------------------------------------------------------------ focus */
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+:where(a, button, summary, [tabindex]):focus-visible {
+  border-radius: var(--radius-sm);
+}
+
+main:focus {
+  outline: none;
+}
+
+/* ----------------------------------------------------------------- motion */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html:focus-within {
+    scroll-behavior: smooth;
+  }
+}
+
+/* -------------------------------------------------------------- utilities */
+
+.container {
+  width: 100%;
+  max-width: calc(var(--container) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.container--narrow {
+  max-width: calc(46rem + 2 * var(--gutter));
+}
+
+.measure {
+  max-width: var(--measure);
+}
+
+.muted {
+  color: var(--text-2);
+}
+
+.subtle {
+  color: var(--text-3);
+}
+
+.stack > * + * {
+  margin-top: var(--space-4);
+}
+
+.stack-lg > * + * {
+  margin-top: var(--space-6);
+}
+
+.cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Elements that only make sense with JS (theme-boot.js adds .js to <html>
+   before first paint, so there is no layout shift). */
+html:not(.js) .js-only {
+  display: none !important;
+}
+
+.js .no-js-only {
+  display: none !important;
+}
+
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: calc(var(--z-toast) + 1);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--brand);
+  color: var(--on-brand);
+  font-weight: var(--fw-semibold);
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus-visible,
+.skip-link:focus {
+  transform: none;
+  color: var(--on-brand);
+}
+
+/* Long-form text (terms, methods, articles). */
+.prose {
+  max-width: var(--measure);
+}
+
+.prose > * + * {
+  margin-top: var(--space-4);
+}
+
+.prose > h2 {
+  margin-top: var(--space-7);
+}
+
+.prose > h3 {
+  margin-top: var(--space-6);
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 1.4em;
+}
+
+.prose li + li {
+  margin-top: var(--space-2);
+}
+
+/* Subtree theming (style guide panels): paint the scoped theme's surface. */
+.theme-scope {
+  background: var(--bg);
+  color: var(--text);
+}

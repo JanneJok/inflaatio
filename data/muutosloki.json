@@ -1,0 +1,122 @@
+[
+  {
+    "date": "2026-09-17",
+    "source": "ykhi",
+    "period": "2026-08",
+    "kind": "lopullinen",
+    "text": "Eurostat julkaisi elokuun 2026 lopulliset YKHI-luvut: Suomi 2,4 %, euroalue 3,2 %."
+  },
+  {
+    "date": "2026-09-14",
+    "source": "khi",
+    "period": "2026-08",
+    "text": "Tilastokeskus julkaisi elokuun 2026 kuluttajahintaindeksin: inflaatio 2,2 % (heinäkuussa 2,1 %)."
+  },
+  {
+    "date": "2026-09-01",
+    "source": "ykhi",
+    "period": "2026-08",
+    "kind": "ennakko",
+    "text": "Eurostat julkaisi elokuun 2026 YKHI-ennakon: Suomi 2,4 %, euroalue 3,3 %."
+  },
+  {
+    "date": "2026-08-19",
+    "source": "ykhi",
+    "period": "2026-07",
+    "kind": "lopullinen",
+    "text": "Eurostat julkaisi heinäkuun 2026 lopulliset YKHI-luvut: Suomi 2,5 % (ennakko 2,6 %), euroalue 2,9 %."
+  },
+  {
+    "date": "2026-08-14",
+    "source": "khi",
+    "period": "2026-07",
+    "text": "Tilastokeskus julkaisi heinäkuun 2026 kuluttajahintaindeksin: inflaatio 2,1 % (kesäkuussa 2,1 %)."
+  },
+  {
+    "date": "2026-07-31",
+    "source": "ykhi",
+    "period": "2026-07",
+    "kind": "ennakko",
+    "text": "Eurostat julkaisi heinäkuun 2026 YKHI-ennakon: Suomi 2,6 %, euroalue 2,9 %."
+  },
+  {
+    "date": "2026-07-17",
+    "source": "ykhi",
+    "period": "2026-06",
+    "kind": "lopullinen",
+    "text": "Eurostat julkaisi kesäkuun 2026 lopulliset YKHI-luvut: Suomi 2,7 %, euroalue 2,8 %."
+  },
+  {
+    "date": "2026-07-14",
+    "source": "khi",
+    "period": "2026-06",
+    "text": "Tilastokeskus julkaisi kesäkuun 2026 kuluttajahintaindeksin: inflaatio 2,1 % (toukokuussa 2,1 %)."
+  },
+  {
+    "date": "2026-07-01",
+    "source": "ykhi",
+    "period": "2026-06",
+    "kind": "ennakko",
+    "text": "Eurostat julkaisi kesäkuun 2026 YKHI-ennakon: Suomi 2,7 %, euroalue 2,8 %."
+  },
+  {
+    "date": "2026-06-17",
+    "source": "ykhi",
+    "period": "2026-05",
+    "kind": "lopullinen",
+    "text": "Eurostat julkaisi toukokuun 2026 lopulliset YKHI-luvut: Suomi 2,8 % (ennakko 3,0 %), euroalue 3,2 %."
+  },
+  {
+    "date": "2026-06-15",
+    "source": "khi",
+    "period": "2026-05",
+    "text": "Tilastokeskus julkaisi toukokuun 2026 kuluttajahintaindeksin: inflaatio 2,1 % (huhtikuussa 1,5 %)."
+  },
+  {
+    "date": "2026-06-02",
+    "source": "ykhi",
+    "period": "2026-05",
+    "kind": "ennakko",
+    "text": "Eurostat julkaisi toukokuun 2026 YKHI-ennakon: Suomi 3,0 %, euroalue 3,2 %."
+  },
+  {
+    "date": "2026-05-20",
+    "source": "ykhi",
+    "period": "2026-04",
+    "kind": "lopullinen",
+    "text": "Eurostat julkaisi huhtikuun 2026 lopulliset YKHI-luvut: Suomi 2,4 % (ennakko 2,3 %), euroalue 3,0 %."
+  },
+  {
+    "date": "2026-05-13",
+    "source": "khi",
+    "period": "2026-04",
+    "text": "Tilastokeskus julkaisi huhtikuun 2026 kuluttajahintaindeksin: inflaatio 1,5 % (maaliskuussa 1,3 %)."
+  },
+  {
+    "date": "2026-04-30",
+    "source": "ykhi",
+    "period": "2026-04",
+    "kind": "ennakko",
+    "text": "Eurostat julkaisi huhtikuun 2026 YKHI-ennakon: Suomi 2,3 %, euroalue 3,0 %."
+  },
+  {
+    "date": "2026-04-16",
+    "source": "ykhi",
+    "period": "2026-03",
+    "kind": "lopullinen",
+    "text": "Eurostat julkaisi maaliskuun 2026 lopulliset YKHI-luvut: Suomi 2,5 % (ennakko 2,4 %), euroalue 2,6 %."
+  },
+  {
+    "date": "2026-04-14",
+    "source": "khi",
+    "period": "2026-03",
+    "text": "Tilastokeskus julkaisi maaliskuun 2026 kuluttajahintaindeksin: inflaatio 1,3 % (helmikuussa 0,6 %)."
+  },
+  {
+    "date": "2026-03-31",
+    "source": "ykhi",
+    "period": "2026-03",
+    "kind": "ennakko",
+    "text": "Eurostat julkaisi maaliskuun 2026 YKHI-ennakon: Suomi 2,4 %, euroalue 2,5 %."
+  }
+]

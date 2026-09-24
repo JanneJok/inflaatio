@@ -1,0 +1,36 @@
+/* Page styles: /vertailu/ (module vertailu, owner TOPICS).
+   Scope every rule under [data-page="vertailu"] (set by layout({ page })) or a
+   page-specific class, and use tokens only. */
+
+[data-page='vertailu'] .vertailu-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-7) var(--space-6);
+}
+
+/* Both figures of a pair start at the same height: the generic
+   .chart-figure + .chart-figure margin would push the second one down. The
+   grid row gap keeps them apart when they stack (≤ 1000 px). */
+[data-page='vertailu'] .vertailu-two > .chart-figure + .chart-figure {
+  margin-top: 0;
+}
+
+@media (max-width: 1000px) {
+  [data-page='vertailu'] .vertailu-two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+[data-page='vertailu'] .data-table tr.is-highlight > * {
+  background: var(--surface-2);
+  font-weight: var(--fw-semibold);
+}
+
+[data-page='vertailu'] .vertailu-sub {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-regular);
+  line-height: 1.35;
+}

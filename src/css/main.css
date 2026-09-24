@@ -1,0 +1,38 @@
+/* =========================================================================
+   Inflaatio.fi stylesheet entry. esbuild bundles these @imports into one
+   hashed, minified file (/assets/main-[hash].css). Order matters:
+   tokens → base → layout → components → pages → print.
+   Every page module has its own file in pages/ (owned by that module).
+   ========================================================================= */
+@import './tokens.css';
+@import './base.css';
+@import './layout.css';
+@import './components.css';
+
+/* Page styles */
+@import './pages/data.css';
+@import './pages/en.css';
+@import './pages/feed.css';
+@import './pages/hinnat.css';
+@import './pages/home.css';
+@import './pages/inflaatio.css';
+@import './pages/katsaus.css';
+@import './pages/kayttoehdot.css';
+@import './pages/korot.css';
+@import './pages/laskurit.css';
+@import './pages/menetelmat.css';
+@import './pages/notfound.css';
+@import './pages/og.css';
+@import './pages/oma-inflaatio.css';
+@import './pages/ostovoima.css';
+@import './pages/pisteluvut.css';
+@import './pages/polttoaineet.css';
+@import './pages/rahanarvo.css';
+@import './pages/tietoa.css';
+@import './pages/tyylit.css';
+@import './pages/upotus.css';
+@import './pages/vertailu.css';
+@import './pages/vuokrankorotus.css';
+
+/* Print last so it can override everything above. */
+@import './print.css';

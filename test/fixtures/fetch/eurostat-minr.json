@@ -1,0 +1,18 @@
+{
+  "version": "2.0",
+  "class": "dataset",
+  "label": "Harmonised index of consumer prices (HICP) - ECOICOP ver.2 - indices and rates of change, monthly data",
+  "source": "ESTAT",
+  "updated": "2026-10-02T11:00:00+0200",
+  "id": ["freq", "unit", "coicop18", "geo", "time"],
+  "size": [1, 2, 1, 2, 3],
+  "dimension": {
+    "freq": { "label": "Time frequency", "category": { "index": { "M": 0 }, "label": { "M": "Monthly" } } },
+    "unit": { "label": "Unit of measure", "category": { "index": { "I25": 0, "RCH_A": 1 }, "label": { "I25": "Index, 2025=100", "RCH_A": "Annual rate of change" } } },
+    "coicop18": { "label": "Classification", "category": { "index": { "TOTAL": 0 }, "label": { "TOTAL": "Total" } } },
+    "geo": { "label": "Geopolitical entity", "category": { "index": { "EA": 0, "FI": 1 }, "label": { "EA": "Euro area (EA11-1999, EA12-2001, EA13-2007, EA15-2008, EA16-2009, EA17-2011, EA18-2014, EA19-2015, EA20-2023, EA21-2026)", "FI": "Finland" } } },
+    "time": { "label": "Time", "category": { "index": { "2026-07": 0, "2026-08": 1, "2026-09": 2 }, "label": { "2026-07": "2026-07", "2026-08": "2026-08", "2026-09": "2026-09" } } }
+  },
+  "value": { "0": 103.32, "1": 103.69, "3": 102.71, "4": 102.36, "6": 2.9, "7": 3.2, "8": 3.1, "9": 2.5, "10": 2.4, "11": 2.3 },
+  "status": { "8": "e", "11": "e" }
+}

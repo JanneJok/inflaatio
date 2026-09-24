@@ -1,0 +1,155 @@
+/* Page styles: /hinnat/ + /hinnat/<slug>/ (module hinnat, owner TOPICS).
+   Scope every rule under [data-page="hinnat"] (set by layout({ page })) or a
+   page-specific class, and use tokens only.
+   The .topic-chart rules are shared by the TOPICS pages that use the
+   interactive chart script (hinnat, polttoaineet, korot). */
+
+/* ------------------------------------------------ interactive chart shell */
+
+:is([data-page='hinnat'], [data-page='polttoaineet'], [data-page='korot'], [data-page='vertailu']) .topic-chart__controls {
+  margin-bottom: var(--space-4);
+}
+
+:is([data-page='hinnat'], [data-page='polttoaineet'], [data-page='korot'], [data-page='vertailu']) .topic-chart {
+  position: relative;
+}
+
+/* ------------------------------------------------------------ small text */
+
+[data-page='hinnat'] .hinnat-official {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-regular);
+  line-height: 1.35;
+}
+
+[data-page='hinnat'] .hinnat-note {
+  max-width: var(--measure);
+  margin-top: var(--space-4);
+  color: var(--text-2);
+  font-size: var(--fs-small);
+}
+
+[data-page='hinnat'] .data-table tr.is-total > * {
+  border-top: 1px solid var(--border-strong);
+  font-weight: var(--fw-semibold);
+}
+
+/* ------------------------------------------------------ risers / fallers */
+
+[data-page='hinnat'] .hinnat-movers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+
+@media (max-width: 900px) {
+  [data-page='hinnat'] .hinnat-movers {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+}
+
+[data-page='hinnat'] .hinnat-movers tbody {
+  counter-reset: hinnat-rank;
+}
+
+[data-page='hinnat'] .hinnat-mover {
+  counter-increment: hinnat-rank;
+}
+
+/* Name cell: the rank stays on the first line next to the name, the name,
+   main group (and on phones the contribution) wrap in their own column. */
+[data-page='hinnat'] .hinnat-mover__name {
+  display: flex;
+  align-items: baseline;
+}
+
+[data-page='hinnat'] .hinnat-rank {
+  flex: none;
+  min-width: 2em;
+  white-space: nowrap;
+}
+
+[data-page='hinnat'] .hinnat-rank::before {
+  content: counter(hinnat-rank) '.';
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-page='hinnat'] .hinnat-mover__name > div {
+  min-width: 0;
+}
+
+/* Contribution under the name: shown only where its column is hidden. */
+[data-page='hinnat'] .hinnat-mover__contrib {
+  display: none;
+  margin-top: 2px;
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-regular);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  [data-page='hinnat'] .hinnat-movers .hinnat-col-contrib {
+    display: none;
+  }
+
+  [data-page='hinnat'] .hinnat-mover__contrib {
+    display: block;
+  }
+}
+
+/* ------------------------------------------------- commodity page lists */
+
+[data-page='hinnat'] .hinnat-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--space-5) var(--space-6);
+}
+
+[data-page='hinnat'] .hinnat-list__title {
+  margin-bottom: var(--space-2);
+  font-size: var(--fs-h3);
+}
+
+[data-page='hinnat'] .hinnat-list ul li,
+[data-page='hinnat'] .hinnat-related li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+[data-page='hinnat'] .hinnat-list a,
+[data-page='hinnat'] .hinnat-related a {
+  display: inline-block;
+  min-height: 28px;
+}
+
+[data-page='hinnat'] .hinnat-list__value {
+  flex: none;
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-page='hinnat'] .hinnat-related {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 0 var(--space-6);
+  margin-bottom: var(--space-6);
+}
+
+[data-page='hinnat'] .hinnat-links {
+  padding-left: 1.25em;
+}
+
+[data-page='hinnat'] .hinnat-links li + li {
+  margin-top: var(--space-2);
+}

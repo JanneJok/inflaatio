@@ -1,0 +1,34 @@
+/* Page styles: /katsaus/ + /katsaus/<yyyy-mm>/ (module katsaus, owner ARCHIVE).
+   Scope every rule under [data-page="katsaus"] (set by layout({ page })) or a
+   page-specific class, and use tokens only. */
+
+.katsaus-text {
+  font-size: 1.0625rem;
+}
+
+.katsaus-text + .callout {
+  max-width: var(--measure);
+  margin-top: var(--space-5);
+}
+
+.katsaus-teaser__headline {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-semibold);
+}
+
+.katsaus-comment__by {
+  color: var(--text-3);
+  font-size: var(--fs-small);
+}
+
+[data-page='katsaus'] .card-grid + .pager {
+  margin-top: var(--space-5);
+}
+
+[data-page='katsaus'] .pager + .archive-back {
+  margin-top: var(--space-4);
+}
+
+[data-page='katsaus'] .section-head .button {
+  white-space: nowrap;
+}

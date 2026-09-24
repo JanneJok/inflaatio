@@ -1,0 +1,74 @@
+[
+  {
+    "date": "2026-10-02",
+    "time": "12:00",
+    "source": "ykhi-ennakko",
+    "period": "2026-09",
+    "label": "YKHI-ennakko, syyskuu 2026",
+    "publisher": "Eurostat",
+    "url": "https://ec.europa.eu/eurostat/news/release-calendar"
+  },
+  {
+    "date": "2026-10-14",
+    "time": "08:00",
+    "source": "khi",
+    "period": "2026-09",
+    "label": "Kuluttajahintaindeksi, syyskuu 2026",
+    "publisher": "Tilastokeskus",
+    "url": "https://stat.fi/fi/tilasto/khi"
+  },
+  {
+    "date": "2026-10-16",
+    "time": "12:00",
+    "source": "ykhi",
+    "period": "2026-09",
+    "label": "YKHI, lopulliset luvut, syyskuu 2026",
+    "publisher": "Eurostat",
+    "url": "https://ec.europa.eu/eurostat/news/release-calendar"
+  },
+  {
+    "date": "2026-11-04",
+    "time": "12:00",
+    "source": "ykhi-ennakko",
+    "period": "2026-10",
+    "label": "YKHI-ennakko, lokakuu 2026",
+    "publisher": "Eurostat",
+    "url": "https://ec.europa.eu/eurostat/news/release-calendar"
+  },
+  {
+    "date": "2026-11-13",
+    "time": "08:00",
+    "source": "khi",
+    "period": "2026-10",
+    "label": "Kuluttajahintaindeksi, lokakuu 2026",
+    "publisher": "Tilastokeskus",
+    "url": "https://stat.fi/fi/tilasto/khi"
+  },
+  {
+    "date": "2026-11-18",
+    "time": "12:00",
+    "source": "ykhi",
+    "period": "2026-10",
+    "label": "YKHI, lopulliset luvut, lokakuu 2026",
+    "publisher": "Eurostat",
+    "url": "https://ec.europa.eu/eurostat/news/release-calendar"
+  },
+  {
+    "date": "2026-12-01",
+    "time": "12:00",
+    "source": "ykhi-ennakko",
+    "period": "2026-11",
+    "label": "YKHI-ennakko, marraskuu 2026",
+    "publisher": "Eurostat",
+    "url": "https://ec.europa.eu/eurostat/news/release-calendar"
+  },
+  {
+    "date": "2026-12-17",
+    "time": "12:00",
+    "source": "ykhi",
+    "period": "2026-11",
+    "label": "YKHI, lopulliset luvut, marraskuu 2026",
+    "publisher": "Eurostat",
+    "url": "https://ec.europa.eu/eurostat/news/release-calendar"
+  }
+]

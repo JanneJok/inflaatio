@@ -1,0 +1,53 @@
+/* Page styles: /tietoa/ (module tietoa, owner TRUST).
+   The document layout (.legal, .legal__section …) is shared with
+   /kayttoehdot/ and /menetelmat/ and lives in pages/kayttoehdot.css.
+   Tokens only, scoped to [data-page='tietoa']. */
+
+[data-page='tietoa'] .legal__section > .stats {
+  margin-top: var(--space-5);
+}
+
+[data-page='tietoa'] .legal__section > .changelog {
+  padding-left: 0;
+  list-style: none;
+}
+
+[data-page='tietoa'] .changelog li {
+  display: grid;
+  grid-template-columns: minmax(0, 6.5rem) minmax(0, 1fr);
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+[data-page='tietoa'] .changelog li + li {
+  margin-top: 0;
+}
+
+[data-page='tietoa'] .changelog li:last-child {
+  border-bottom: 1px solid var(--border);
+}
+
+[data-page='tietoa'] .changelog time {
+  color: var(--text-3);
+  font-size: var(--fs-small);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--lh-body);
+}
+
+@media (max-width: 480px) {
+  [data-page='tietoa'] .changelog li {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+  }
+}
+
+[data-page='tietoa'] .legal__section > .card-grid {
+  margin-top: var(--space-5);
+}
+
+[data-page='tietoa'] .legal__section li > ul {
+  margin-top: var(--space-2);
+  padding-left: 1.4em;
+  list-style: disc;
+}

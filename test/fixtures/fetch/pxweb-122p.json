@@ -1,0 +1,96 @@
+{
+  "version": "2.0",
+  "class": "dataset",
+  "label": "Kuluttajahintaindeksin vuosimuutos muuttujina Kuukausi ja Tiedot",
+  "source": "Tilastokeskus, kuluttajahintaindeksi",
+  "updated": "2026-09-14T05:00:00Z",
+  "role": {
+    "time": [
+      "timeperiod_m"
+    ],
+    "metric": [
+      "contentscode"
+    ]
+  },
+  "id": [
+    "timeperiod_m",
+    "contentscode"
+  ],
+  "size": [
+    3,
+    1
+  ],
+  "dimension": {
+    "timeperiod_m": {
+      "label": "Kuukausi",
+      "category": {
+        "index": {
+          "2026M06": 0,
+          "2026M07": 1,
+          "2026M08": 2
+        },
+        "label": {
+          "2026M06": "2026M06",
+          "2026M07": "2026M07",
+          "2026M08": "2026M08"
+        }
+      },
+      "extension": {
+        "elimination": false,
+        "show": "value"
+      }
+    },
+    "contentscode": {
+      "label": "Tiedot",
+      "category": {
+        "index": {
+          "Vuosimuutos": 0
+        },
+        "label": {
+          "Vuosimuutos": "Vuosimuutos (%)"
+        },
+        "note": {
+          "Vuosimuutos": [
+            "Vuosimuutos on indeksin suhteellinen muutos vuotta aiempaan vastaavaan ajankohtaan verrattuna (esim. kuluttajahintojen kokonaisindeksin vuosimuutos eli inflaatio)."
+          ]
+        },
+        "unit": {
+          "Vuosimuutos": {
+            "base": "prosenttia",
+            "decimals": 1
+          }
+        }
+      },
+      "extension": {
+        "elimination": false,
+        "show": "value"
+      }
+    }
+  },
+  "extension": {
+    "px": {
+      "tableid": "122p",
+      "decimals": 1,
+      "official-statistics": true,
+      "aggregallowed": true,
+      "language": "fi",
+      "contents": "Kuluttajahintaindeksin vuosimuutos",
+      "description": "122p -- Kuluttajahintaindeksin vuosimuutos, kuukausitiedot, 1980M01-2026M08",
+      "descriptiondefault": false,
+      "heading": [
+        "contentscode"
+      ],
+      "stub": [
+        "timeperiod_m"
+      ],
+      "matrix": "122p",
+      "subject-code": "khi",
+      "subject-area": "Kuluttajahintaindeksi"
+    }
+  },
+  "value": [
+    2.1,
+    2.1,
+    2.2
+  ]
+}

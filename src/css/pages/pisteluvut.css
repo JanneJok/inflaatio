@@ -1,0 +1,41 @@
+/* Page styles: /pisteluvut/ (module pisteluvut, owner ARCHIVE).
+   Scope every rule under [data-page="pisteluvut"] (set by layout({ page })) or a
+   page-specific class, and use tokens only. */
+
+.pisteluvut-valinta {
+  min-width: min(100%, 20rem);
+}
+
+.pisteluvut-valinta .field {
+  margin: 0;
+}
+
+[data-page='pisteluvut'] .table-note + .callout {
+  margin-top: var(--space-5);
+}
+
+/* History: one disclosure per year in a responsive grid. */
+.pisteluvut-historia {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: 0 var(--space-5);
+  align-items: start;
+}
+
+.pisteluvut-historia > .pisteluvut-vuosi {
+  border-top: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.pisteluvut-vuosi > summary {
+  font-variant-numeric: tabular-nums;
+}
+
+.pisteluvut-vuosi__taulukko {
+  width: 100%;
+}
+
+.pisteluvut-vuosi__keskiarvo > * {
+  border-top: 1px solid var(--border-strong);
+  font-weight: var(--fw-semibold);
+}

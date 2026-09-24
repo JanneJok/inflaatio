@@ -1,0 +1,147 @@
+/* Page styles: /inflaatio/ + /inflaatio/<yyyy>/ + /inflaatio/<yyyy>/<kuukausi>/ (module inflaatio, owner ARCHIVE).
+   Scope every rule under [data-page="inflaatio"] (set by layout({ page })) or a
+   page-specific class, and use tokens only. The archive-* blocks are also used
+   by the katsaus pages (events list), so they are scoped by their class prefix. */
+
+/* ------------------------------------------------------------ events list */
+
+.archive-events {
+  display: grid;
+  gap: var(--space-5);
+  max-width: var(--measure);
+  margin-top: var(--space-4);
+  padding-left: var(--space-5);
+  border-left: 1px solid var(--border);
+}
+
+.archive-events__item {
+  position: relative;
+}
+
+.archive-events__item::before {
+  content: '';
+  position: absolute;
+  top: 0.5em;
+  left: calc(-1 * var(--space-5) - 4px);
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+}
+
+.archive-events__when {
+  color: var(--text-3);
+  font-size: var(--fs-small);
+}
+
+.archive-events__label {
+  margin-top: 2px;
+  font-weight: var(--fw-semibold);
+}
+
+.archive-events__text {
+  margin-top: 2px;
+  color: var(--text-2);
+}
+
+/* --------------------------------------------------------------- decades */
+
+.archive-decades {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  gap: var(--space-4);
+}
+
+.archive-decade {
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.archive-decade__title {
+  font-size: var(--fs-h3);
+}
+
+.archive-decade .archive-decade__stats {
+  margin-top: var(--space-3);
+}
+
+.archive-years {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.archive-years a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.5rem;
+  min-height: var(--tap);
+  padding-inline: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+  transition: border-color var(--dur) var(--ease), background-color var(--dur) var(--ease);
+}
+
+.archive-years a:hover {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+/* ------------------------------------------------------------- changelog */
+
+.archive-log {
+  max-width: var(--measure);
+}
+
+.archive-log__item {
+  padding-block: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.archive-log__item:last-child {
+  border-bottom: 1px solid var(--border);
+}
+
+.archive-log__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-3);
+  font-size: var(--fs-small);
+}
+
+.archive-log__text {
+  margin-top: var(--space-1);
+}
+
+/* ------------------------------------------------------------ misc bits */
+
+.archive-subhead {
+  margin-top: var(--space-6);
+}
+
+.archive-back {
+  margin-top: var(--space-4);
+}
+
+.archive-mark {
+  margin-left: 2px;
+  color: var(--text-3);
+  text-decoration: none;
+}
+
+[data-page='inflaatio'] .prose + .table-note {
+  max-width: var(--measure);
+}
+
+[data-page='inflaatio'] .pager + .archive-back,
+[data-page='inflaatio'] .card-grid + .pager {
+  margin-top: var(--space-5);
+}
