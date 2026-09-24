@@ -1007,7 +1007,12 @@ test('smoke: page has every security header, no-cache and gzip; server version h
   assertSecurityHeaders(res, expectedHeaders, SMOKE_PAGE);
   assert.equal(res.headers['content-encoding'], 'gzip');
   assert.match(res.headers.vary ?? '', /accept-encoding/i);
-  assert.doesNotMatch(res.headers.server ?? '', /\d/, 'no version number in Server');
+  // nginx must not reveal its version (server_tokens off). The Fly edge proxy
+  // replaces the header with its own build id ("Fly/67a399e710 (2026-09-23)")
+  // on *.fly.dev, and Cloudflare with "cloudflare" in production — both are fine.
+  const server = res.headers.server ?? '';
+  assert.doesNotMatch(server, /nginx\/\d/i, 'no nginx version in Server');
+  if (!/^Fly\//.test(server)) assert.doesNotMatch(server, /\d/, 'no version number in Server');
   assert.match(res.text, /<html lang="(fi|en)"/);
 });
 
