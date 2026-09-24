@@ -1,0 +1,133 @@
+/* Page styles: /oma-inflaatio/ (module oma-inflaatio, owner CALC).
+   Shared calculator blocks (.calc*) live in laskurit.css. Tokens only. */
+
+[data-page='oma-inflaatio'] .oi-profiles__title {
+  margin-bottom: var(--space-2);
+  color: var(--text);
+  font-size: var(--fs-small);
+  font-weight: var(--fw-semibold);
+}
+
+[data-page='oma-inflaatio'] .oi-profiles__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+[data-page='oma-inflaatio'] .oi-profiles__list .button[aria-pressed='true'] {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+[data-page='oma-inflaatio'] .oi-groups {
+  min-width: 0;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  border: 0;
+}
+
+[data-page='oma-inflaatio'] .oi-groups > legend {
+  margin-bottom: var(--space-2);
+  padding: 0;
+}
+
+.oi-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1) var(--space-4);
+  align-items: center;
+  padding-block: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.oi-row:last-of-type {
+  border-bottom: 1px solid var(--border);
+}
+
+@media (min-width: 560px) {
+  .oi-row {
+    grid-template-columns: minmax(0, 1fr) minmax(12rem, 1fr);
+  }
+}
+
+.oi-row__label {
+  font-size: var(--fs-small);
+  font-weight: var(--fw-semibold);
+}
+
+.oi-row__meta {
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.oi-row__control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.oi-row__control[hidden] {
+  display: none;
+}
+
+.oi-row__control[data-mode='eur'] {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.oi-row__control input[type='range'] {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--tap);
+  margin: 0;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+
+.oi-row__control .input-affix > .input {
+  padding-right: 3.5rem;
+}
+
+.oi-row__value {
+  flex: none;
+  min-width: 4.25rem;
+  color: var(--text);
+  font-size: var(--fs-small);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.oi-sum {
+  color: var(--text-2);
+  font-size: var(--fs-small);
+}
+
+.oi-drivers__title {
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  font-weight: var(--fw-semibold);
+}
+
+.oi-drivers__list {
+  margin-top: var(--space-2);
+  padding-left: 1.3em;
+  font-size: var(--fs-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.oi-drivers__list li + li {
+  margin-top: var(--space-1);
+}
+
+.oi-drivers[hidden] {
+  display: none;
+}
+
+[data-page='oma-inflaatio'] .oi-total > * {
+  border-top: 2px solid var(--border-strong);
+}

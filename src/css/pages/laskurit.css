@@ -1,0 +1,336 @@
+/* Page styles: /laskurit/ (module laskurit, owner CALC) and the shared
+   calculator building blocks used by every calculator page (/vuokrankorotus/,
+   /rahanarvo/, /oma-inflaatio/, /ostovoima/ and the English calculators).
+   Shared blocks use the `calc` class prefix; page-only rules are scoped with
+   [data-page='…']. Tokens only. */
+
+/* ------------------------------------------------------------ index page */
+
+[data-page='laskurit'] .laskurit-prose code,
+.calc-formula-block code {
+  font-size: var(--fs-small);
+}
+
+/* ------------------------------------------------- calculator: layout */
+
+.calc {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .calc {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    gap: var(--space-6);
+  }
+
+  .calc__result {
+    position: sticky;
+    top: calc(var(--header-h) + var(--space-4));
+  }
+}
+
+.calc__form,
+.calc__result {
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+@media (max-width: 560px) {
+  .calc__form,
+  .calc__result {
+    padding: var(--space-4);
+  }
+}
+
+.calc__grid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 560px) {
+  .calc__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.calc__grid + .check,
+.calc__grid + * {
+  margin-top: var(--space-4);
+}
+
+.calc__more {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.calc__more > summary {
+  padding-inline: var(--space-4);
+}
+
+.calc__more > .disclosure__body {
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.calc__submit {
+  padding-top: var(--space-2);
+}
+
+/* Wider suffix ("%-yks.") inside the input. */
+.calc__field--wide-suffix .input-affix > input {
+  padding-right: 4.5rem;
+}
+
+/* ------------------------------------------------- month + year picker */
+
+.calc-month {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  /* No margin-top reset: .form > * + * spaces the fieldset like the other fields. */
+  margin-inline: 0;
+  margin-bottom: 0;
+  padding: 0;
+  border: 0;
+}
+
+.calc-month > legend {
+  float: left;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 0;
+}
+
+.calc-month > legend + * {
+  clear: both;
+}
+
+.calc-month__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(6.5rem, 0.6fr);
+  gap: var(--space-2);
+}
+
+.calc-month__part {
+  gap: 2px;
+}
+
+.calc-month__label {
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+}
+
+/* ------------------------------------------------------------- result */
+
+.calc__result-title {
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.calc__result > * + *,
+[data-result-ok] > * + * {
+  margin-top: var(--space-4);
+}
+
+.calc__big {
+  margin-top: var(--space-2);
+  color: var(--text);
+  font-size: clamp(2.25rem, 1.8rem + 2vw, 3rem);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--lh-tight);
+}
+
+.calc__big-unit {
+  margin-left: 2px;
+  color: var(--text-3);
+  font-size: 0.5em;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0;
+}
+
+.calc__lead {
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.calc__lead strong {
+  color: var(--text);
+  font-weight: var(--fw-semibold);
+}
+
+.calc__rule {
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--brand);
+  border-radius: var(--radius-sm);
+  background: var(--brand-soft);
+  color: var(--text);
+  font-size: var(--fs-small);
+}
+
+.calc__rule[hidden] {
+  display: none;
+}
+
+.calc__facts {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--border);
+}
+
+.calc__facts > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  padding-block: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-small);
+}
+
+.calc__facts dt {
+  color: var(--text-2);
+}
+
+.calc__facts dd {
+  margin: 0;
+  color: var(--text);
+  font-weight: var(--fw-medium);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.calc__formula {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--fs-small);
+}
+
+.calc__formula-label {
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.calc__formula code {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.calc__notice-text {
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  font-size: var(--fs-small);
+}
+
+.calc__notice .disclosure__body > * + * {
+  margin-top: var(--space-3);
+}
+
+.calc__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.calc__error {
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--danger);
+  border-radius: var(--radius-sm);
+  background: var(--delta-up-soft);
+  color: var(--text);
+  font-size: var(--fs-small);
+  font-weight: var(--fw-medium);
+}
+
+.calc__error[hidden],
+[data-result-ok][hidden] {
+  display: none;
+}
+
+.calc__disclaimer {
+  color: var(--text-3);
+  font-size: var(--fs-small);
+}
+
+/* Contract terms and other explanatory definition lists. */
+.calc-terms > div {
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.calc-terms > div:first-child {
+  border-top: 1px solid var(--border);
+}
+
+.calc-terms dt {
+  font-weight: var(--fw-semibold);
+}
+
+.calc-terms dd {
+  margin: var(--space-1) 0 0;
+  color: var(--text-2);
+}
+
+.calc-formula-block code {
+  display: inline-block;
+  padding: var(--space-2) var(--space-3);
+}
+
+/* Sub-heading inside a calculator section (e.g. the two savings calculators). */
+.calc-subhead {
+  margin-bottom: var(--space-3);
+  font-size: var(--fs-h3);
+}
+
+.calc-subhead + p {
+  margin-bottom: var(--space-4);
+  color: var(--text-2);
+}
+
+.calc + .calc-subhead,
+.calc ~ .calc-subhead {
+  margin-top: var(--space-7);
+}
+
+@media print {
+  .calc {
+    display: block;
+  }
+
+  /* Print the result, formula and notice text, not the form controls. */
+  .calc__form,
+  .calc__actions {
+    display: none !important;
+  }
+
+  .calc__result {
+    position: static;
+    margin-top: var(--space-4);
+  }
+}
+
+/* Small caps label above a big result number. */
+.calc__label {
+  color: var(--text-2);
+  font-size: var(--fs-small);
+}
+
+.calc__label + .calc__big {
+  margin-top: 2px;
+}

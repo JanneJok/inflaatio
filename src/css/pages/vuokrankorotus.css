@@ -1,0 +1,15 @@
+/* Page styles: /vuokrankorotus/ (module vuokrankorotus, owner CALC) and the
+   English rent calculator (/en/rent-increase-calculator/, same data-page).
+   The calculator blocks (.calc*, .calc-month, .calc-terms) are shared by all
+   calculators and live in laskurit.css. Tokens only. */
+
+/* The series info after the hint text starts on its own line. */
+[data-page='vuokrankorotus'] #sarja-ohje [data-out='seriesInfo'] {
+  display: block;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-page='vuokrankorotus'] #pisteluvut .table-note + .source-line {
+  margin-top: var(--space-2);
+}
