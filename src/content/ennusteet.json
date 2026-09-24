@@ -1,0 +1,46 @@
+[
+  {
+    "org": "Suomen Pankki",
+    "title": "Syyskuun 2026 väliennuste: Suomen talouden hyvä vire jatkuu",
+    "published": "2026-09-15",
+    "url": "https://www.eurojatalous.fi/artikkeli/ennuste/2026/suomen-talouden-hyva-vire-jatkuu/",
+    "measure": "YKHI",
+    "area": "FI",
+    "label": "Suomen inflaatio (YKHI)",
+    "values": { "2026": 2.4, "2027": 1.4, "2028": 1.8 },
+    "verified": "2026-09-24"
+  },
+  {
+    "org": "Valtiovarainministeriö",
+    "title": "Taloudellinen katsaus, syksy 2026",
+    "published": "2026-09-21",
+    "url": "https://vm.fi/taloudellinen-katsaus-syksy-2026",
+    "measure": "KHI",
+    "area": "FI",
+    "label": "Suomen inflaatio (KHI)",
+    "values": { "2026": 2.0, "2027": 1.9, "2028": 2.1 },
+    "verified": "2026-09-24"
+  },
+  {
+    "org": "Valtiovarainministeriö",
+    "title": "Taloudellinen katsaus, syksy 2026",
+    "published": "2026-09-21",
+    "url": "https://vm.fi/taloudellinen-katsaus-syksy-2026",
+    "measure": "YKHI",
+    "area": "FI",
+    "label": "Suomen inflaatio (YKHI)",
+    "values": { "2026": 2.5, "2027": 1.4, "2028": 2.1 },
+    "verified": "2026-09-24"
+  },
+  {
+    "org": "Euroopan keskuspankki (EKP)",
+    "title": "EKP:n asiantuntijoiden makrotaloudelliset projektiot euroalueelle, syyskuu 2026",
+    "published": "2026-09-10",
+    "url": "https://www.ecb.europa.eu/press/projections/html/ecb.projections202609_ecbstaff~8e340fc69d.en.html",
+    "measure": "YKHI",
+    "area": "EA",
+    "label": "Euroalueen inflaatio (YKHI)",
+    "values": { "2026": 3.0, "2027": 2.5, "2028": 2.1 },
+    "verified": "2026-09-24"
+  }
+]

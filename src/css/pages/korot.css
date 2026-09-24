@@ -1,0 +1,8 @@
+/* Page styles: /korot/ (module korot, owner TOPICS).
+   Scope every rule under [data-page="korot"] (set by layout({ page })) or a
+   page-specific class, and use tokens only.
+   The interactive chart shell (.topic-chart) is styled in pages/hinnat.css. */
+
+[data-page='korot'] .callout a {
+  white-space: nowrap;
+}

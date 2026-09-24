@@ -1,0 +1,12 @@
+/* Page styles: /polttoaineet/ (module polttoaineet, owner TOPICS).
+   Scope every rule under [data-page="polttoaineet"] (set by layout({ page })) or a
+   page-specific class, and use tokens only. */
+
+[data-page='polttoaineet'] .topic-links {
+  max-width: var(--measure);
+  padding-left: 1.25em;
+}
+
+[data-page='polttoaineet'] .topic-links li + li {
+  margin-top: var(--space-2);
+}
