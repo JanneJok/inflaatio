@@ -30,6 +30,8 @@ RUN npm ci --ignore-scripts
 COPY scripts ./scripts
 COPY src ./src
 COPY data ./data
+# The build checks that the CSP (script-src) allows the inline theme script.
+COPY deploy ./deploy
 
 # Build into dist/, then precompress text files for nginx gzip_static
 # (foo.css → foo.css.gz, originals kept; files under 256 bytes are left alone).
