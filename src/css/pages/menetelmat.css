@@ -1,0 +1,34 @@
+/* Page styles: /menetelmat/ (module menetelmat, owner TRUST).
+   The document layout (.legal, .legal__section, .legal__example …) is shared
+   with /kayttoehdot/ and /tietoa/ and lives in pages/kayttoehdot.css.
+   Tokens only, scoped to [data-page='menetelmat']. */
+
+[data-page='menetelmat'] .legal__formula {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-variant-numeric: tabular-nums;
+  overflow-x: auto;
+}
+
+[data-page='menetelmat'] .legal__formula sup {
+  font-size: 0.75em;
+  line-height: 0;
+}
+
+[data-page='menetelmat'] .legal__section li .delta,
+[data-page='menetelmat'] .legal__section p .chip,
+[data-page='menetelmat'] .legal__section li .chip {
+  vertical-align: baseline;
+}
+
+[data-page='menetelmat'] .legal__section > .table-wrap + .table-note {
+  margin-top: var(--space-2);
+}
+
+/* Long dataset keys (ECB series ids) must not widen the sources table. */
+[data-page='menetelmat'] #lahteet-taulukko td:nth-child(3) {
+  min-width: 8rem;
+  overflow-wrap: anywhere;
+}

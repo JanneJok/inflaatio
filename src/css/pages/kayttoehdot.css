@@ -1,0 +1,109 @@
+/* Page styles: /kayttoehdot/ (module kayttoehdot, owner TRUST).
+   One long document: sticky table of contents on desktop (≥ 960 px), a
+   68-character text column, sections separated by 1 px hairlines.
+   The shared .legal* block is also used by /tietoa/ and /menetelmat/, but
+   every rule is scoped to those pages. Tokens only. */
+
+:is([data-page='kayttoehdot'], [data-page='tietoa'], [data-page='menetelmat']) .legal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  padding-bottom: var(--space-8);
+}
+
+@media (min-width: 960px) {
+  :is([data-page='kayttoehdot'], [data-page='tietoa'], [data-page='menetelmat']) .legal {
+    grid-template-columns: minmax(0, 13rem) minmax(0, 1fr);
+    gap: var(--space-7);
+    align-items: start;
+  }
+
+  /* The sticky ToC needs a full-height grid cell to slide in. */
+  :is([data-page='kayttoehdot'], [data-page='tietoa'], [data-page='menetelmat']) .legal__aside {
+    align-self: stretch;
+  }
+}
+
+:is([data-page='kayttoehdot'], [data-page='tietoa'], [data-page='menetelmat']) .legal__body {
+  min-width: 0;
+  max-width: var(--measure);
+}
+
+:is([data-page='kayttoehdot'], [data-page='tietoa'], [data-page='menetelmat']) .legal__section {
+  padding-block: var(--space-7);
+  border-top: 1px solid var(--border);
+}
+
+:is([data-page='kayttoehdot'], [data-page='tietoa'], [data-page='menetelmat']) .legal__section:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+:is([data-page='kayttoehdot'], [data-page='tietoa'], [data-page='menetelmat']) .legal__section > * + * {
+  margin-top: var(--space-4);
+}
+
+:is([data-page='kayttoehdot'], [data-page='tietoa'], [data-page='menetelmat']) .legal__section > h2 {
+  margin-bottom: var(--space-2);
+}
+
+:is([data-page='kayttoehdot'], [data-page='tietoa'], [data-page='menetelmat']) .legal__section > h3 {
+  margin-top: var(--space-6);
+  font-size: var(--fs-h3);
+  line-height: var(--lh-snug);
+}
+
+:is([data-page='kayttoehdot'], [data-page='tietoa'], [data-page='menetelmat']) .legal__section > ul,
+:is([data-page='kayttoehdot'], [data-page='tietoa'], [data-page='menetelmat']) .legal__section > ol {
+  padding-left: 1.4em;
+}
+
+:is([data-page='kayttoehdot'], [data-page='tietoa'], [data-page='menetelmat']) .legal__section li + li {
+  margin-top: var(--space-2);
+}
+
+/* Tables and figures may use the full column width. */
+:is([data-page='kayttoehdot'], [data-page='tietoa'], [data-page='menetelmat']) .legal__section > .table-wrap {
+  margin-top: var(--space-5);
+}
+
+:is([data-page='kayttoehdot'], [data-page='tietoa'], [data-page='menetelmat']) .legal__example {
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--brand);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--surface-2);
+  font-weight: var(--fw-medium);
+}
+
+[data-page='kayttoehdot'] .legal__address {
+  font-style: normal;
+  line-height: var(--lh-body);
+}
+
+[data-page='kayttoehdot'] .legal__changes {
+  color: var(--text-2);
+}
+
+[data-page='kayttoehdot'] .data-table td {
+  vertical-align: top;
+}
+
+[data-page='kayttoehdot'] .data-table code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  overflow-wrap: anywhere;
+}
+
+@media print {
+  :is([data-page='kayttoehdot'], [data-page='tietoa'], [data-page='menetelmat']) .legal {
+    display: block;
+  }
+
+  :is([data-page='kayttoehdot'], [data-page='tietoa'], [data-page='menetelmat']) .legal__aside {
+    display: none;
+  }
+
+  :is([data-page='kayttoehdot'], [data-page='tietoa'], [data-page='menetelmat']) .legal__body {
+    max-width: none;
+  }
+}
