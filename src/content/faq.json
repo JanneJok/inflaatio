@@ -2,7 +2,7 @@
   {
     "id": "ukk-inflaatio-nyt",
     "q": "Paljonko inflaatio on nyt?",
-    "a": "{{khi.nowSentence}} Edellisenä kuukautena vuosimuutos oli {{khi.prevYoy}}. Luku on Tilastokeskuksen kuluttajahintaindeksin (KHI) vuosimuutos, ja sitä tarkoitetaan yleensä, kun puhutaan Suomen inflaatiosta.\n\nEU-maiden vertailuun käytettävällä yhdenmukaistetulla kuluttajahintaindeksillä (YKHI) Suomen inflaatio oli {{ykhi.monthIn}} {{ykhi.yoy}}. Koko euroalueella inflaatio oli {{ea.yoy}} (Eurostat)."
+    "a": "{{khi.nowSentence}} Edellisenä kuukautena vuosimuutos oli {{khi.prevYoy}}. Luku on Tilastokeskuksen kuluttajahintaindeksin (KHI) vuosimuutos, ja sitä tarkoitetaan yleensä, kun puhutaan Suomen inflaatiosta.\n\nEU-maiden vertailuun käytettävällä yhdenmukaistetulla kuluttajahintaindeksillä (YKHI) Suomen inflaatio oli {{ykhi.yoy}} {{ykhi.monthIn}}. Koko euroalueella inflaatio oli {{ea.yoy}} (Eurostat)."
   },
   {
     "id": "ukk-khi-ja-ykhi",
@@ -22,27 +22,27 @@
   {
     "id": "ukk-korkein-inflaatio",
     "q": "Mikä oli korkein inflaatio Suomessa?",
-    "a": "Sivuston aikasarjassa (vuodesta {{khi.firstYear}}) korkein vuosi-inflaatio oli {{khi.maxYear}} ja korkein kuukausilukema {{khi.maxMonth}}.\n\nVuoden 2022 inflaatio ({{khi.year:2022}}) oli korkein sitten vuoden {{khi.higherSince:2022}}, ja kuukausitasolla huippu oli {{khi.maxMonthIn:2022}}. 2000-luvun aiempi huippu oli {{khi.maxYearBetween:2000..2021}}. Lähde: Tilastokeskus, kuluttajahintaindeksi."
+    "a": "Tilastokeskuksen virallisissa vuosimuutoksissa (vuodesta {{khi.firstYear}}) korkein vuosi-inflaatio oli {{khi.maxYear}} ja korkein kuukausilukema {{khi.maxMonth}}.\n\nEnnen vuotta {{khi.firstYear}} inflaatio oli vielä korkeampi: kuluttajahintaindeksin vuosikeskiarvoista laskettuna hinnat nousivat {{khi.annualAvgMaxBefore}}, ja elinkustannusindeksin ({{eki.base1914}}) mukaan hinnat {{eki.maxRise1914}}. Inflaatio.fi on laskenut nämä kaksi muutosta Tilastokeskuksen julkaisemista vuosikeskiarvoista.\n\nVuoden 2022 inflaatio ({{khi.year:2022}}) oli korkein sitten vuoden {{khi.higherSince:2022}}, ja kuukausitasolla huippu oli {{khi.maxMonthIn:2022}}. Vuosien 2000–2021 aiempi huippu oli {{khi.maxYearBetween:2000..2021}}. Lähde: Tilastokeskus, kuluttajahintaindeksi."
   },
   {
     "id": "ukk-deflaatio",
     "q": "Onko Suomessa ollut deflaatiota?",
-    "a": "Kyllä, mutta lievää ja lyhytaikaista. Kokonaisena vuotena kuluttajahinnat laskivat viimeksi {{khi.lastDeflationYear}}.\n\n2000-luvulla hinnat olivat kuukausitasolla vuoden takaista alempana {{khi.negativeMonths:2000}}. Syvin lukema oli {{khi.minMonthSince:2000}}.\n\nLoka–marraskuun 2025 ja tammikuun 2026 miinuslukemat johtuivat pitkälti korkojen laskusta, joka ei näy EU:n YKHI-mittarissa. YKHI oli samoina kuukausina {{ykhi.rangeIn:2025-10,2025-11,2026-01}}."
+    "a": "Kyllä, mutta lievää ja lyhytaikaista. Kokonaisena vuotena kuluttajahinnat laskivat viimeksi {{khi.lastDeflationYear}}.\n\nVuoden 2000 jälkeen hinnat olivat kuukausitasolla vuoden takaista alempana {{khi.negativeMonths:2000}}. Syvin lukema oli {{khi.minMonthSince:2000}}.\n\nLoka–marraskuun 2025 ja tammikuun 2026 miinuslukemat johtuivat pitkälti korkojen laskusta, joka ei näy EU:n YKHI-mittarissa. YKHI oli samoina kuukausina {{ykhi.rangeIn:2025-10,2025-11,2026-01}}."
   },
   {
     "id": "ukk-ekp-tavoite",
     "q": "Mikä on EKP:n inflaatiotavoite?",
-    "a": "Euroopan keskuspankin (EKP) tavoitteena on 2 %:n inflaatio keskipitkällä aikavälillä. Tavoite on symmetrinen: inflaation jääminen tavoitteen alle on yhtä ei-toivottavaa kuin sen ylittäminen. Tavoitetta seurataan euroalueen yhdenmukaistetulla kuluttajahintaindeksillä (YKHI).\n\nEuroalueen inflaatio oli {{ea.monthIn}} {{ea.yoy}} ja Suomen YKHI-inflaatio {{ykhi.yoy}} (Eurostat). EKP:n talletuskorko on {{korot.now}} {{korot.from}} alkaen. Sivun kaavioissa tavoite näkyy katkoviivana."
+    "a": "Euroopan keskuspankin (EKP) tavoitteena on 2 %:n inflaatio keskipitkällä aikavälillä. Tavoite on symmetrinen: inflaation jääminen tavoitteen alle on yhtä ei-toivottavaa kuin sen ylittäminen. Tavoitetta seurataan euroalueen yhdenmukaistetulla kuluttajahintaindeksillä (YKHI).\n\nEuroalueen inflaatio oli {{ea.yoy}} {{ea.monthIn}} ja Suomen YKHI-inflaatio {{ykhi.yoy}} (Eurostat). EKP:n talletuskorko on {{korot.from}} alkaen {{korot.now}}. Sivun kaavioissa tavoite näkyy katkoviivana."
   },
   {
     "id": "ukk-pohjainflaatio",
     "q": "Mitä pohjainflaatio tarkoittaa?",
-    "a": "Pohjainflaatio kuvaa hintojen nousua ilman energiaa, ruokaa, alkoholia ja tupakkaa, joiden hinnat vaihtelevat eniten. Sen avulla nähdään, onko hintojen nousu laaja-alaista vai johtuuko se muutamasta heilahtelevasta erästä.\n\nEurostatin mukaan Suomen pohjainflaatio oli {{ykhi.monthIn}} {{ykhi.core}}, kun kokonaisinflaatio oli {{ykhi.yoy}} (YKHI). Euroalueella pohjainflaatio oli {{ea.core}}. Pohjainflaation saa näkyviin sivun kehityskaavioon."
+    "a": "Pohjainflaatio kuvaa hintojen nousua ilman energiaa, ruokaa, alkoholia ja tupakkaa, joiden hinnat vaihtelevat eniten. Sen avulla nähdään, onko hintojen nousu laaja-alaista vai johtuuko se muutamasta heilahtelevasta erästä.\n\nEurostatin mukaan Suomen pohjainflaatio oli {{ykhi.core}} {{ykhi.monthIn}}, kun kokonaisinflaatio oli {{ykhi.yoy}} (YKHI). Euroalueella pohjainflaatio oli {{ea.core}}. Pohjainflaation voi lisätä [etusivun kehityskaavioon](#kehitys) valinnalla Näytä myös: Pohjainflaatio."
   },
   {
     "id": "ukk-vuokrankorotus",
     "q": "Mihin vuokrankorotukset sidotaan?",
-    "a": "Asuinhuoneiston vuokrasopimuksessa vuokrankorotus sidotaan usein elinkustannusindeksiin, jonka Tilastokeskus laskee kuluttajahintaindeksin pohjalta. Sopimuksessa voi olla myös kuluttajahintaindeksi, kiinteä korotusprosentti tai muu ehto, joten tarkista oma sopimuksesi.\n\nIndeksikorotus lasketaan yleensä vertaamalla sopimuksessa mainitun perusindeksin pistelukua tarkistushetken viimeisimpään pistelukuun. Elinkustannusindeksin ({{eki.base}}) pisteluku oli {{eki.monthIn}} {{eki.value}}. [Laske uusi vuokra vuokrankorotuslaskurilla](/vuokrankorotus/)."
+    "a": "Asuinhuoneiston vuokrasopimuksessa vuokrankorotus sidotaan usein elinkustannusindeksiin, jonka Tilastokeskus laskee kuluttajahintaindeksin pohjalta. Sopimuksessa voi olla myös kuluttajahintaindeksi, kiinteä korotusprosentti tai muu ehto, joten tarkista oma sopimuksesi.\n\nIndeksikorotus lasketaan yleensä vertaamalla sopimuksessa mainitun perusindeksin pistelukua tarkistushetken viimeisimpään pistelukuun. Elinkustannusindeksin ({{eki.base}}) pisteluku oli {{eki.value}} {{eki.monthIn}}. [Laske uusi vuokra vuokrankorotuslaskurilla](/vuokrankorotus/)."
   },
   {
     "id": "ukk-arki",
@@ -52,6 +52,6 @@
   {
     "id": "ukk-lahteet",
     "q": "Mistä luvut tulevat ja milloin ne päivittyvät?",
-    "a": "Luvut tulevat suoraan virallisista tilastoista. Tilastokeskus julkaisee kuluttajahintaindeksin (KHI) kerran kuukaudessa, yleensä seuraavan kuukauden puolivälissä; viimeisimmät luvut ({{khi.month}}) julkaistiin {{khi.released}}. Eurostat julkaisee yhdenmukaistetun indeksin (YKHI) ennakkoarvion kuukauden lopussa tai seuraavan kuukauden alussa ja lopulliset luvut noin kuukauden puolivälissä.\n\nInflaatio.fi tarkistaa uudet luvut automaattisesti joka päivä, joten uusi kuukausi näkyy sivulla yleensä julkaisupäivänä. {{next.khiSentence}} Julkaisukalenteri ja viimeisimmät päivitykset ovat [sivun lopussa](#lahteet)."
+    "a": "Luvut tulevat suoraan virallisista tilastoista. Tilastokeskus julkaisee kuluttajahintaindeksin (KHI) kerran kuukaudessa, yleensä seuraavan kuukauden puolivälissä; viimeisimmät luvut ({{khi.month}}) julkaistiin {{khi.released}}. Eurostat julkaisee yhdenmukaistetun kuluttajahintaindeksin (YKHI) ennakkoarvion kuukauden lopussa tai seuraavan kuukauden alussa ja lopulliset luvut noin kaksi viikkoa myöhemmin.\n\nInflaatio.fi tarkistaa uudet luvut automaattisesti kahdesti päivässä, joten uusi kuukausi näkyy sivulla yleensä julkaisupäivänä. {{next.khiSentence}} Julkaisukalenteri ja viimeisimmät päivitykset ovat [sivun lopussa](#lahteet)."
   }
 ]

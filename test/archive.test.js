@@ -23,7 +23,12 @@ import {
   listFi,
   logId,
   momSentence,
+  monthEnd,
   monthPath,
+  monthsListFi,
+  newestDate,
+  newestTimestamp,
+  prevMonthNote,
   priceLevelNow,
   rankSince,
   yearPath,
@@ -97,7 +102,49 @@ test('every archive page: CSP-safe, one h1, title ≤ 60, description ≤ 155, c
     assert.match(doc, /"@type":"BreadcrumbList"/, `${p} breadcrumbs`);
     assert.doesNotMatch(doc, /reaaliaikai/i);
     assert.doesNotMatch(doc, /NaN|undefined|\[object /, `${p} has no NaN/undefined`);
+    // Copy review: "vuosiluku" means the year number; "matalammat" → "alemmat" for prices.
+    assert.doesNotMatch(doc, /vuosiluku|haalealla|matalammat|Kaksi vuotta taaksepäin/, p);
+    // Negative inflation never "kiihtyi/hidastui −0,2 prosenttiin".
+    assert.doesNotMatch(doc, /(kiihtyi|hidastui) −\d/, p);
+    // "toukokuussa 2015 0,0 %" reads as one number: the month goes first or after the value.
+    assert.doesNotMatch(doc, /(?:kuussa|kuun|vuonna) \d{4}[  ][+−-]?\d/, p);
   }
+});
+
+test('sitemap lastmod follows each archive page’s own data releases', () => {
+  const sitemap = readFileSync(path.join(out, 'sitemap.xml'), 'utf8');
+  const lastmod = (p) => sitemap.match(new RegExp(`<loc>https://inflaatio\\.fi${p.replace(/[/]/g, '\\/')}</loc><lastmod>([^<]+)</lastmod>`))?.[1];
+  const newestData = newestDate(latest.dataUpdated, ...Object.values(latest.updated));
+  const all = [...sitemap.matchAll(/<loc>https:\/\/inflaatio\.fi(\/(?:inflaatio|katsaus|pisteluvut)\/[^<]*)<\/loc><lastmod>([^<]+)<\/lastmod>/g)];
+  assert.ok(all.length > 100);
+  for (const [, p, d] of all) {
+    assert.match(d, /^\d{4}-\d{2}-\d{2}$/, p);
+    assert.ok(d <= newestData, `${p}: ${d} is not after the newest data (${newestData})`);
+  }
+  assert.ok(new Set(all.map((x) => x[2])).size > 10, 'per-page dates, not one build-wide date');
+  // Months older than the changelog: final by the end of the month after next.
+  if (!data.muutosloki.some((e) => e.period <= '2015-02')) assert.equal(lastmod('/inflaatio/2015/tammikuu/'), '2015-03-31');
+  if (!data.muutosloki.some((e) => e.period <= '2024-02')) assert.equal(lastmod('/katsaus/2024-01/'), '2024-03-31');
+  // The latest month: its KHI release and YKHI flash/final.
+  const m = archive(ctx).month(L);
+  assert.equal(lastmod(monthPath(L)), newestDate(m.released, m.ykhiFlashReleased, m.ykhiFinalReleased, latest.updated.khi, latest.ykhi?.month === L ? latest.updated.ykhi : null));
+  assert.equal(lastmod(`/katsaus/${L}/`), lastmod(monthPath(L)));
+  // Past years change with every KHI release (price level to the latest month).
+  assert.equal(lastmod('/inflaatio/2000/'), newestDate(latest.updated.khi, latest.updated.khiAnnual));
+  assert.equal(lastmod('/pisteluvut/'), newestDate(latest.updated.khi, latest.updated.elinkustannusindeksi));
+  const reviews = all.filter(([, p]) => /^\/katsaus\/\d{4}-\d{2}\/$/.test(p)).map((x) => x[2]);
+  assert.equal(lastmod('/katsaus/'), newestDate(...reviews));
+});
+
+test('lastmod date helpers', () => {
+  assert.equal(newestDate('2026-09-14T05:00:00Z', '2026-09-17T11:00:00+02:00', null, '2026-08-01'), '2026-09-17');
+  assert.equal(newestDate(null, undefined), null);
+  assert.equal(newestDate('2026-09-14T22:30:00Z'), '2026-09-15', 'Helsinki calendar day');
+  assert.equal(newestTimestamp('2026-01-14T06:00:00Z', '2026-09-17T11:00:00+02:00', 'x', null), '2026-09-17T11:00:00+02:00');
+  assert.equal(newestTimestamp(null), null);
+  assert.equal(monthEnd('2026-02'), '2026-02-28');
+  assert.equal(monthEnd('2024-02'), '2024-02-29');
+  assert.equal(monthEnd('2025-12'), '2025-12-31');
 });
 
 test('internal links between archive pages resolve (others’ routes excluded)', async () => {
@@ -136,6 +183,56 @@ test('year pages use official annual figures; the current year is labelled parti
   assert.match(page('/inflaatio/2022/'), /korkein sitten vuoden 1984/);
 });
 
+test('year pages: description promises only existing sections; spacing and wording', () => {
+  const desc = (doc) => doc.match(/<meta name="description" content="([^"]*)">/)[1];
+  const y1985 = page('/inflaatio/1985/');
+  assert.doesNotMatch(desc(y1985), /euroalue/, 'no YKHI before 1996/97');
+  assert.match(desc(y1985), /hinnat nykyrahassa\.$/);
+  assert.doesNotMatch(y1985, /id="vertailu"/);
+  const y2022 = page('/inflaatio/2022/');
+  assert.match(desc(y2022), /vertailu euroalueeseen/);
+  // Stats row and the chart title below it are separated (stack).
+  assert.match(y2022, /<div class="stack-lg"><dl class="stats/);
+  assert.ok(y2022.includes('ostokset, joiden hinta vuonna 2022 oli 100 euroa'));
+  assert.ok(y2022.includes(`ja ${fmt.genitive(L)} pisteluku`));
+  assert.ok(page('/inflaatio/1990/').includes('joiden hinta vuonna 1990 oli euroiksi muunnettuna 100 euroa'));
+  // Month names in full with a shared suffix (2022: 9,1 % in November and December).
+  assert.match(y2022, /Marras- ja joulukuu/);
+  assert.match(y2022, /\(marras- ja joulukuu\)/);
+  const y1980 = page('/inflaatio/1980/');
+  assert.ok(y1980.includes(`Tammi${fmt.DASH}joulu 1980`));
+  assert.doesNotMatch(y1980, /tammi 1980 – joulu 1980/);
+});
+
+test('year texts: "since" records need two years in between; prose spells out the unit', () => {
+  const A = archive(ctx);
+  const t2023 = yearText(A, A.yearMap.get(2023)).join(' ');
+  assert.doesNotMatch(t2023, /matalin sitten vuoden 2021/, '2022 alone explains it');
+  const t2022 = yearText(A, A.yearMap.get(2022)).join(' ');
+  assert.match(t2022, /korkein sitten vuoden 1984/);
+  assert.match(t2022, /Inflaatio kiihtyi edellisvuodesta 4,9 prosenttiyksikköä \(2021: 2,2/);
+  assert.doesNotMatch(t2022, /yks\./);
+  if (A.yearMap.get(2015).khi.value < 0) assert.match(yearText(A, A.yearMap.get(2015)).join(' '), /Hintojen vuosimuutos laski edellisvuodesta/);
+  const cur = A.yearMap.get(LY);
+  if (cur.khi.partial) assert.match(yearText(A, cur).join(' '), /kun loppuvuoden kuukaudet julkaistaan/);
+});
+
+test('overview: annual figure and header use the newest release; table note and subtitle wording', () => {
+  const doc = page('/inflaatio/');
+  const u = latest.updated;
+  const newest = [u.khiAnnual, latest.khi.currentYear.complete ? null : u.khi, u.ykhi, u.ykhiAnnual].filter(Boolean).sort((a, b) => Date.parse(a) - Date.parse(b)).at(-1);
+  const stamp = `Päivitetty <time datetime="${newest.slice(0, 10)}">${fmt.date(newest)}</time>`;
+  const figure = doc.slice(doc.indexOf('id="vuodet-kaavio"'));
+  assert.ok(figure.includes(stamp), `annual chart source line: ${stamp}`);
+  assert.ok(doc.slice(0, doc.indexOf('id="tunnusluvut"')).includes(stamp), 'page header');
+  assert.match(doc, /Suomen inflaatio vuodesta 1980 alkaen Tilastokeskuksen virallisina vuosimuutoksina\./);
+  assert.doesNotMatch(doc, /\(vuosi \d{4} \(/, 'no nested parentheses');
+  if (!latest.khi.currentYear.complete) {
+    assert.ok(doc.includes(`${latest.khi.currentYear.label} vaaleampana`));
+    assert.ok(doc.includes(`; vuoden ${LY} luku on ${latest.khi.currentYear.span}kuun vuosimuutosten keskiarvo.`));
+  }
+});
+
 test('month pages show both bases with labels, YKHI, euro area and neighbours', () => {
   const doc = page(monthPath(L));
   assert.ok(doc.includes(`KHI 2025=100`) && doc.includes(fmt.idx(latest.khi.index2025)));
@@ -153,6 +250,7 @@ test('month pages show both bases with labels, YKHI, euro area and neighbours', 
 
 test('reviews: Article JSON-LD, generated paragraphs, next release for the latest month', () => {
   const doc = page(`/katsaus/${L}/`);
+  const A0 = archive(ctx);
   assert.match(doc, /"@type":"Article"/);
   const k = katsausModel(ctx, L);
   assert.ok(k.paragraphs.length >= 3 && k.paragraphs.length <= 5, `${k.paragraphs.length} paragraphs`);
@@ -162,6 +260,21 @@ test('reviews: Article JSON-LD, generated paragraphs, next release for the lates
   assert.equal(katsausHeadline({ yoy: 2.2, delta: 0.1 }), 'Inflaatio kiihtyi 2,2 prosenttiin');
   assert.equal(katsausHeadline({ yoy: 0.7, delta: -0.3 }), 'Inflaatio hidastui 0,7 prosenttiin');
   assert.equal(katsausHeadline({ yoy: 2.1, delta: 0 }), 'Inflaatio pysyi 2,1 prosentissa');
+  // Negative inflation is never "kiihtyi/hidastui −0,2 prosenttiin".
+  assert.equal(katsausHeadline({ yoy: -0.2, prevYoy: 0.5, delta: -0.7 }), 'Kuluttajahinnat laskivat vuodessa 0,2 prosenttia');
+  assert.equal(katsausHeadline({ yoy: -0.1, prevYoy: -0.2, delta: 0.1 }), 'Kuluttajahinnat laskivat vuodessa 0,1 prosenttia');
+  assert.equal(katsausHeadline({ yoy: 0.2, prevYoy: -0.1, delta: 0.3 }), 'Inflaatio palasi plussalle, 0,2 prosenttiin');
+  assert.equal(katsausHeadline({ yoy: 0.04, prevYoy: -0.1, delta: 0.1 }), 'Kuluttajahinnat pysyivät vuotta aiemmalla tasolla');
+  for (const ym of ['2025-10', '2025-11', '2026-01']) {
+    const h = katsausModel(ctx, ym).headline;
+    if (A0.month(ym).yoy < 0) assert.match(h, /^Kuluttajahinnat laskivat vuodessa \d+,\d prosenttia$/, `${ym}: ${h}`);
+  }
+  const back = katsausModel(ctx, '2025-12');
+  if (A0.month('2025-12').yoy > 0 && A0.month('2025-11').yoy < 0) assert.match(back.headline, /^Inflaatio palasi plussalle/);
+  assert.match(doc, /Inflaatio kahden vuoden ajalta/);
+  assert.doesNotMatch(doc, /Kaksi vuotta taaksepäin|vuosiluku/);
+  const desc = doc.match(/<meta name="description" content="([^"]*)">/)[1];
+  assert.match(desc, /^Inflaatiokatsaus, /);
   const older = katsausModel(ctx, '2024-03');
   assert.equal(older.next, null);
   assert.ok(older.paragraphs.every((p) => typeof p === 'string' && p.endsWith('.')));
@@ -238,12 +351,25 @@ test('rfc822 dates use Helsinki time (EEST/EET)', () => {
 test('Finnish text helpers', () => {
   assert.equal(listFi(['a']), 'a');
   assert.equal(listFi(['a', 'b', 'c']), 'a, b ja c');
-  assert.equal(levelSentence('2026-08', 2.2), n('Kuluttajahinnat olivat elokuussa 2026 2,2 % korkeammat kuin vuotta aiemmin.'));
-  assert.equal(levelSentence('2025-10', -0.2), n('Kuluttajahinnat olivat lokakuussa 2025 0,2 % matalammat kuin vuotta aiemmin.'));
-  assert.match(levelSentence('2016-01', 0), /samalla tasolla/);
-  assert.equal(deltaSentence('2026-07', 2.1, 0.1), n('Inflaatio kiihtyi heinäkuusta 0,1 %-yks. (heinäkuussa 2,1 %).'));
-  assert.equal(deltaSentence('2025-12', 0.2, -0.4), n('Inflaatio hidastui joulukuusta 2025 0,4 %-yks. (joulukuussa 0,2 %).'));
-  assert.equal(deltaSentence('2026-06', 2.1, 0), n('Inflaatio pysyi kesäkuusta ennallaan (kesäkuussa 2,1 %).'));
+  // Month first, so the year and the value are never side by side; "alemmat" for prices.
+  assert.equal(levelSentence('2026-08', 2.2), n('Elokuussa 2026 kuluttajahinnat olivat 2,2 % korkeammat kuin vuotta aiemmin.'));
+  assert.equal(levelSentence('2025-10', -0.2), n('Lokakuussa 2025 kuluttajahinnat olivat 0,2 % alemmat kuin vuotta aiemmin.'));
+  assert.match(levelSentence('2016-01', 0), /^Tammikuussa 2016 kuluttajahinnat olivat samalla tasolla/);
+  // "from July's 2.1 per cent (+0.1 %-points)"; a year boundary names the year before the month.
+  assert.equal(deltaSentence('2026-07', 2.1, 0.1), `Inflaatio kiihtyi heinäkuun 2,1 prosentista (${fmt.pp(0.1)}).`);
+  assert.equal(deltaSentence('2023-12', 3.6, -0.3), `Inflaatio hidastui vuoden 2023 joulukuun 3,6 prosentista (${fmt.pp(-0.3)}).`);
+  assert.equal(deltaSentence('2025-12', 0.2, -0.4), `Hintojen vuosimuutos laski vuoden 2025 joulukuun 0,2 prosentista (${fmt.pp(-0.4)}).`);
+  // Below zero the sentence is about the annual change of prices, not "inflation accelerated".
+  assert.equal(deltaSentence('2025-10', -0.2, 0.1), `Hintojen vuosimuutos nousi lokakuun ${fmt.MINUS}0,2 prosentista (${fmt.pp(0.1)}).`);
+  assert.equal(deltaSentence('2025-09', 0.5, -0.7), `Hintojen vuosimuutos laski syyskuun 0,5 prosentista (${fmt.pp(-0.7)}).`);
+  assert.equal(deltaSentence('2026-06', 2.1, 0), 'Inflaatio pysyi kesäkuun tasolla.');
+  assert.equal(deltaSentence('2026-06', null, 0.1), '');
+  assert.equal(monthsListFi(['2026-08']), 'elokuu');
+  assert.equal(monthsListFi(['2026-11', '2026-12']), 'marras- ja joulukuu');
+  assert.equal(monthsListFi(['2026-02', '2026-03', '2026-12']), 'helmi-, maalis- ja joulukuu');
+  assert.equal(monthsListFi([]), '');
+  assert.equal(prevMonthNote('2026-07', 2.1), n('Heinäkuussa 2,1 %'));
+  assert.equal(prevMonthNote('2025-12', 0.2), n('Vuoden 2025 joulukuussa 0,2 %'));
   assert.equal(momSentence(-0.2), n('Hintataso laski kuukaudessa 0,2 %.'));
   assert.equal(momSentence(0.04), 'Hintataso pysyi kuukauden aikana ennallaan.');
   assert.equal(momSentence(null), '');
@@ -303,6 +429,39 @@ test('month model: groups use contributions when published, otherwise group chan
   assert.equal(A.month('2015-01').groups, null, 'no group data before the 60-month window');
 });
 
+test('contributions: "yhteensä" is the sum of the main groups; names follow "pääryhmä"', () => {
+  const A = archive(ctx);
+  const m = A.month(L);
+  if (m.groups?.mode !== 'contribution') return;
+  const sum = m.groups.rows.reduce((s, r) => s + r.contribution, 0);
+  assert.ok(Math.abs(m.groups.sum - sum) < 1e-12);
+  const text = `Pääryhmien vaikutukset ovat yhteensä ${fmt.pp(sum, { decimals: 2 })}; kokonaisindeksin vuosimuutos oli ${fmt.pct(m.yoy)}.`;
+  const top = m.groups.rows[0];
+  for (const p of [monthPath(L), `/katsaus/${L}/`]) {
+    const doc = page(p);
+    assert.ok(doc.includes(text), `${p}: ${text}`);
+    assert.ok(doc.includes(`Eniten vuosimuutosta nosti pääryhmä ${top.name} (${fmt.pp(top.contribution, { decimals: 2 })})`), p);
+  }
+  // August 2026: the groups sum to +2,19 while the total index's own contribution is +2,18.
+  if (L === '2026-08') {
+    assert.equal(fmt.pp(m.groups.sum, { decimals: 2 }), fmt.pp(2.19, { decimals: 2 }));
+    assert.equal(fmt.pp(m.groups.total, { decimals: 2 }), fmt.pp(2.18, { decimals: 2 }));
+  }
+  const k = katsausModel(ctx, L);
+  assert.ok(k.paragraphs.some((p) => p.includes(`pääryhmä${k.up.length === 1 ? '' : 't'} ${top.name}`)));
+});
+
+test('group changes before contributions: falling prices are not "rose the least"', () => {
+  const A = archive(ctx);
+  const ym = A.monthPages.find((x) => A.month(x).groups?.mode === 'yoy' && fmt.round(A.month(x).groups.rows.at(-1).yoy, 1) < 0);
+  if (!ym) return;
+  const rows = A.month(ym).groups.rows;
+  const doc = page(monthPath(ym));
+  assert.ok(doc.includes(`ja laskivat eniten pääryhmässä ${rows.at(-1).name} (${fmt.pct(rows.at(-1).yoy, { sign: true })})`), ym);
+  assert.ok(doc.includes('eniten laskivat pääryhmässä'), `${ym} aria-label`);
+  assert.doesNotMatch(doc, /vähiten pääryhmässä/);
+});
+
 test('events file: month precision, short neutral labels, sorted', () => {
   const ev = content.tapahtumat;
   assert.ok(ev.length >= 15 && ev.length <= 30);
@@ -313,6 +472,26 @@ test('events file: month precision, short neutral labels, sorted', () => {
     assert.ok(e.month >= '1980-01' && e.month <= L);
   }
   assert.deepEqual(ev.map((e) => e.month), [...ev.map((e) => e.month)].sort());
+  // Facts checked against the ECB decisions in data/korot.json.
+  const dec = readJson('data/korot.json').decisions;
+  const cuts = dec.filter((d, i) => i > 0 && d.date >= '2024-06-01' && d.date <= '2025-06-30' && d.depositRate < dec[i - 1].depositRate);
+  assert.equal(cuts.length, 8);
+  assert.match(ev.find((e) => e.month === '2025-06').text, /kahdeksas lasku kesäkuusta 2024 alkaen/);
+  const hike = dec.findIndex((d) => d.date === '2022-07-27');
+  assert.equal(dec[hike - 1].depositRate, -0.5);
+  assert.equal(dec[hike].depositRate, 0);
+  assert.match(ev.find((e) => e.month === '2022-07').text, /talletuskorko nousi −0,50 prosentista nollaan 27\.7\.2022/);
+});
+
+test('katsaus index: table note and lede wording', () => {
+  const doc = page('/katsaus/');
+  assert.ok(doc.includes('Muutos = ero edellisen kuukauden vuosimuutokseen, prosenttiyksikköä.'));
+  assert.ok(doc.includes('Tekstit laaditaan automaattisesti Tilastokeskuksen ja Eurostatin luvuista.'));
+  assert.ok(page(`/katsaus/${L}/`).includes(`Vuoden ${LY} inflaatio ja kuukausiluvut.`));
+  assert.ok(page(monthPath(L)).includes(`Vuoden ${LY} inflaatio ja kaikki kuukaudet.`));
+  for (const p of result.pages.filter((x) => /^\/inflaatio\/\d{4}\/[a-z]+\/$/.test(x))) {
+    assert.doesNotMatch(page(p).match(/<meta name="description" content="([^"]*)">/)[1], /(^|\. )Pisteluvut\.$/, `${p}: no bare "Pisteluvut." fragment`);
+  }
 });
 
 /* ------------------------------------------------------------- pisteluvut */
@@ -466,6 +645,9 @@ test('pisteluvut page script switches the base and keeps it in the URL', async (
     assert.equal(title.textContent, 'Kuluttajahintaindeksi 1972=100');
     assert.equal(intro.lastChild.textContent, `, 1972–${LY}. Avaa vuosi nähdäksesi sen kuukaudet.`);
     assert.equal(loc.search, '?indeksi=1972');
+    // One announcement channel: the page's own polite live region (no toast).
+    assert.equal(els.get('pisteluvut-tila').textContent, 'Näytetään Kuluttajahintaindeksi 1972=100.');
+    assert.doesNotMatch(readFileSync(path.join(ROOT, 'src/js/pages/pisteluvut.js'), 'utf8'), /announce\(/);
     // A full year shows the official annual average as a 13th row.
     const y2000 = history.childNodes.find((d) => d.querySelector('summary').textContent === '2000');
     assert.equal(y2000.querySelector('tbody').childNodes.length, 13);

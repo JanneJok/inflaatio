@@ -18,6 +18,22 @@ export const METRICS = Object.freeze(['khi', 'ykhi']);
 export const DEFAULT_METRIC = 'khi';
 /** Default chart range (URL ?jakso=…). */
 export const DEFAULT_RANGE = '5v';
+/** Default official index base of the price level (the newest base). */
+export const DEFAULT_BASE = '2025=100';
+/** Caveat of a partial-year mean (KPI card and annual table use the same words). */
+export const PARTIAL_YEAR_NOTE = 'Luku muuttuu, kun uusia kuukausia julkaistaan; virallinen vuosimuutos julkaistaan vuoden päätyttyä.';
+/** Rows of the main chart's month table visible before "Näytä kaikki kuukaudet". */
+export const TABLE_ROWS = 12;
+
+/**
+ * Toggle labels of the main chart's month table.
+ * @param {number} n number of months in the table
+ * @returns {{more: string, less: string}}
+ */
+export function trendTableLabels(n) {
+  return { more: `Näytä kaikki kuukaudet (${n})`, less: `Näytä vain ${TABLE_ROWS} viimeisintä kuukautta` };
+}
+
 /** Button labels of the range keys (stats.RANGE_KEYS). */
 export const RANGE_LABELS = Object.freeze({ '6kk': '6 kk', '1v': '1 v', '3v': '3 v', '5v': '5 v', '10v': '10 v', kaikki: 'Kaikki' });
 
@@ -220,6 +236,27 @@ export function priceLevel(months, index, key) {
 }
 
 /**
+ * Table of the price-level chart: the level at the same month of each year of
+ * the range, newest first ([month, level €, point figure]).
+ * @param {ReturnType<typeof priceLevel>} pl
+ * @returns {string[][]}
+ */
+export function priceLevelRows(pl) {
+  const rows = [];
+  for (let i = pl.months.length - 1; i >= 0; i -= 12) rows.push([fmt.monthShort(pl.months[i]), fmt.eur(pl.values[i]), fmt.idx(pl.index[i])]);
+  return rows;
+}
+
+/**
+ * Caption of the price-level table: "Hintataso (KHI), jakson alku syys 2021 = 100 €".
+ * @param {ReturnType<typeof priceLevel>} pl
+ * @param {'khi'|'ykhi'} metric
+ */
+export function priceLevelCaption(pl, metric) {
+  return `Hintataso (${METRIC_INFO[metric].short}), jakson alku ${fmt.monthShort(pl.start)} = 100${fmt.NBSP}€`;
+}
+
+/**
  * Texts of the price-level chart for one metric and range.
  * @param {ReturnType<typeof priceLevel>} pl
  * @param {'khi'|'ykhi'} metric
@@ -235,24 +272,61 @@ export function priceLevelText(pl, metric, base) {
   const verb = dir === 'up' ? 'nousi' : dir === 'down' ? 'laski' : 'pysyi ennallaan';
   const changeText = dir === 'flat' ? '' : ` ${fmt.pct(Math.abs(change))}`;
   const summary =
-    `Ostokset, jotka maksoivat ${fmt.inessive(pl.start)} 100 €, maksoivat ${fmt.inessive(pl.end)} ${fmt.eur(pl.last)}. ` +
+    `Ostokset, jotka maksoivat 100 € ${fmt.inessive(pl.start)}, maksoivat ${fmt.eur(pl.last)} ${fmt.inessive(pl.end)}. ` +
     `Hintataso ${verb} jaksolla${changeText} (${info.short}, ${info.source}, pisteluvut ${base}).`;
-  const aria = `Hintataso ${period}: jakson alussa 100 €, ${fmt.monthShort(pl.end)} ${fmt.eur(pl.last)} (${info.short}).`;
+  const aria = `Hintataso ${period}: jakson alussa 100 €, lopussa ${fmt.eur(pl.last)} (${info.short}).`;
   return { period, summary, aria };
 }
 
 /* ------------------------------------------------------------- phrasing */
 
 /**
- * "Kuluttajahinnat olivat elokuussa 2026 2,2 % korkeammat kuin vuotta aiemmin."
- * (sign-aware; 0,0 % → "samalla tasolla").
+ * "Elokuussa 2026 kuluttajahinnat olivat 2,2 % korkeammat kuin vuotta aiemmin."
+ * (sign-aware; 0,0 % → "samalla tasolla"). The month comes first so the
+ * year and the value are never side by side.
  * @param {string} month
  * @param {number} yoy
  */
 export function annualChangeSentence(month, yoy) {
   const dir = stats.deltaClass(yoy);
-  if (dir === 'flat') return `Kuluttajahinnat olivat ${fmt.inessive(month)} samalla tasolla kuin vuotta aiemmin.`;
-  return `Kuluttajahinnat olivat ${fmt.inessive(month)} ${fmt.pct(Math.abs(yoy))} ${dir === 'up' ? 'korkeammat' : 'alemmat'} kuin vuotta aiemmin.`;
+  const when = fmt.capitalize(fmt.inessive(month));
+  if (dir === 'flat') return `${when} kuluttajahinnat olivat samalla tasolla kuin vuotta aiemmin.`;
+  return `${when} kuluttajahinnat olivat ${fmt.pct(Math.abs(yoy))} ${dir === 'up' ? 'korkeammat' : 'alemmat'} kuin vuotta aiemmin.`;
+}
+
+/**
+ * Summary sentence of the main chart for one metric and range: the selected
+ * metric's latest value with the other metric's latest value as context, and
+ * the selected metric's extremes over the range (the same months as the
+ * statistics row under the chart), e.g. "YKHI oli elokuussa 2026 2,4 % ja
+ * KHI 2,2 %. Jaksolla syys 2021 – elo 2026 YKHI oli korkeimmillaan 8,0 %
+ * (loka 2022) ja matalimmillaan 0,5 % (touko 2024, heinä 2024)."
+ * @param {object} p
+ * @param {'khi'|'ykhi'} p.metric
+ * @param {{month: string, yoy: number, provisional?: boolean}} p.self latest of the selected metric
+ * @param {{month: string, yoy: number, provisional?: boolean}|null} [p.other] latest of the other metric
+ * @param {string[]} p.months months of the selected metric's range
+ * @param {(number|null)[]} p.yoy annual rates of the selected metric, aligned
+ * @returns {string}
+ */
+export function trendSummary({ metric, self, other, months, yoy }) {
+  const info = METRIC_INFO[metric];
+  const otherInfo = METRIC_INFO[metric === 'khi' ? 'ykhi' : 'khi'];
+  const prov = (l) => (l?.provisional ? ' (ennakko)' : '');
+  // The month comes first so the year never runs into the value.
+  let text = `${fmt.capitalize(fmt.inessive(self.month))} ${info.short} oli ${fmt.pct(self.yoy)}${prov(self)}`;
+  if (other && fmt.isNum(other.yoy)) {
+    const notes = [other.month === self.month ? null : fmt.monthName(other.month), other.provisional ? 'ennakko' : null].filter(Boolean);
+    text += ` ja ${otherInfo.short} ${fmt.pct(other.yoy)}${notes.length ? ` (${notes.join(', ')})` : ''}`;
+  }
+  text += '.';
+  if (!months?.length) return text;
+  const s = stats.rangeStats(months, yoy);
+  if (!s.max || !s.min) return text;
+  return (
+    `${text} Jaksolla ${fmt.monthRange(months[0], months.at(-1))} ${info.short} oli korkeimmillaan ${fmt.pct(s.max.value)} (${monthsText(s.max.months)}) ` +
+    `ja matalimmillaan ${fmt.pct(s.min.value)} (${monthsText(s.min.months)}).`
+  );
 }
 
 /**
@@ -314,6 +388,37 @@ export function yearAgoNote(month, yoy, yearAgo) {
   const dir = stats.deltaClass(d);
   if (dir === 'flat') return `${then}. Nyt inflaatio on samalla tasolla.`;
   return `${then}. Nyt inflaatio on ${fmt.num(Math.abs(d), 1)} prosenttiyksikköä ${dir === 'up' ? 'korkeampi' : 'matalampi'}.`;
+}
+
+/* ------------------------------------------------------------ URL state */
+
+/** Optional series of the main chart and their tokens in ?nayta=… (fixed order). */
+export const SHOW_TOKENS = Object.freeze({ ea: 'ea', core: 'pohja', events: 'tapahtumat' });
+
+/**
+ * Parse ?nayta=ea+pohja+tapahtumat (spaces; commas accepted too) → { ea, core, events }
+ * (unknown tokens ignored);
+ * null when the parameter is missing (keep the server default).
+ * @param {string|null|undefined} value
+ * @returns {{ea: boolean, core: boolean, events: boolean}|null}
+ */
+export function parseShow(value) {
+  if (value == null) return null;
+  const tokens = new Set(String(value).split(/[\s,]+/).map((t) => t.toLowerCase()));
+  return Object.fromEntries(Object.entries(SHOW_TOKENS).map(([key, token]) => [key, tokens.has(token)]));
+}
+
+/**
+ * Inverse of parseShow(): tokens separated by spaces ("+" in the URL, never
+ * percent-encoded like a comma); '' when nothing optional is shown (parameter removed).
+ * @param {{ea?: boolean, core?: boolean, events?: boolean}} state
+ * @returns {string}
+ */
+export function formatShow(state) {
+  return Object.entries(SHOW_TOKENS)
+    .filter(([key]) => state?.[key])
+    .map(([, token]) => token)
+    .join(' ');
 }
 
 /**

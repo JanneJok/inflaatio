@@ -7,7 +7,8 @@
  * fallback). Colours come from the CSS tokens (src/css/tokens.css) and are
  * re-applied whenever the theme changes (`themechange` from lib/theme.js and
  * the OS prefers-color-scheme media query). Numbers and months are formatted
- * with format.js (fi-FI: decimal comma, U+2212 minus, NBSP before %).
+ * with format.js (fi-FI: decimal comma, U+2212 minus, NBSP before %), or in
+ * English with `locale: 'en'` ('2.2%', 'August 2026') on the English pages.
  *
  * Usage (src/js/pages/<name>.js):
  *
@@ -121,38 +122,52 @@ export function withAlpha(hex, alpha) {
 
 /* -------------------------------------------------------------- formatters */
 
+/** @typedef {'fi'|'en'} ChartLocale */
+
+/** Chart.js locale string for a chart locale. @param {ChartLocale} [locale] */
+const intlLocale = (locale) => (locale === 'en' ? 'en-GB' : 'fi-FI');
+
 /**
  * Value formatter for a unit: '%' → pct, 'pp' → pp (%-yks.), '€' → eur,
- * 'index' → idx, anything else → num + unit.
+ * 'index' → idx, anything else → num + unit. `locale: 'en'` gives the English
+ * forms ('2.2%', '+0.1 pp', '€1,234.50', '125.15').
  * @param {string} [unit='%']
  * @param {number} [decimals]
+ * @param {ChartLocale} [locale='fi']
  * @returns {(v: number|null) => string}
  */
-export function valueFormatter(unit = '%', decimals) {
+export function valueFormatter(unit = '%', decimals, locale = 'fi') {
+  const en = locale === 'en';
   switch (unit) {
     case '%':
-      return (v) => fmt.pct(v, { decimals: decimals ?? 1 });
+      return (v) => (en ? fmt.enPct : fmt.pct)(v, { decimals: decimals ?? 1 });
     case 'pp':
-      return (v) => fmt.pp(v, { decimals: decimals ?? 1 });
+      return (v) => (en ? fmt.enPp : fmt.pp)(v, { decimals: decimals ?? 1 });
     case '€':
-      return (v) => fmt.eur(v, decimals ?? 2);
+      return (v) => (en ? fmt.enEur : fmt.eur)(v, decimals ?? 2);
     case 'index':
-      return (v) => fmt.idx(v, decimals ?? 2);
+      return (v) => (en ? fmt.enNum(v, decimals ?? 2) : fmt.idx(v, decimals ?? 2));
     default:
-      return (v) => (v == null ? fmt.DASH : `${fmt.num(v, decimals ?? 1)}${unit ? `${fmt.NBSP}${unit}` : ''}`);
+      return (v) => (v == null ? fmt.DASH : `${(en ? fmt.enNum : fmt.num)(v, decimals ?? 1)}${unit ? `${fmt.NBSP}${unit}` : ''}`);
   }
 }
 
 /**
- * y-axis tick label: as few decimals as the tick step needs ('2 %', '0,5 %').
+ * y-axis tick label: as few decimals as the tick step needs ('2 %', '0,5 %';
+ * English '2%', '€1,000').
  * @param {string} [unit='%']
+ * @param {ChartLocale} [locale='fi']
  */
-export function axisFormatter(unit = '%') {
-  const suffix = unit === 'pp' ? `${fmt.NBSP}%-yks.` : unit === 'index' ? '' : unit ? `${fmt.NBSP}${unit}` : '';
+export function axisFormatter(unit = '%', locale = 'fi') {
+  const en = locale === 'en';
+  const suffix = en
+    ? unit === '%' ? '%' : unit === 'pp' ? `${fmt.NBSP}pp` : unit && unit !== 'index' && unit !== '€' ? `${fmt.NBSP}${unit}` : ''
+    : unit === 'pp' ? `${fmt.NBSP}${fmt.PP_UNIT}` : unit === 'index' ? '' : unit ? `${fmt.NBSP}${unit}` : '';
   return (v) => {
     const n = Number(v);
     const d = Number.isInteger(n) ? 0 : Math.abs(n * 10 - Math.round(n * 10)) < 1e-9 ? 1 : 2;
-    return `${fmt.num(n, d)}${suffix}`;
+    if (en && unit === '€') return fmt.enEur(n, d);
+    return `${(en ? fmt.enNum : fmt.num)(n, d)}${suffix}`;
   };
 }
 
@@ -165,12 +180,15 @@ const YEAR_STEPS = [1, 2, 5, 10, 20];
  * text. Ranges over 36 months get year labels at January ('2022', every 1/2/5/10
  * years); shorter ranges get month abbreviations anchored at the latest month,
  * with the year on the first label and whenever it changes ('syys 2025', 'marras',
- * 'tammi 2026'). About one label per 64 px of chart width.
+ * 'tammi 2026'; English 'Sep 2025', 'Nov', 'Jan 2026'). About one label per
+ * 64 px of chart width.
  * @param {string[]} months
  * @param {number} width chart width in px
+ * @param {ChartLocale} [locale='fi']
  * @returns {Map<number, string>} label index → tick text
  */
-export function monthTicks(months, width) {
+export function monthTicks(months, width, locale = 'fi') {
+  const short = locale === 'en' ? fmt.enMonthShort : fmt.monthShort;
   const n = months.length;
   const out = new Map();
   if (!n) return out;
@@ -188,7 +206,7 @@ export function monthTicks(months, width) {
   let prevYear = null;
   for (const i of picked) {
     const y = fmt.yearOf(months[i]);
-    out.set(i, fmt.monthShort(months[i], { year: y !== prevYear }));
+    out.set(i, short(months[i], { year: y !== prevYear }));
     prevYear = y;
   }
   return out;
@@ -199,15 +217,18 @@ export function monthTicks(months, width) {
 /**
  * Line dataset with the site's line style (2 px, no points until hover,
  * straight segments). `series` picks the colour token and is kept on the
- * dataset so re-theming can recolour it.
- * @param {{series: string, label: string, data: (number|null)[], dashed?: boolean, hidden?: boolean, fill?: boolean}} o
+ * dataset so re-theming can recolour it. `decimals` overrides the chart's
+ * value decimals for this line (tooltip and end label), e.g. KHI with 1
+ * decimal in a chart of 2-decimal interest rates.
+ * @param {{series: string, label: string, data: (number|null)[], dashed?: boolean, hidden?: boolean, fill?: boolean, decimals?: number}} o
  */
-export function lineDataset({ series, label, data, dashed = false, hidden = false, fill = false }) {
+export function lineDataset({ series, label, data, dashed = false, hidden = false, fill = false, decimals }) {
   return {
     type: 'line',
     series,
     label,
     data,
+    ...(Number.isInteger(decimals) ? { decimals } : {}),
     hidden,
     fill: fill ? 'origin' : false,
     borderWidth: 2,
@@ -251,40 +272,76 @@ export function eventLine(month, label) {
 
 /* ------------------------------------------------------- last value labels */
 
+/** Gap between the end of a line and its value label, px. */
+const LABEL_OFFSET = 8;
+/** Room right of the widest label (and the padding without labels), px. */
+const LABEL_MARGIN = 6;
+
+/** Font of the end labels. @param {import('chart.js').Chart} chart */
+const labelFont = (chart) => `600 12px ${chart.options.font?.family ?? 'sans-serif'}`;
+
+/**
+ * The latest value of every visible line: [{ ds, index, value, text }].
+ * @param {import('chart.js').Chart} chart
+ * @param {{format: (v: number, ds: object) => string}} opts
+ */
+function lastValues(chart, opts) {
+  const out = [];
+  chart.data.datasets.forEach((ds, di) => {
+    const meta = chart.getDatasetMeta(di);
+    if (meta.type !== 'line' || !chart.isDatasetVisible(di)) return;
+    for (let i = ds.data.length - 1; i >= 0; i--) {
+      const v = ds.data[i];
+      if (fmt.isNum(v)) {
+        out.push({ ds, meta, index: i, value: v, text: opts.format(v, ds) });
+        break;
+      }
+    }
+  });
+  return out;
+}
+
 /**
  * Plugin: draws the latest value at the end of each visible line in the
  * series' text colour (ui-suunta: "viimeinen arvo viivan päässä"). Labels are
- * nudged apart vertically when they would overlap.
- * Options: plugins.lastValue = { enabled: true, format: (v) => string, color: (ds) => string }.
+ * nudged apart vertically when they would overlap. Before every layout the
+ * right padding is sized to the widest label ('162,71 €', '7 358,08 €'), so
+ * labels are never clipped at the canvas edge.
+ * Options: plugins.lastValue = { enabled: true, format: (v, ds) => string, color: (ds) => string }.
  */
 const lastValuePlugin = {
   id: 'lastValue',
   defaults: { enabled: false },
+  beforeLayout(chart, _args, opts) {
+    if (!opts?.enabled) return;
+    const pad = chart.options.layout?.padding;
+    if (!pad || typeof pad !== 'object') return;
+    const { ctx } = chart;
+    ctx.save();
+    ctx.font = labelFont(chart);
+    let width = 0;
+    for (const it of lastValues(chart, opts)) width = Math.max(width, ctx.measureText(it.text).width);
+    ctx.restore();
+    pad.right = width > 0 ? Math.ceil(width) + LABEL_OFFSET + LABEL_MARGIN : LABEL_MARGIN + 2;
+  },
   afterDatasetsDraw(chart, _args, opts) {
     if (!opts?.enabled) return;
     const { ctx, chartArea } = chart;
     const items = [];
-    chart.data.datasets.forEach((ds, di) => {
-      const meta = chart.getDatasetMeta(di);
-      if (meta.type !== 'line' || !chart.isDatasetVisible(di)) return;
-      for (let i = ds.data.length - 1; i >= 0; i--) {
-        const v = ds.data[i];
-        if (fmt.isNum(v) && meta.data[i]) {
-          items.push({ x: meta.data[i].x, y: meta.data[i].y, text: opts.format(v), color: opts.color(ds) });
-          break;
-        }
-      }
-    });
+    for (const it of lastValues(chart, opts)) {
+      const el = it.meta.data[it.index];
+      if (el) items.push({ x: el.x, y: el.y, text: it.text, color: opts.color(it.ds) });
+    }
     items.sort((a, b) => a.y - b.y);
     const gap = 16;
     for (let i = 1; i < items.length; i++) if (items[i].y - items[i - 1].y < gap) items[i].y = items[i - 1].y + gap;
     ctx.save();
-    ctx.font = `600 12px ${chart.options.font?.family ?? 'sans-serif'}`;
+    ctx.font = labelFont(chart);
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
     for (const it of items) {
       ctx.fillStyle = it.color;
-      ctx.fillText(it.text, Math.min(it.x + 8, chartArea.right + 8), Math.max(chartArea.top, Math.min(chartArea.bottom, it.y)));
+      ctx.fillText(it.text, Math.min(it.x + LABEL_OFFSET, chartArea.right + LABEL_OFFSET), Math.max(chartArea.top, Math.min(chartArea.bottom, it.y)));
     }
     ctx.restore();
   },
@@ -382,7 +439,10 @@ function listenForThemeChanges() {
  * @param {object[]} o.datasets lineDataset() / barDataset() results
  * @param {Record<string, object>} [o.annotations] targetLine() / eventLine() results by id
  * @param {'%'|'pp'|'€'|'index'|string} [o.unit='%'] value unit for tooltip and axis
- * @param {number} [o.decimals] value decimals in the tooltip
+ * @param {number} [o.decimals] value decimals in the tooltip and end labels
+ *   (a dataset's own `decimals`, see lineDataset(), wins)
+ * @param {ChartLocale} [o.locale='fi'] 'en' on English pages: English month
+ *   names in ticks and tooltips, '2.2%' / '€1,234.50' number formats
  * @param {number} [o.yMin] fixed y min
  * @param {number} [o.yMax] fixed y max
  * @param {boolean} [o.lastValue=true] latest value at the end of each line
@@ -395,7 +455,15 @@ export async function createChart(canvas, o) {
   const Chart = await loadChartJs();
   const t = readTokens(canvas);
   const unit = o.unit ?? '%';
-  const format = valueFormatter(unit, o.decimals);
+  const locale = o.locale === 'en' ? 'en' : 'fi';
+  const format = valueFormatter(unit, o.decimals, locale);
+  const formats = new Map();
+  /** Formatter of one dataset (its own `decimals` wins over the chart's). */
+  const formatOf = (ds) => {
+    if (!Number.isInteger(ds?.decimals)) return format;
+    if (!formats.has(ds.decimals)) formats.set(ds.decimals, valueFormatter(unit, ds.decimals, locale));
+    return formats.get(ds.decimals);
+  };
   const isMonths = !o.labels;
   const labels = o.labels ?? o.months;
   let ticks = new Map();
@@ -409,8 +477,9 @@ export async function createChart(canvas, o) {
       maintainAspectRatio: false,
       animation: prefersReducedMotion() ? false : { duration: 200 },
       interaction: { mode: 'index', intersect: false },
-      layout: { padding: { right: lastValue ? 52 : 8, top: 8 } },
-      locale: 'fi-FI',
+      // right: sized to the widest end label by lastValuePlugin.beforeLayout
+      layout: { padding: { right: 8, top: 8 } },
+      locale: intlLocale(locale),
       font: { family: t.font, size: 12 },
       scales: {
         x: {
@@ -421,7 +490,7 @@ export async function createChart(canvas, o) {
             maxRotation: 0,
             callback(value, index) {
               if (!isMonths) return this.getLabelForValue(value);
-              if (index === 0) ticks = monthTicks(this.chart.data.labels, this.chart.width);
+              if (index === 0) ticks = monthTicks(this.chart.data.labels, this.chart.width, locale);
               return ticks.get(index) ?? null;
             },
           },
@@ -431,7 +500,7 @@ export async function createChart(canvas, o) {
           max: o.yMax,
           beginAtZero: o.beginAtZero ?? false,
           border: { display: false },
-          ticks: { maxTicksLimit: 7, callback: axisFormatter(unit) },
+          ticks: { maxTicksLimit: 7, callback: axisFormatter(unit, locale) },
         },
       },
       plugins: {
@@ -442,19 +511,21 @@ export async function createChart(canvas, o) {
           padding: 10,
           boxWidth: 10,
           boxHeight: 2,
+          boxPadding: 6, // room between the colour swatch and the label
           usePointStyle: false,
           titleFont: { weight: '600' },
           callbacks: {
             title: (items) => {
               const l = items[0]?.label ?? '';
-              return isMonths && /^\d{4}-\d{2}$/.test(l) ? fmt.capitalize(fmt.monthName(l)) : l;
+              if (!isMonths || !/^\d{4}-\d{2}$/.test(l)) return l;
+              return locale === 'en' ? fmt.enMonthName(l) : fmt.capitalize(fmt.monthName(l));
             },
-            label: (item) => `${item.dataset.label}: ${format(item.raw)}`,
+            label: (item) => `${item.dataset.label}: ${formatOf(item.dataset)(item.raw)}`,
             footer: o.tooltipFooter,
           },
         },
         annotation: { annotations: o.annotations ?? {} },
-        lastValue: { enabled: lastValue, format, color: () => t.text2 },
+        lastValue: { enabled: lastValue, format: (v, ds) => formatOf(ds)(v), color: () => t.text2 },
       },
       ...(o.options ?? {}),
     },
@@ -483,22 +554,96 @@ export async function createChart(canvas, o) {
 /* ------------------------------------------------------------------ export */
 
 /**
+ * Legend entries of the image export: every visible dataset with one colour
+ * (line: 2 px swatch, dashed when the line is; bar: small box) and the target
+ * annotation. Datasets coloured per bar (level bands) are left out.
+ * @param {import('chart.js').Chart} chart
+ * @param {ReturnType<typeof readTokens>} t
+ * @returns {{label: string, color: string, dashed: boolean, box: boolean}[]}
+ */
+export function legendEntries(chart, t) {
+  const en = String(chart.config?.options?.locale ?? '').startsWith('en');
+  const out = [];
+  chart.data.datasets.forEach((ds, i) => {
+    if (!ds.label || Array.isArray(ds.series) || !chart.isDatasetVisible(i)) return;
+    out.push({
+      label: String(ds.label),
+      color: t.series[ds.series] ?? t.series.khi,
+      dashed: Array.isArray(ds.borderDash) && ds.borderDash.length > 0,
+      box: ds.type === 'bar' || (!ds.type && chart.config?.type === 'bar'),
+    });
+  });
+  const notes = chart.config?.options?.plugins?.annotation?.annotations ?? {};
+  for (const a of Object.values(notes)) {
+    if (a?.themeKey !== 'target' || a.display === false || !fmt.isNum(a.yMin)) continue;
+    const decimals = Number.isInteger(a.yMin) ? 0 : 1;
+    const label = a.label?.content || (en ? `ECB target ${fmt.enPct(a.yMin, { decimals })}` : `EKP:n tavoite ${fmt.pct(a.yMin, { decimals })}`);
+    out.push({ label: String(label), color: t.target, dashed: true, box: false });
+  }
+  return out;
+}
+
+/**
+ * Lay legend entries out in rows no wider than `maxWidth`.
+ * @param {{label: string}[]} entries
+ * @param {(s: string) => number} measure text width
+ * @param {number} maxWidth
+ * @param {{swatch: number, gap: number, spacing: number}} m swatch width, swatch–text gap, space between entries
+ * @returns {{entry: object, x: number, row: number}[]}
+ */
+export function layoutLegend(entries, measure, maxWidth, { swatch, gap, spacing }) {
+  const out = [];
+  let x = 0;
+  let row = 0;
+  for (const entry of entries) {
+    const w = swatch + gap + measure(entry.label);
+    if (x > 0 && x + w > maxWidth) {
+      row += 1;
+      x = 0;
+    }
+    out.push({ entry, x, row });
+    x += w + spacing;
+  }
+  return out;
+}
+
+/**
  * Download the chart as a PNG with the current surface colour as background
- * ("Lataa kuva"). Uses a temporary canvas and an <a download> element.
+ * ("Lataa kuva"): title, a legend of the visible series (so a shared image
+ * still tells KHI from YKHI), the chart and the source line. Uses a temporary
+ * canvas and an <a download> element.
  * @param {import('chart.js').Chart} chart
  * @param {string} filename e.g. 'inflaatio-khi-ykhi-2026-08.png'
- * @param {{title?: string, source?: string}} [o] optional caption lines drawn on the image
+ * @param {{title?: string, source?: string, legend?: boolean}} [o] caption lines drawn on
+ *   the image; `legend: false` leaves the legend out
  */
-export function downloadPng(chart, filename, { title, source } = {}) {
+export function downloadPng(chart, filename, { title, source, legend = true } = {}) {
   const t = readTokens(chart.canvas);
   const src = chart.canvas;
   const ratio = src.width / (chart.width || src.width);
-  const pad = Math.round(16 * ratio);
-  const head = title ? Math.round(28 * ratio) : 0;
-  const foot = source ? Math.round(24 * ratio) : 0;
+  const px = (n) => Math.round(n * ratio);
+  const pad = px(16);
+  const head = title ? px(28) : 0;
+  const foot = source ? px(24) : 0;
+  const legendFont = `${px(12)}px ${t.font}`;
+
+  // Legend rows (measured with the chart's own context; nothing is drawn there).
+  const entries = legend ? legendEntries(chart, t) : [];
+  const metrics = { swatch: px(16), gap: px(6), spacing: px(16) };
+  let placed = [];
+  if (entries.length > 1) {
+    const mctx = chart.ctx;
+    mctx.save();
+    mctx.font = legendFont;
+    placed = layoutLegend(entries, (s) => mctx.measureText(s).width, src.width, metrics);
+    mctx.restore();
+  }
+  const rowH = px(18);
+  const legendH = placed.length ? (placed.at(-1).row + 1) * rowH + px(6) : 0;
+
   const out = document.createElement('canvas');
   out.width = src.width + pad * 2;
-  out.height = src.height + pad * 2 + head + foot;
+  out.height = src.height + pad * 2 + head + legendH + foot;
   const c = out.getContext('2d');
   if (!c) return;
   c.fillStyle = t.surface;
@@ -506,14 +651,30 @@ export function downloadPng(chart, filename, { title, source } = {}) {
   c.textBaseline = 'top';
   if (title) {
     c.fillStyle = t.text;
-    c.font = `600 ${Math.round(16 * ratio)}px ${t.font}`;
+    c.font = `600 ${px(16)}px ${t.font}`;
     c.fillText(title, pad, pad);
   }
-  c.drawImage(src, pad, pad + head);
+  if (placed.length) {
+    c.font = legendFont;
+    c.textBaseline = 'middle';
+    const top = pad + head;
+    for (const { entry, x, row } of placed) {
+      const cx = pad + x;
+      const cy = top + row * rowH + rowH / 2;
+      c.fillStyle = entry.color;
+      if (entry.box) c.fillRect(cx + metrics.swatch / 2 - px(5), cy - px(5), px(10), px(10));
+      else if (entry.dashed) for (let d = 0; d < metrics.swatch; d += px(7)) c.fillRect(cx + d, cy - px(1), Math.min(px(4), metrics.swatch - d), px(2));
+      else c.fillRect(cx, cy - px(1), metrics.swatch, px(2));
+      c.fillStyle = t.text2;
+      c.fillText(entry.label, cx + metrics.swatch + metrics.gap, cy);
+    }
+    c.textBaseline = 'top';
+  }
+  c.drawImage(src, pad, pad + head + legendH);
   if (source) {
     c.fillStyle = t.text3;
     c.font = `${Math.round(12 * ratio)}px ${t.font}`;
-    c.fillText(source, pad, pad + head + src.height + Math.round(6 * ratio));
+    c.fillText(source, pad, pad + head + legendH + src.height + px(6));
   }
   const a = document.createElement('a');
   a.href = out.toDataURL('image/png');

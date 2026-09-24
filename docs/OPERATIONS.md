@@ -47,6 +47,10 @@ GitHub, Google, Supabase, EmailJS). Muut dokumentit:
   ensimmäisestä pyynnöstä (ks. [Kylmäkäynnistys](#kylmäkäynnistys-ja-kustannukset)).
   Terveystarkistus: `GET /healthz`. Julkaisu tehdään blue-green-tapaan: uusi
   kone otetaan käyttöön vasta, kun sen terveystarkistus menee läpi.
+  Sovelluksen oma osoite https://inflaatio.fly.dev vastaa samoin kuin
+  inflaatio.fi (savutestit käyttävät sitä), mutta nginx lähettää sille
+  otsakkeen `X-Robots-Tag: noindex, nofollow`, joten hakukoneet eivät
+  indeksoi sitä sivuston kopiona.
 
 ### GitHub Actions -työnkulut
 
@@ -54,14 +58,23 @@ GitHub, Google, Supabase, EmailJS). Muut dokumentit:
 |---|---|---|
 | `ci.yml` (CI) | jokainen pull request ja push mainiin | lint, testit, tuotantobuild, linkkien tarkistus, Docker-imagen rakennus ja savutesti (ei julkaise) |
 | `update-data.yml` (Päivitä data) | klo 06.17 ja 13.47 UTC (kesäaikaan 9.17 ja 16.47) + käsin | `npm run fetch` → datasopimus, build ja linkit → kommitti `data: …` mainiin → julkaisu Fly.io:hon → savutesti. Epäonnistuu lopuksi, jos jokin lähde epäonnistui (GitHub lähettää sähköpostin). |
-| `deploy.yml` (Julkaisu) | push mainiin, joka muuttaa sivustoa (`src/`, `scripts/`, `deploy/`, `data/`, Dockerfile, fly.toml, package*.json) + käsin | testit, build, linkit → `flyctl deploy --remote-only` → savutesti osoitteeseen `https://inflaatio.fly.dev` |
-| `site-check.yml` (Tuotannon tarkistus) | 6 tunnin välein + käsin | tarkistaa https://inflaatio.fi:n (otsakkeet, tiedostot, 404, uudelleenohjaukset, `/healthz`, uusin KHI-kuukausi); virheestä avautuu issue, jolla on tunniste `site-check` |
+| `deploy.yml` (Julkaisu) | push mainiin, joka muuttaa sivustoa (`src/`, `scripts/`, `deploy/`, `data/`, Dockerfile, fly.toml, package*.json) + käsin (vain main; muun haaran käsiajo ohitetaan) | testit, build, linkit → `flyctl deploy --remote-only` → savutesti osoitteeseen `https://inflaatio.fly.dev` |
+| `site-check.yml` (Tuotannon tarkistus) | 6 tunnin välein + käsin | tarkistaa https://inflaatio.fi:n (otsakkeet, tiedostot, 404/410, uudelleenohjaukset, `/healthz`, uusin KHI-kuukausi, `/data/latest.json` vs. mainin data ja julkaisukalenteri); virheestä avautuu issue, jolla on tunniste `site-check` |
 
 Datakommitit eivät käynnistä `deploy.yml`:ää (GitHubin `GITHUB_TOKEN`-pushit
 eivät käynnistä muita työnkulkuja), siksi `update-data.yml` julkaisee itse.
 Molemmat käyttävät samaa `fly-deploy`-jonoa, joten julkaisuja ei tehdä
-päällekkäin. Kaikki actionit on kiinnitetty commit-SHA:han, ja Dependabot
-(`.github/dependabot.yml`) ehdottaa päivityksiä viikoittain.
+päällekkäin, ja molemmat julkaisevat mainin sellaisena kuin se on julkaisun
+alkaessa (uudempi jonoon tullut julkaisu korvaa odottavan, eikä mikään
+kommitti jää julkaisematta). Julkaisevat työt käyttävät GitHubin ympäristöä
+`production`, jonka `FLY_API_TOKEN`-secret on vain main-haaran käytössä.
+
+Toimitusketju: kaikki actionit on kiinnitetty commit-SHA:han, ja Dependabot
+(`.github/dependabot.yml`) ehdottaa päivityksiä viikoittain. `npm ci` ajetaan
+aina valinnalla `--ignore-scripts` (riippuvuuksien asennusskriptit eivät
+suoritu), eikä `actions/checkout` jätä tokenia `.git/config`-tiedostoon;
+datapäivitys antaa kirjoitusoikeuden tokenin vain push-vaiheelle. flyctl on
+kiinnitetty versioon (ks. [Päivitykset](#päivitykset)).
 
 ## Siirto GitHub Pagesista Fly.io:hon
 
@@ -73,8 +86,23 @@ näyttää vain fly-reversi, stayfinder ja valokammio), ja `inflaatio.fly.dev`
 ei resolvoidu. Sovellus on siis joko toisella tunnuksella tai organisaatiolla
 tai se on poistettu.
 
-**Tee vaiheet 1–4 ennen kuin PR mergetään.** Silloin tuotanto siirtyy
+**Tee vaiheet 0–4 ennen kuin PR mergetään.** Silloin tuotanto siirtyy
 Fly.io:hon hallitusti, ja paluu GitHub Pagesiin on yhä mahdollinen.
+
+**Komentotulkki (Windows):** aja alla olevat `sh`-lohkot **Git Bashissa**
+(tai WSL:ssä). Niissä on POSIX-muotoja (`MUUTTUJA=arvo komento`, `grep`,
+`head`), jotka eivät toimi PowerShellissä, ja Windows PowerShell 5.1:ssä
+`curl` on eri ohjelma (Invoke-WebRequest). `fly`- ja `gh`-komennot toimivat
+myös PowerShellissä. PowerShell-vastineet:
+
+```powershell
+# SMOKE_URL=… node --test …  →
+$env:SMOKE_URL = "https://inflaatio.fly.dev"; $env:SMOKE_EXPECT_LATEST = "1"
+node --test --test-name-pattern="^smoke" test/ops.test.js
+Remove-Item Env:SMOKE_URL, Env:SMOKE_EXPECT_LATEST     # lopuksi pois
+# curl -sI … | grep -iE '…'  →  curl.exe (Windowsin oma curl) ja Select-String
+curl.exe -sI https://inflaatio.fly.dev/ | Select-String -Pattern 'HTTP/|content-security|strict-transport|cache-control'
+```
 
 Ennen aloitusta:
 
@@ -84,6 +112,31 @@ Ennen aloitusta:
   DNS → Records → **Import and Export → Export**. Tätä tarvitaan paluussa.
 - Katso Cloudflaresta SSL/TLS → Overview, onko tila nyt *Flexible* vai *Full*
   (tarvitaan vaiheessa 3).
+
+### Vaihe 0: Vanhat työnkulut pois käytöstä (ensimmäiseksi)
+
+Mainissa ovat yhä vanhan sivuston työnkulut:
+
+- `fly-deploy.yml` ("Deploy to Fly.io") julkaisee pushista mainiin ja käsin
+  vanhan sivun Fly-sovellukseen `inflaatio`. Kun vaihe 1.4 vaihtaa
+  `FLY_API_TOKEN`-secretin uuden sovelluksen tokeniin, jokainen push mainiin
+  tai käsiajo julkaisisi **vanhan sivun uuteen tuotantosovellukseen**
+  (SPA-varasivu, ei CSP:tä, vuoden välimuisti CSS- ja JS-tiedostoille).
+- `update-yearly-data.yml` ("Update Yearly Inflation Data") kommitoi joka
+  päivä vanhan sivun `index.html`- ja `inflation-site-optimized.min.*`-tiedostoja
+  mainiin. Tämä PR poistaa ne tiedostot, joten jokainen tällainen kommitti
+  lisää PR:n ristiriitoja (ks. vaihe 5).
+
+Poista molemmat käytöstä ennen mitään muuta:
+
+```sh
+gh workflow disable "Deploy to Fly.io" --repo JanneJok/inflaatio
+gh workflow disable "Update Yearly Inflation Data" --repo JanneJok/inflaatio
+gh workflow list --all --repo JanneJok/inflaatio     # molemmilla tila disabled_manually
+```
+
+Mergen jälkeen niitä ei enää ole (tämä PR poistaa tiedostot), eikä GitHub
+näytä poistettuja työnkulkuja.
 
 ### Vaihe 1: Fly-sovellus – löydä tai luo
 
@@ -123,15 +176,36 @@ Ennen aloitusta:
    komennoissa `inflaatio.fly.dev` on silloin `inflaatio-fi.fly.dev`.
 
 4. Luo sovellukselle deploy-token (oikeudet vain tähän sovellukseen) ja
-   tallenna se GitHubiin. Tokenia ei kirjoiteta mihinkään muualle.
+   tallenna se GitHubin **ympäristöön `production`**, jota vain main-haara saa
+   käyttää. Silloin muun haaran työnkulku (esim. `gh workflow run deploy.yml
+   --ref jokin-haara`) ei pääse tokeniin eikä voi julkaista tarkistamatonta
+   koodia tuotantoon. Tokenia ei kirjoiteta mihinkään muualle.
 
    ```sh
    fly tokens create deploy -a inflaatio -x 8760h --name github-actions
-   gh secret set FLY_API_TOKEN --repo JanneJok/inflaatio   # liitä token kehotteeseen
+   # Ympäristö "production": vain main-haara saa käyttää sen secretejä.
+   gh api -X PUT repos/JanneJok/inflaatio/environments/production \
+     -F "deployment_branch_policy[protected_branches]=false" \
+     -F "deployment_branch_policy[custom_branch_policies]=true"
+   gh api -X POST repos/JanneJok/inflaatio/environments/production/deployment-branch-policies \
+     -f name=main -f type=branch
+   gh secret set FLY_API_TOKEN --env production --repo JanneJok/inflaatio   # liitä token kehotteeseen
+   gh secret delete FLY_API_TOKEN --repo JanneJok/inflaatio                 # vanha repotason secret pois
+   gh secret list --env production --repo JanneJok/inflaatio                # FLY_API_TOKEN
    ```
 
-   Uusi arvo korvaa vanhan secretin. Token on voimassa vuoden (`-x 8760h`):
-   merkitse kalenteriin uusiminen (sama komento uudelleen).
+   Sama selaimessa: Settings → Environments → *New environment* `production`
+   → *Deployment branches and tags*: **Selected branches and tags** → *Add
+   deployment branch or tag rule* `main` → *Environment secrets*: *Add
+   environment secret* `FLY_API_TOKEN`. Poista sitten Settings → Secrets and
+   variables → Actions → *Repository secrets* -listalta vanha `FLY_API_TOKEN`.
+   Älä lisää ympäristöön *Required reviewers* -sääntöä: se pysäyttäisi
+   datapäivitysten automaattiset julkaisut odottamaan hyväksyntää.
+   (PowerShellissä rivinjatko `\` on `` ` ``, tai kirjoita komento yhdelle riville.)
+
+   Token on voimassa vuoden (`-x 8760h`): merkitse kalenteriin uusiminen
+   (`fly tokens create …` ja `gh secret set FLY_API_TOKEN --env production …`
+   uudelleen).
 
 ### Vaihe 2: Julkaise PR-haara ja testaa osoitteessa inflaatio.fly.dev
 
@@ -174,27 +248,37 @@ Flyhin HTTPS:llä ja tarkistaa Flyn varmenteen (tila *Full (strict)*).
 ```sh
 fly certs add inflaatio.fi
 fly certs add www.inflaatio.fi
-fly certs show inflaatio.fi
+fly certs setup inflaatio.fi
+fly certs setup www.inflaatio.fi
 ```
 
-Koska Cloudflare on välissä, Fly vahvistaa domainin DNS:n kautta.
-`fly certs show` näyttää *DNS validation* -kohdassa tietueen muotoa
-`_acme-challenge.inflaatio.fi CNAME inflaatio.fi.<tunniste>.flydns.net`.
-Lisää Cloudflareen (DNS → Records → Add record):
+`fly certs setup <nimi>` näyttää tarvittavat DNS-tietueet. (`fly certs show`
+on nykyään sama komento kuin `fly certs check`: se näyttää vain tilan, ei
+tietueita.) Koska Cloudflaren välityspalvelin (oranssi pilvi) on Flyn
+edessä, Fly ei näe DNS:stä, että domain ohjautuu siihen. Siksi tarvitaan
+kaksi tietuetta kummallekin nimelle. Lisää ne Cloudflareen (DNS → Records →
+Add record), kaikki **DNS only** (harmaa pilvi):
 
-| Tyyppi | Nimi | Kohde | Proxy |
+| Tyyppi | Nimi | Arvo | Tarkoitus |
 |---|---|---|---|
-| CNAME | `_acme-challenge` | arvo `fly certs show inflaatio.fi` -tulosteesta | **DNS only** (harmaa pilvi) |
-| CNAME | `_acme-challenge.www` | arvo `fly certs show www.inflaatio.fi` -tulosteesta | **DNS only** |
+| TXT | `_fly-ownership` | `fly certs setup inflaatio.fi` → kohta *Ownership TXT Record* | todistaa, että domain on sinun; Fly vaatii sen, kun liikenne kulkee CDN:n kautta. **Pysyvä**: tarvitaan myös varmenteen uusimisessa. |
+| TXT | `_fly-ownership.www` | `fly certs setup www.inflaatio.fi` → *Ownership TXT Record* | sama www-nimelle, pysyvä |
+| CNAME | `_acme-challenge` | `fly certs setup inflaatio.fi` → kohta *ACME DNS Challenge* (muotoa `inflaatio.fi.<tunniste>.flydns.net`) | varmenne myönnetään jo ennen DNS-vaihtoa (DNS-01). **Väliaikainen**: poistetaan vaiheessa 3.4. |
+| CNAME | `_acme-challenge.www` | `fly certs setup www.inflaatio.fi` → *ACME DNS Challenge* | sama www-nimelle, väliaikainen |
 
 Odota, kunnes `fly certs check inflaatio.fi` ja `fly certs check www.inflaatio.fi`
-kertovat varmenteen myönnetyksi (yleensä muutama minuutti). Tarkista
-halutessasi ennen DNS-vaihtoa, että Fly vastaa oikealla varmenteella
-(IPv4 `fly ips list` -tulosteesta):
+kertovat varmenteen olevan voimassa (*Certificate is verified and active*;
+yleensä muutama minuutti). Tarkista halutessasi ennen DNS-vaihtoa, että Fly
+vastaa oikealla varmenteella (IPv4 `fly ips list` -tulosteesta):
 
 ```sh
 curl -sI --resolve inflaatio.fi:443:<Flyn IPv4> https://inflaatio.fi/ | head -n 1
 ```
+
+(PowerShell: `curl.exe -sI --resolve inflaatio.fi:443:<Flyn IPv4> https://inflaatio.fi/`
+ja katso ensimmäinen rivi.) Jos varmennetta ei synny puolessa tunnissa,
+`fly certs check` kertoo syyn; tarkista, että tietueet ovat harmaalla
+pilvellä ja arvot on kopioitu kokonaan.
 
 **3.2 SSL/TLS-tila ennen vaihtoa.** Jos tila on nyt *Flexible*, vaihda se
 tilaan **Full** (SSL/TLS → Overview) ja varmista, että inflaatio.fi toimii
@@ -202,22 +286,42 @@ yhä. *Flexible* + Fly = uudelleenohjaussilmukka, koska Fly ohjaa HTTP:n
 HTTPS:ään. *Full* hyväksyy myös GitHub Pagesin varmenteen, joten sivusto
 toimii koko vaihdon ajan.
 
-**3.3 DNS-vaihto (DNS → Records):**
+**3.3 DNS-vaihto (DNS → Records).** **Muokkaa** olemassa olevia tietueita
+(*Edit*) äläkä poista niitä ensin. Jos juurinimeltä poistetaan kaikki
+osoitetietueet ennen uuden lisäämistä, välissä kysyvä resolveri tallentaa
+välimuistiinsa vastauksen "ei osoitetta" jopa 30 minuutiksi (SOA:n
+negatiivinen TTL), ja osa kävijöistä ei pääse sivulle. Muokattaessa
+välivaihetta ei ole. Osoitteet saat komennolla `fly ips list` (*v4 shared* ja *v6*).
 
-- Poista inflaatio.fi:n A-tietueet 185.199.108.153, 185.199.109.153,
-  185.199.110.153 ja 185.199.111.153 sekä mahdolliset AAAA-tietueet
-  `2606:50c0:800X::153` (GitHub Pages).
-- Lisää `CNAME` `@` → `inflaatio.fly.dev`, **Proxied** (oranssi pilvi).
-  Cloudflare litistää juuren CNAME-tietueen automaattisesti.
-- Muuta `www` → `CNAME` `inflaatio.fly.dev`, **Proxied**. nginx ohjaa
-  www-osoitteen pysyvästi osoitteeseen https://inflaatio.fi/. (Vaihtoehto:
-  Cloudflaren Redirect Rule `www.inflaatio.fi/*` → `https://inflaatio.fi/${1}`, 301.)
-- CNAME-tietueen sijaan voi käyttää A- ja AAAA-tietueita, joissa on
-  `fly ips list` -tulosteen osoitteet (Proxied).
+1. Muokkaa ensimmäinen inflaatio.fi:n A-tietue (185.199.108.153): arvoksi
+   Flyn jaettu IPv4, **Proxied** (oranssi pilvi). Poista sen jälkeen
+   GitHubin kolme muuta A-tietuetta (185.199.109.153, 185.199.110.153,
+   185.199.111.153). Välissä Cloudflare jakaa pyyntöjä sekä Flyhin että
+   GitHub Pagesiin; molemmat toimivat, koska SSL/TLS-tila on *Full* (3.2).
+2. AAAA: jos GitHubin AAAA-tietueita on (`2606:50c0:800X::153`), muokkaa
+   ensimmäinen Flyn IPv6-osoitteeksi (Proxied) ja poista muut. Jos AAAA-tietuetta
+   ei ole, lisää AAAA `@` → Flyn IPv6, Proxied.
+3. Muokkaa `www`-tietueen (CNAME `janneJok.github.io`) kohteeksi
+   `inflaatio.fly.dev`, **Proxied**. nginx ohjaa www-osoitteen pysyvästi
+   osoitteeseen https://inflaatio.fi/. (Vaihtoehto: Cloudflaren Redirect Rule
+   `www.inflaatio.fi/*` → `https://inflaatio.fi/${1}`, 301.)
+
+Vaihtoehto A/AAAA-tietueille on juuren CNAME `@` → `inflaatio.fly.dev`
+(Proxied; Cloudflare litistää sen). Se vaatii A-tietueiden poiston ensin,
+joten siinä on yllä kuvattu katkon riski: käytä A/AAAA-tietueita.
 
 **3.4 Heti vaihdon jälkeen:**
 
 - SSL/TLS → Overview: **Full (strict)**.
+- Kun sivu toimii *Full (strict)* -tilassa (`curl -sI https://inflaatio.fi/`
+  näyttää `fly-request-id`-otsakkeen): **poista** Cloudflaresta väliaikaiset
+  CNAME-tietueet `_acme-challenge` ja `_acme-challenge.www`. Flyn DNS-01-varmenteet
+  törmäävät Cloudflaren Universal SSL:n omiin (piilotettuihin)
+  `_acme-challenge`-tietueisiin. Ilman niitä Fly uusii varmenteet
+  HTTP-01-haasteella Cloudflaren läpi, ja siihen tarvitaan `_fly-ownership`-TXT-tietueet:
+  **pidä ne pysyvästi**. Muuten varmenne voi jäädä uusimatta (noin 60 päivän
+  päästä), ja Cloudflare näyttää kävijöille virheen 526.
+  Tarkista kolmen kuukauden päästä: `fly certs check inflaatio.fi` (voimassa, uusi päivämäärä).
 - SSL/TLS → Edge Certificates: *Always Use HTTPS* päälle, *Minimum TLS Version*
   1.2. Jätä Cloudflaren oma HSTS pois päältä (nginx lähettää HSTS-otsakkeen;
   jos otat sen käyttöön, käytä samoja arvoja: 12 kk, includeSubDomains, ei preloadia).
@@ -227,6 +331,7 @@ toimii koko vaihdon ajan.
   -säännöt, jotka ylikirjoittavat välimuistiajan tai välimuistittavat HTML:ää.
   Uusi sivusto kertoo itse oikeat ajat: `/assets/` ja `/fonts/` vuosi
   (tiedostonimessä on sisältötiiviste), HTML `no-cache`, `/data/` tunti,
+  jakokuva `/og/` vuorokausi (se tehdään uudelleen joka kuukausi), muut
   kuvat viikko.
 - Poista käytöstä ominaisuudet, jotka lisäävät sivulle skriptejä ja rikkovat
   CSP:n: Speed → Optimization → *Rocket Loader* pois; Scrape Shield →
@@ -257,12 +362,27 @@ nyt `410 Gone`.
 
 ### Vaihe 5: Merge
 
-1. Poista vanha datatyönkulku käytöstä, ettei se kommitoi mainiin vanhan
-   sivun `index.html`:ää PR:n kanssa ristiin:
+1. Päivitä PR-haara mainista juuri ennen mergeä. Vanha datatyönkulku ehti
+   kommitoida mainiin vanhan sivun tiedostoja (`index.html`,
+   `inflation-site-optimized.min.js`, `inflation-site-optimized.min.css`)
+   haaran erkanemisen jälkeen, ja tämä haara poistaa ne, joten GitHub
+   näyttää *modify/delete*-ristiriitoja. Ratkaise ne pitämällä poisto:
 
    ```sh
-   gh workflow disable "Update Yearly Inflation Data" --repo JanneJok/inflaatio
+   git fetch origin
+   git switch claude/code-review-improvements-eabb62
+   git merge origin/main
+   git status          # "Unmerged paths": deleted by us: index.html …
+   git rm index.html inflation-site-optimized.min.js inflation-site-optimized.min.css   # ne, jotka git status listaa
+   git status          # ei enää "Unmerged paths"; ratkaise muut ristiriidat tavalliseen tapaan
+   git commit --no-edit
+   npm run check
+   git push
    ```
+
+   (Vaihtoehto: `gh pr update-branch <numero>` toimii vain, jos ristiriitoja
+   ei ole.) Vaiheen 0 jälkeen vanha työnkulku ei enää kommitoi, joten
+   ristiriidat eivät synny uudelleen.
 
 2. Mergeä PR. Push mainiin käynnistää `deploy.yml`:n, joka julkaisee mainin
    Fly.io:hon, ja `ci.yml`:n. Seuraa: Actions-välilehti.
@@ -286,14 +406,16 @@ julkaisisi repon lähdekoodia. Poista Pages käytöstä:
 
 1. Settings → Pages → *Custom domain*: **Remove**, sitten **Unpublish site**
    (tai `gh api -X DELETE repos/JanneJok/inflaatio/pages`).
-2. Juuren `CNAME`-tiedosto poistetaan siivousvaiheessa (sitä ei enää tarvita).
+2. Juuren `CNAME`-tiedosto on poistettu jo tässä PR:ssä (Fly ei tarvitse
+   sitä), joten sille ei tarvitse tehdä mitään.
 3. Suositus: vahvista domain GitHubissa, ettei kukaan muu voi myöhemmin
    ottaa inflaatio.fi:tä käyttöön omassa Pages-sivustossaan: oma profiili →
    Settings → Pages → *Add a domain* → inflaatio.fi → lisää Cloudflareen
    GitHubin antama TXT-tietue `_github-pages-challenge-JanneJok` (DNS only)
    → *Verify*.
-4. `gh secret list --repo JanneJok/inflaatio`: poista secretit, joita mikään
-   työnkulku ei enää käytä (käytössä on vain `FLY_API_TOKEN`).
+4. `gh secret list --repo JanneJok/inflaatio`: poista repotason secretit,
+   joita mikään työnkulku ei enää käytä. Käytössä on vain ympäristön
+   `production` `FLY_API_TOKEN` (`gh secret list --env production --repo JanneJok/inflaatio`).
 
 ### Vaihe 7: Paluusuunnitelma
 
@@ -301,11 +423,21 @@ julkaisisi repon lähdekoodia. Poista Pages käytöstä:
   export-tiedoston tietueet (A 185.199.108–111.153, AAAA, `www` → CNAME
   `janneJok.github.io`) ja vaihda SSL/TLS-tila takaisin tilaan *Full*. Sivu
   palaa GitHub Pagesiin muutamassa minuutissa (Pages on yhä päällä ja main
-  ennallaan). Poista lopuksi välimuisti (*Purge Everything*).
+  ennallaan). Poista lopuksi välimuisti (*Purge Everything*). Jos paluu on
+  pidempiaikainen, ota vanha datatyönkulku takaisin käyttöön, jotta vanhan
+  sivun luvut päivittyvät: `gh workflow enable "Update Yearly Inflation Data" --repo JanneJok/inflaatio`
+  ("Deploy to Fly.io" pysyy pois päältä).
 - **Mergen jälkeen** paluu tehdään Flyn sisällä:
   - Edellinen toimiva versio: `fly releases -a inflaatio --image` näyttää
     julkaisut ja imaget; `fly deploy --image registry.fly.io/inflaatio:deployment-<tunniste>`
     palauttaa valitun imagen.
+    **Huom.:** imagen palautus kumoutuu itsestään. Seuraava datapäivitys, jossa
+    data muuttuu (ajo kahdesti päivässä), julkaisee mainin uudelleen ja tuo
+    viallisen koodin takaisin. Tee siksi heti palautuksen jälkeen jompikumpi:
+    peru viallinen kommitti mainista (`git revert <commit>` → push →
+    `deploy.yml` julkaisee korjatun mainin) tai keskeytä datajulkaisut
+    korjaukseen asti: `gh workflow disable update-data.yml --repo JanneJok/inflaatio`
+    (ja korjauksen jälkeen `gh workflow enable update-data.yml --repo JanneJok/inflaatio`).
   - Koodimuutoksen peruutus: `git revert <commit>` → push mainiin →
     `deploy.yml` julkaisee.
   - Virheellinen data: `git revert` datakommitille (seuraava onnistunut haku
@@ -341,6 +473,16 @@ Rastita, kun tehty.
   että tietosuojaselosteen lupaukset pitävät: *Google signals data collection*
   pois päältä ja mainonnan personointi pois (Data collection → Advanced
   settings to allow for ads personalization), eikä Google Ads -linkityksiä ole.
+- [ ] **Google Analytics 4, sivuhistorian tapahtumat pois:** Admin → Data
+  streams → verkkovirta (inflaatio.fi) → *Enhanced measurement* → *Page views*
+  -kohdan rataskuvake → *Show advanced settings* → **Page changes based on
+  browser history events** pois päältä → Save. Laskurit kirjoittavat
+  syötetyt luvut (palkka, vuokra, kuukausimenot) osoiteriville
+  (`history.replaceState`), jotta linkin voi jakaa. Tämä asetus päällä GA4
+  lähettäisi jokaisesta muutoksesta sivunäytön koko osoitteineen Googlelle.
+  Tietosuojaseloste lupaa GA:lle vain sivut ja ominaisuuksien käytön, ei
+  syötettyjä summia. (Koodi lähettää GA:lle osoitteen ilman kyselyosaa;
+  tämä asetus estää lisäksi GA4:n omat historiatapahtumat.)
 - [ ] **EmailJS:** Account → Security: *Allowed origins* = `https://inflaatio.fi`
   (ja `https://www.inflaatio.fi`) ja rajoitus pyyntötiheydelle (esim. yksi
   lähetys 10 sekunnissa). Tarkista, säilyttääkö EmailJS viestihistoriaa
@@ -439,7 +581,8 @@ Rastita, kun tehty.
 
 - [ ] 9/2027: poista `src/static/service_worker.js` (vanhan service workerin
   poistaja, ks. tiedoston kommentti).
-- [ ] Flyn deploy-tokenin uusiminen vuoden välein (vaihe 1, kohta 4).
+- [ ] Flyn deploy-tokenin uusiminen vuoden välein (vaihe 1, kohta 4:
+  `gh secret set FLY_API_TOKEN --env production`).
 
 ## Päivittäinen ylläpito
 
@@ -493,8 +636,12 @@ jo avointa). Issue suljetaan automaattisesti, kun tarkistus onnistuu taas.
 2. Vastaako palvelu? https://inflaatio.fi/healthz → `ok`. Jos ei: `fly status`,
    `fly logs`, Flyn ja Cloudflaren tilasivut. Cloudflaren 52x-virheet: ks.
    paluusuunnitelma yllä.
-3. **Uusin KHI-kuukausi puuttuu sivulta:** katso viimeisin "Päivitä data" -ajo.
-   Epäonnistuiko julkaisu? Aja `gh workflow run deploy.yml`.
+3. **Uusin KHI-kuukausi puuttuu sivulta** tai **`/data/latest.json` ei vastaa
+   dataa** (esim. YKHI on yhä "ennakko", päivitetty-päivä tai seuraava
+   julkaisupäivä on vanha): jokin datapäivitys on mainissa mutta ei
+   tuotannossa. Katso viimeisin "Päivitä data" -ajo. Epäonnistuiko julkaisu?
+   Aja `gh workflow run deploy.yml`. (Seuraava datapäivitys ei julkaise
+   uudelleen, jos data ei sillä välin muutu.)
 4. **Otsake puuttuu tai on väärä:** onko joku muuttanut Cloudflaren asetuksia
    (Transform Rules, HSTS, Rocket Loader) tai nginx-asetuksia? Otsakkeiden ainoa
    lähde on `deploy/security-headers.conf`.
@@ -519,6 +666,8 @@ jo avointa). Issue suljetaan automaattisesti, kun tarkistus onnistuu taas.
   docker stop inflaatio-local
   ```
 
+  PowerShellissä savutesti: `$env:SMOKE_URL = "http://127.0.0.1:8108"; $env:SMOKE_EXPECT_LATEST = "1"; node --test --test-name-pattern="^smoke" test/ops.test.js`.
+
 ### Päivitykset
 
 - **Dependabot** avaa maanantaisin enintään muutaman ryhmitellyn PR:n (npm:n
@@ -529,6 +678,13 @@ jo avointa). Issue suljetaan automaattisesti, kun tarkistus onnistuu taas.
   2027): vaihda `Dockerfile`n `FROM`-rivi ja anna CI:n tarkistaa.
 - **Node.js:** 24 (LTS). Siirto uuteen LTS-versioon: `Dockerfile`,
   työnkulkujen `node-version` ja `package.json`:n `engines`.
+- **flyctl:** `setup-flyctl` asentaa kiinnitetyn version (`version: '0.4.104'`
+  tiedostoissa `deploy.yml` ja `update-data.yml`). Dependabot päivittää vain
+  actionin SHA:n, ei tätä versiota. Nosta se muutaman kuukauden välein tai
+  kun Fly sitä pyytää: katso uusin versio (`fly version` tai `fly version upgrade` omalla
+  koneella tai https://github.com/superfly/flyctl/releases), kokeile
+  `fly deploy --remote-only` sillä ja vaihda sama numero molempiin
+  tiedostoihin (`test/ops.test.js` tarkistaa, että ne ovat samat).
 
 ### Kylmäkäynnistys ja kustannukset
 
@@ -555,6 +711,7 @@ vaihtoehto.
 | `fly releases -a inflaatio --image` | julkaisuhistoria ja imaget |
 | `fly deploy --remote-only` | julkaisu nykyisestä hakemistosta |
 | `fly certs list` / `fly certs check inflaatio.fi` | varmenteiden tila |
+| `fly certs setup inflaatio.fi` | varmenteen DNS-tietueet (`_fly-ownership`, `_acme-challenge`) |
 | `fly scale count 1` / `fly scale show` | koneiden määrä ja koko |
 | `fly ssh console -a inflaatio` | komentotulkki koneessa (esim. `nginx -T`) |
 | `gh workflow run update-data.yml` | datapäivitys käsin |

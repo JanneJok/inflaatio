@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { parseHeadersConf, loadHeaderSets, cacheControl, contentType, createServer, parseServeArgs } from '../scripts/serve.js';
+import { parseHeadersConf, loadHeaderSets, cacheControl, contentType, createServer, parseServeArgs, nginxTokens, nginxMapEntries, nginxMap, nginxRules } from '../scripts/serve.js';
 import { ROOT } from '../scripts/build.js';
 
 const SPEC_CSP =
@@ -141,4 +141,65 @@ test('the widget route may be framed; other routes may not', async () => {
   assert.match(res.headers.get('content-security-policy'), /frame-ancestors \*/);
   const other = await get('/hinnat/');
   assert.match(other.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+});
+
+test('nginx map parsing: quoting, escapes, comments, flags, exact before regex', () => {
+  const conf = String.raw`
+# comment { ; }
+map $uri $x_redirect {
+    volatile;   # a flag, not an entry
+    default "";
+    /exact           /target/;
+    "~^/img/((a|b)\.png)$"  /icons/$1;
+    "~*^/CASE/"      /case/;
+    '/q uoted'       "/with space";
+}
+map $uri $other { default 1; }
+`;
+  assert.deepEqual(nginxTokens('a "b\\"c" \'d\\.e\' {f;}').map((t) => t.word ?? t.punct), ['a', 'b"c', 'd\\.e', '{', 'f', ';', '}']);
+  const entries = nginxMapEntries(conf, '$x_redirect');
+  assert.deepEqual(entries[0], ['volatile']);
+  assert.equal(nginxMapEntries(conf, '$missing'), null);
+  const look = nginxMap(entries);
+  assert.equal(look('/exact'), '/target/');
+  assert.equal(look('/img/a.png'), '/icons/a.png');
+  assert.equal(look('/img/aXpng'), '', 'the dot is escaped');
+  assert.equal(look('/case/x'), '/case/', '~* is case-insensitive');
+  assert.equal(look('/q uoted'), '/with space');
+  assert.equal(look('/nothing'), '');
+});
+
+test('the old-site rules are read from deploy/nginx.conf (no second list to maintain)', () => {
+  const r = nginxRules();
+  assert.equal(r.redirect('/terms-of-use.html'), '/kayttoehdot/');
+  assert.equal(r.redirect('/image/favicon.ico'), '/favicon.ico');
+  assert.equal(r.redirect('/image/apple-touch-icon.png'), '/icons/apple-touch-icon.png');
+  assert.equal(r.redirect('/hinnat/'), '');
+  for (const old of ['/index.html.backup', '/inflation-site-optimized.min.js', '/docs/plans/ROADMAP.html', '/image/footer.webp', '/package.json']) assert.ok(r.gone(old), old);
+  for (const route of ['/', '/hinnat/', '/healthz', '/404.html', '/data/khi.csv', '/assets/site-ABCDEFGH.js']) assert.equal(r.gone(route), false, route);
+});
+
+test('nginx parity: old URLs 301, old files 410 with the 404 page, /healthz, dotfiles, direct /404.html', async () => {
+  let res = await get('/image/favicon.ico?v=2');
+  assert.equal(res.status, 301);
+  assert.equal(res.headers.get('location'), '/favicon.ico?v=2');
+  res = await get('/index.html.backup');
+  assert.equal(res.status, 410);
+  assert.equal(res.headers.get('cache-control'), 'no-cache');
+  assert.ok(res.headers.get('content-security-policy'));
+  assert.match(await res.text(), /Sivua ei löytynyt/);
+  res = await get('/healthz');
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('content-type'), 'text/plain; charset=utf-8');
+  assert.equal(res.headers.get('cache-control'), 'no-store');
+  assert.ok(res.headers.get('x-content-type-options'));
+  assert.equal(await res.text(), 'ok\n');
+  res = await get('/healthz', { method: 'HEAD' });
+  assert.equal(res.status, 200);
+  for (const p of ['/.git/config', '/.env', '/hinnat/.htaccess', '/404.html', '/assets/']) {
+    res = await get(p);
+    assert.equal(res.status, 404, p);
+    assert.equal(res.headers.get('cache-control'), 'no-cache', p);
+    assert.match(await res.text(), /Sivua ei löytynyt/, p);
+  }
 });

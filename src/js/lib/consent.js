@@ -19,9 +19,13 @@
  * Markup (banner, settings dialog) is server-rendered in layout.js; this
  * module only toggles `hidden` and opens the native <dialog>.
  *
+ * On every page load without a valid positive choice (refused, missing,
+ * outdated version, expired, malformed) the GA cookies are deleted too, so a
+ * consent given on the old site or over 12 months ago never keeps them alive.
+ *
  * The pure helpers (getCookie, serializeConsent, parseConsent, consentCookie,
- * gaCookieNames, cookieDomains, expireCookies) are unit-tested in
- * test/trust.test.js.
+ * gaCookieNames, cookieDomains, expireCookies, shouldRevoke) are unit-tested
+ * in test/trust.test.js.
  */
 import { CONSENT, GA_ID } from '../../site.config.js';
 import { isoDate } from './format.js';
@@ -143,6 +147,18 @@ export function expireCookies(names, hostname) {
   );
 }
 
+/**
+ * Whether Google Analytics must be stopped and its cookies deleted on page
+ * load: whenever there is no valid, current, positive choice – refused,
+ * missing, stored under an older CONSENT_VERSION (e.g. the old site's
+ * unversioned "analytics: true"), expired or malformed (those parse to null).
+ * @param {{analytics: boolean}|null|undefined} stored parseConsent() result
+ * @returns {boolean}
+ */
+export function shouldRevoke(stored) {
+  return stored?.analytics !== true;
+}
+
 /* ---------------------------------------------------------------- browser */
 
 /** The choice made on this page when the cookie could not be stored (cookies blocked). */
@@ -259,9 +275,12 @@ export function initConsent() {
     /* storage unavailable */
   }
 
+  // Ask again when there is no current choice, and delete GA cookies whenever
+  // there is no valid positive consent – also for an outdated or expired
+  // "analytics: true", which must not keep old _ga cookies alive.
   const stored = readConsent();
   if (!stored) showBanner();
-  else if (!stored.analytics) revokeAnalytics();
+  if (shouldRevoke(stored)) revokeAnalytics();
 
   // Opened from the banner's "Asetukset": the opener is hidden once a choice
   // is saved, so dom.js cannot return focus to it – move it to <main>.

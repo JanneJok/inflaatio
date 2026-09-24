@@ -9,25 +9,18 @@
  * (built by the calculator module). hreflang pairs with the Finnish home page.
  *
  * Numbers are formatted in English here (decimal point, "2.2%", "+0.1 pp");
- * the site-wide format.js stays Finnish.
+ * English month names and dates come from format.js (enMonthName, enDate).
  */
-import { isNum, isoDate, parseYm, MINUS } from '../js/lib/format.js';
+import { isNum, isoDate, parseYm, MINUS, enMonthName, enMonthShort as fmtEnMonthShort, enDate as fmtEnDate } from '../js/lib/format.js';
+import { min, max } from '../js/lib/stats.js';
 
-const EN_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DASH = '–';
 
-/** 'August 2026' @param {string} ym 'YYYY-MM' */
-export function enMonth(ym) {
-  const { y, m } = parseYm(ym);
-  return `${EN_MONTHS[m - 1]} ${y}`;
-}
+/** 'August 2026' (format.js is the single source of English month names). @param {string} ym 'YYYY-MM' */
+export const enMonth = (ym) => enMonthName(ym);
 
-/** 'Aug 2026' (or 'Aug' with year: false) @param {string} ym */
-export function enMonthShort(ym, { year = true } = {}) {
-  const { y, m } = parseYm(ym);
-  const name = EN_MONTHS[m - 1].slice(0, 3);
-  return year ? `${name} ${y}` : name;
-}
+/** 'Aug 2026' (or 'Aug' with year: false) @param {string} ym @param {{year?: boolean}} [o] */
+export const enMonthShort = (ym, o) => fmtEnMonthShort(ym, o);
 
 /**
  * English number: decimal point, thousands comma, U+2212 minus; '–' when missing.
@@ -57,12 +50,7 @@ export function enPp(v, { decimals = 1 } = {}) {
 }
 
 /** '14 September 2026' (Helsinki calendar date) @param {string|number|Date} v */
-export function enDate(v) {
-  const iso = isoDate(v);
-  if (!iso) return DASH;
-  const [y, m, d] = iso.split('-').map(Number);
-  return `${d} ${EN_MONTHS[m - 1]} ${y}`;
-}
+export const enDate = (v) => fmtEnDate(v);
 
 /**
  * "Consumer prices were 2.2% higher in August 2026 than a year earlier".
@@ -87,6 +75,28 @@ export function enDeltaSentence(delta, prevYoy, prevMonth) {
   if (delta > 0) return `Inflation accelerated from ${enPct(prevYoy)} in ${when}.`;
   if (delta < 0) return `Inflation slowed from ${enPct(prevYoy)} in ${when}.`;
   return `Inflation was unchanged from ${when}.`;
+}
+
+/**
+ * Text alternative of the two-year chart: the latest value, then the highest
+ * and the lowest value of the period with every month they occurred.
+ * "CPI inflation was 2.2% in August 2026. Between August 2024 and August 2026
+ * it peaked at 2.2% (August 2026) and was lowest at −0.2% (October 2025,
+ * January 2026)."
+ * @param {string[]} months chart months (ascending)
+ * @param {(number|null)[]} values annual changes aligned with months
+ * @param {{month: string, yoy: number}} k ctx.latest.khi
+ * @returns {string}
+ */
+export function enChartSummary(months, values, k) {
+  const latest = `CPI inflation was ${enPct(k.yoy)} in ${enMonth(k.month)}.`;
+  const hi = max(months, values);
+  const lo = min(months, values);
+  if (!hi || !lo || !months.length) return latest;
+  const when = (r) => r.months.map((m) => enMonth(m)).join(', ');
+  const span = `Between ${enMonth(months[0])} and ${enMonth(months.at(-1))}`;
+  if (hi.value === lo.value) return `${latest} ${span} it stayed at ${enPct(hi.value)}.`;
+  return `${latest} ${span} it peaked at ${enPct(hi.value)} (${when(hi)}) and was lowest at ${enPct(lo.value)} (${when(lo)}).`;
 }
 
 /** @param {any} ctx */
@@ -115,7 +125,7 @@ export default async function en(ctx) {
     c.kpiCard({ label: 'CPI, Finland', value: enPct(k.yoy), note: `${enMonth(k.month)} · Statistics Finland`, headingLevel: 3 }),
     y && c.kpiCard({ label: 'HICP, Finland', value: enPct(y.yoy), note: `${enMonth(y.month)} · Eurostat${y.provisional ? ' · flash estimate' : ''}`, headingLevel: 3 }),
     ea && c.kpiCard({ label: 'HICP, euro area', value: enPct(ea.yoy), note: `${enMonth(ea.month)} · Eurostat${ea.provisional ? ' · flash estimate' : ''}`, headingLevel: 3 }),
-    eki && c.kpiCard({ label: 'Cost-of-living index', value: enNum(eki.value, 0), note: `${enMonth(eki.month)} · ${eki.base.replace('=', ' = ')}`, headingLevel: 3 }),
+    eki && c.kpiCard({ label: 'Cost-of-living index', value: enNum(eki.value, 0), note: `${enMonth(eki.month)} · ${eki.base}`, headingLevel: 3 }),
   ].filter(Boolean);
 
   // ------------------------------------------------------------------ chart
@@ -152,7 +162,6 @@ export default async function en(ctx) {
       .reverse(),
     compact: true,
   });
-  const range = stats.max(months, khiSeries);
   const figure = c.chartFigure({
     id: 'en-chart',
     title: 'Inflation over the past two years',
@@ -163,7 +172,7 @@ export default async function en(ctx) {
       { cls: 'target', label: 'ECB target 2%', dashed: true },
     ]),
     chart,
-    summary: `CPI inflation was ${enPct(k.yoy)} in ${enMonth(k.month)}. Over ${period} it was highest at ${enPct(range?.value)} (${range?.months.map((m) => enMonthShort(m)).join(', ')}).`,
+    summary: enChartSummary(months, khiSeries, k),
     table,
     tableLabel: 'Show the figures as a table',
     source: html`<p class="source-line">Sources: <a href="https://stat.fi/en/statistics/khi" hreflang="en">Statistics Finland</a> (consumer price index), <a href="https://ec.europa.eu/eurostat/web/hicp" hreflang="en">Eurostat</a> (HICP)${
@@ -177,14 +186,14 @@ export default async function en(ctx) {
   <p>The <strong>consumer price index</strong> (<span lang="fi">kuluttajahintaindeksi</span>, KHI) of Statistics Finland is the official measure of inflation in Finland. It follows the prices of the goods and services that households buy, and the annual change is published around the middle of the following month. The index also covers the costs of owner-occupied housing, such as interest on housing loans, so changes in interest rates move it.</p>
   <p>The <strong>harmonised index of consumer prices</strong> (<span lang="fi">yhdenmukaistettu kuluttajahintaindeksi</span>, YKHI; HICP in English) is calculated in the same way in every EU country, which makes it the right measure for comparing Finland with other countries. It leaves out owner-occupied housing costs, so it can differ from the CPI. The European Central Bank's 2% inflation target refers to the HICP of the euro area. Eurostat publishes a flash estimate at the end of the month and the final figure around the middle of the following month.</p>
   <h3>Rent increases and index clauses</h3>
-  <p>Many Finnish rental agreements tie the annual rent increase to the <strong>cost-of-living index</strong> (<span lang="fi">elinkustannusindeksi</span>, 1951:10 = 100), which Statistics Finland derives from the consumer price index.${
+  <p>Many Finnish rental agreements tie the annual rent increase to the <strong>cost-of-living index</strong> (<span lang="fi">elinkustannusindeksi</span>, 1951:10=100), which Statistics Finland derives from the consumer price index.${
     eki ? ` Its latest point figure is ${enNum(eki.value, 0)} (${enMonth(eki.month)}).` : ''
   } A typical clause compares the point figure of a later month with that of the contract's base month and raises the rent by the same percentage; some contracts add a minimum increase. Always check the exact wording of your own contract.</p>
 </div>`;
 
   const tools = c.cardGrid([
-    { href: '/en/rent-increase-calculator/', eyebrow: 'Calculator', title: 'Rent increase calculator', text: 'Your new rent with the cost-of-living index (1951:10 = 100).', meta: 'Calculate' },
-    { href: '/en/value-of-money/', eyebrow: 'Calculator', title: 'Value of money', text: 'What a sum of euros (or markkaa) from an earlier year is worth today.', meta: 'Calculate' },
+    { href: '/en/rent-increase-calculator/', eyebrow: 'Calculator', title: 'Rent increase calculator', text: 'Your new rent with the cost-of-living index (1951:10=100).', meta: 'Calculate' },
+    { href: '/en/value-of-money/', eyebrow: 'Calculator', title: 'Value of money', text: 'What a sum of euros (or Finnish markka) from an earlier year is worth today.', meta: 'Calculate' },
     { href: '/', eyebrow: 'Suomeksi', title: 'Inflaatio Suomessa', text: 'The full Finnish site: history, prices by product group, comparisons and more.', meta: 'Open', lang: 'fi' },
   ]);
 

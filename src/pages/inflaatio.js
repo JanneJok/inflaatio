@@ -42,6 +42,17 @@ export function listFi(items) {
 export const lowerFirst = (s) => (typeof s === 'string' && s ? s.charAt(0).toLowerCase() + s.slice(1) : s);
 
 /**
+ * Month names of one year with a shared suffix: ['2026-11', '2026-12'] →
+ * 'marras- ja joulukuu'; ['2026-08'] → 'elokuu'.
+ * @param {string[]} list 'YYYY-MM', ascending
+ */
+export function monthsListFi(list) {
+  const a = list.filter(Boolean);
+  if (a.length <= 1) return a.length ? fmt.monthNameOnly(a[0]) : '';
+  return listFi(a.map((ym, i) => (i === a.length - 1 ? fmt.monthNameOnly(ym) : `${fmt.monthShort(ym, { year: false })}-`)));
+}
+
+/**
  * Number in running text with the word "prosenttiin/prosentissa":
  * rateWord(2.2, 'illative') → '2,2 prosenttiin'.
  * @param {number} v
@@ -62,19 +73,59 @@ export function deltaVerb(delta) {
 }
 
 /**
- * "Kuluttajahinnat olivat elokuussa 2026 2,2 % korkeammat kuin vuotta aiemmin."
+ * "Elokuussa 2026 kuluttajahinnat olivat 2,2 % korkeammat kuin vuotta aiemmin."
+ * (month first, so the year and the value are never side by side).
  * @param {string} ym
  * @param {number} yoy
  */
 export function levelSentence(ym, yoy) {
   const r = fmt.round(yoy, 1);
-  if (r === 0) return `Kuluttajahinnat olivat ${fmt.inessive(ym)} samalla tasolla kuin vuotta aiemmin (vuosimuutos ${fmt.pct(0)}).`;
-  const dir = r > 0 ? 'korkeammat' : 'matalammat';
-  return `Kuluttajahinnat olivat ${fmt.inessive(ym)} ${fmt.pct(Math.abs(r))} ${dir} kuin vuotta aiemmin.`;
+  const when = fmt.capitalize(fmt.inessive(ym));
+  if (r === 0) return `${when} kuluttajahinnat olivat samalla tasolla kuin vuotta aiemmin (vuosimuutos ${fmt.pct(0)}).`;
+  return `${when} kuluttajahinnat olivat ${fmt.pct(Math.abs(r))} ${r > 0 ? 'korkeammat' : 'alemmat'} kuin vuotta aiemmin.`;
 }
 
 /**
- * "Inflaatio kiihtyi heinäkuusta 0,1 %-yks. (heinäkuussa 2,1 %)."
+ * Previous month as a genitive attribute: 'heinäkuun'; across a year boundary
+ * 'vuoden 2025 joulukuun' (the year never sits next to the value).
+ * @param {string} prevYm
+ */
+function prevMonthGenitive(prevYm) {
+  const crossesYear = fmt.yearOf(prevYm) !== fmt.yearOf(fmt.ymAdd(prevYm, 1));
+  const g = fmt.genitive(prevYm, { year: false });
+  return crossesYear ? `vuoden ${fmt.yearOf(prevYm)} ${g}` : g;
+}
+
+/**
+ * Subject + verb for a change of the annual rate. Below zero "inflaatio
+ * kiihtyi/hidastui" would mislead, so the sentence talks about the annual
+ * change of prices instead ("Hintojen vuosimuutos nousi/laski").
+ * @param {'kiihtyi'|'hidastui'|'pysyi ennallaan'} verb
+ * @param {number} from previous value
+ * @param {number} to current value
+ */
+function changeSubject(verb, from, to) {
+  const negative = fmt.round(from, 1) < 0 || fmt.round(to, 1) < 0;
+  if (!negative) return `Inflaatio ${verb === 'pysyi ennallaan' ? 'pysyi' : verb}`;
+  return `Hintojen vuosimuutos ${verb === 'kiihtyi' ? 'nousi' : verb === 'hidastui' ? 'laski' : 'pysyi'}`;
+}
+
+/**
+ * KPI note of the previous month: 'Heinäkuussa 2,1 %'; across a year boundary
+ * 'Vuoden 2025 joulukuussa 0,2 %' (the year never sits next to the value).
+ * @param {string} prevYm
+ * @param {number|null} prevYoy
+ */
+export function prevMonthNote(prevYm, prevYoy) {
+  const crossesYear = fmt.yearOf(prevYm) !== fmt.yearOf(fmt.ymAdd(prevYm, 1));
+  const when = fmt.inessive(prevYm, { year: false });
+  return `${crossesYear ? `Vuoden ${fmt.yearOf(prevYm)} ${when}` : fmt.capitalize(when)} ${fmt.pct(prevYoy)}`;
+}
+
+/**
+ * "Inflaatio kiihtyi heinäkuun 2,1 prosentista (+0,1 %-yks.)." /
+ * "Inflaatio pysyi kesäkuun tasolla." / below zero "Hintojen vuosimuutos
+ * nousi lokakuun −0,2 prosentista (+0,1 %-yks.)."
  * @param {string} prevYm
  * @param {number|null} prevYoy
  * @param {number|null} delta
@@ -82,10 +133,10 @@ export function levelSentence(ym, yoy) {
 export function deltaSentence(prevYm, prevYoy, delta) {
   const verb = deltaVerb(delta);
   if (!verb || !fmt.isNum(prevYoy)) return '';
-  const from = fmt.elative(prevYm, { year: fmt.yearOf(prevYm) !== fmt.yearOf(fmt.ymAdd(prevYm, 1)) });
-  const prev = `${fmt.inessive(prevYm, { year: false })} ${fmt.pct(prevYoy)}`;
-  if (verb === 'pysyi ennallaan') return `Inflaatio pysyi ${from} ennallaan (${prev}).`;
-  return `Inflaatio ${verb} ${from} ${fmt.pp(Math.abs(delta), { sign: false })} (${prev}).`;
+  const prev = prevMonthGenitive(prevYm);
+  const subject = changeSubject(verb, prevYoy, prevYoy + delta);
+  if (verb === 'pysyi ennallaan') return `${subject} ${prev} tasolla.`;
+  return `${subject} ${prev} ${fmt.num(prevYoy, 1)} prosentista (${fmt.pp(delta)}).`;
 }
 
 /**
@@ -97,6 +148,32 @@ export function momSentence(mom) {
   const r = fmt.round(mom, 1);
   if (r === 0) return 'Hintataso pysyi kuukauden aikana ennallaan.';
   return `Hintataso ${r > 0 ? 'nousi' : 'laski'} kuukaudessa ${fmt.pct(Math.abs(r))}.`;
+}
+
+/**
+ * Newest of several dates/timestamps as 'YYYY-MM-DD' (Helsinki), for sitemap
+ * lastmod. Missing or invalid values are ignored; null when none is valid.
+ * @param {...(string|null|undefined)} values
+ */
+export function newestDate(...values) {
+  const days = values.map((v) => (v ? fmt.isoDate(v) : null)).filter(Boolean);
+  return days.length ? days.reduce((a, b) => (b > a ? b : a)) : null;
+}
+
+/**
+ * Newest of several ISO timestamps, returned as given (for "Päivitetty").
+ * @param {...(string|null|undefined)} values
+ */
+export function newestTimestamp(...values) {
+  const ok = values.filter((v) => typeof v === 'string' && Number.isFinite(Date.parse(v)));
+  return ok.length ? ok.reduce((a, b) => (Date.parse(b) > Date.parse(a) ? b : a)) : null;
+}
+
+/** Last day of a month: '2026-02' → '2026-02-28'. @param {string} ym */
+export function monthEnd(ym) {
+  const { y, m } = fmt.parseYm(ym);
+  const day = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return `${ym}-${String(day).padStart(2, '0')}`;
 }
 
 /** Keep a meta description ≤ 155 characters by dropping trailing parts. @param {string[]} parts */
@@ -232,11 +309,19 @@ function buildArchive(ctx) {
     // groups' own annual changes (%).
     const withContribution = all.filter((r) => fmt.isNum(r.contribution));
     if (withContribution.length) {
-      return { mode: 'contribution', rows: withContribution.sort((a, b) => b.contribution - a.contribution), total: g.series?.SSS?.contribution?.[i] ?? null };
+      // `sum` = sum of the main groups' contributions (what "pääryhmien
+      // vaikutukset yhteensä" means; +2,19 for 2026-08); `total` = the total
+      // index's own published contribution (SSS, +2,18), kept for reference.
+      return {
+        mode: 'contribution',
+        rows: withContribution.sort((a, b) => b.contribution - a.contribution),
+        sum: withContribution.reduce((s, r) => s + r.contribution, 0),
+        total: g.series?.SSS?.contribution?.[i] ?? null,
+      };
     }
     const withYoy = all.filter((r) => fmt.isNum(r.yoy));
     if (!withYoy.length) return null;
-    return { mode: 'yoy', rows: withYoy.sort((a, b) => b.yoy - a.yoy), total: null };
+    return { mode: 'yoy', rows: withYoy.sort((a, b) => b.yoy - a.yoy), sum: null, total: null };
   };
   const contributionsFrom = (() => {
     const g = h?.groups;
@@ -286,6 +371,41 @@ function buildArchive(ctx) {
   const monthsOfYear = (yr) =>
     Array.from({ length: 12 }, (_, i) => fmt.toYm(yr, i + 1)).filter((ym) => ym <= latestMonth && fmt.isNum(at(khi.yoy, ym)));
 
+  // Sitemap lastmod: the day a page's own content last changed, from the
+  // changelog release dates and meta.json timestamps (never the build day).
+  const upd = ctx.latest.updated ?? {};
+  const newestData = newestDate(ctx.latest.dataUpdated, ...Object.values(upd));
+  const groupsFirst = h?.groups?.months?.[0] ?? null;
+  /**
+   * A month page / review changes when its KHI and YKHI (flash, final) are
+   * released and when the next month is published (pager). Months older than
+   * the changelog: the end of the month after next, by which all of those
+   * releases are out.
+   * @param {string} ym
+   */
+  const monthLastmod = (ym) => {
+    const nextYm = fmt.ymAdd(ym, 1);
+    const hasNext = nextYm <= latestMonth;
+    const known = [releaseDate('khi', ym), releaseDate('ykhi', ym, 'ennakko'), releaseDate('ykhi', ym, 'lopullinen'), hasNext ? releaseDate('khi', nextYm) : null];
+    if (ym === latestMonth) known.push(upd.khi, ctx.latest.ykhi?.month === ym ? upd.ykhi : null);
+    // The month that just left the 60-month group window lost its group section.
+    if (groupsFirst && ym === fmt.ymAdd(groupsFirst, -1)) known.push(upd.hyodykkeet);
+    let d = newestDate(...known);
+    if (!d || (hasNext && !releaseDate('khi', nextYm))) {
+      const estimate = monthEnd(fmt.ymAdd(ym, 2));
+      d = newestDate(d, newestData && estimate > newestData ? newestData : estimate);
+    }
+    return d;
+  };
+  /**
+   * Year pages: the current year follows every KHI and YKHI release (its YKHI
+   * mean includes a newer flash month); past years change with each KHI
+   * release because of the "prices have risen … to <latest month>" sentence,
+   * and with the official annual table.
+   * @param {number} yr
+   */
+  const yearLastmod = (yr) => (yr >= latestYear ? newestDate(upd.khi, upd.ykhi) : newestDate(upd.khi, upd.khiAnnual));
+
   // Records (official annual figures; monthly rates since 1980).
   const official = years.filter((r) => r.khi.official);
   const officialYears = official.map((r) => String(r.year));
@@ -320,6 +440,9 @@ function buildArchive(ctx) {
     groupsAt,
     contributionsFrom,
     releaseDate,
+    monthLastmod,
+    yearLastmod,
+    overviewLastmod: newestDate(upd.khi, upd.khiAnnual, upd.ykhi, upd.ykhiAnnual, ...log.map((e) => e.date)),
     sources: sources(ctx),
   };
 }
@@ -474,6 +597,10 @@ function overviewPage(ctx, A) {
   const partial = last.khi.official ? null : last;
   const lastOfficial = A.years.filter((r) => r.khi.official).at(-1);
   const srcAnnual = A.sources.khiAnnual;
+  // The annual chart and table also carry the partial current year (monthly
+  // KHI) and YKHI, so "Päivitetty" is the newest of those releases.
+  const upd = ctx.latest.updated ?? {};
+  const updated = newestTimestamp(upd.khiAnnual, partial ? upd.khi : null, upd.ykhi, upd.ykhiAnnual) ?? ctx.latest.khi.updated;
 
   // KPIs
   const kpis = c.kpiGrid([
@@ -486,7 +613,7 @@ function overviewPage(ctx, A) {
       ? c.kpiCard({
           label: `Vuosi ${partial.khi.label}`,
           value: fmt.pct(partial.khi.value),
-          note: partial.khi.partial ? `${fmt.capitalize(partial.khi.span)}kuun keskiarvo, tarkentuu vuoden aikana` : 'Kuukausien keskiarvo; virallinen vuosiluku ei vielä aineistossa',
+          note: partial.khi.partial ? `${fmt.capitalize(partial.khi.span)}kuun keskiarvo, tarkentuu vuoden aikana` : 'Kuukausien keskiarvo; virallista vuosimuutosta ei ole vielä julkaistu',
         })
       : null,
     c.kpiCard({ label: 'Korkein vuosi', value: fmt.pct(R.yearMax?.value), note: listFi(R.yearMax?.months ?? []) }),
@@ -528,12 +655,12 @@ function overviewPage(ctx, A) {
     }),
     visibleRows: 15,
     toggleLabels: { more: `Näytä kaikki vuodet (${span})`, less: 'Näytä vain 15 viimeisintä vuotta' },
-    note: html`KHI: Tilastokeskuksen virallinen vuosimuutos${partial ? html` (vuosi ${partial.khi.label} on kuukausien vuosimuutosten keskiarvo)` : ''}. YKHI ja euroalue: Eurostatin virallinen vuosimuutos vuodesta ${A.years.find((r) => r.ykhi)?.year ?? 1997} alkaen. Muutos = KHI:n ero edelliseen vuoteen.`,
+    note: html`KHI: Tilastokeskuksen virallinen vuosimuutos${partial ? html`; vuoden ${partial.year} luku on ${partial.khi.span}kuun vuosimuutosten keskiarvo` : ''}. YKHI ja euroalue: Eurostatin virallinen vuosimuutos vuodesta ${A.years.find((r) => r.ykhi)?.year ?? 1997} alkaen. Muutos = KHI:n ero edelliseen vuoteen.`,
   });
   const figure = c.chartFigure({
     id: 'vuodet-kaavio',
     title: `Inflaatio vuosittain ${span}`,
-    subtitle: `Kuluttajahintaindeksin vuosimuutos, %${partial ? ` · ${partial.khi.label} haalealla` : ''}`,
+    subtitle: `Kuluttajahintaindeksin vuosimuutos, %${partial ? ` · ${partial.khi.label} vaaleampana` : ''}`,
     legend: c.legend([
       { cls: 'deflation', label: 'alle 0 %', box: true },
       { cls: 'low', label: '0–2 %', box: true },
@@ -545,7 +672,7 @@ function overviewPage(ctx, A) {
     summary: `Inflaatio oli korkeimmillaan ${fmt.pct(R.yearMax?.value)} vuonna ${listFi(R.yearMax?.months ?? [])} ja matalimmillaan ${fmt.pct(R.yearMin?.value)} vuonna ${listFi(R.yearMin?.months ?? [])}. Vuonna ${lastOfficial.year} inflaatio oli ${fmt.pct(lastOfficial.khi.value)}.`,
     table,
     tableLabel: 'Näytä vuodet taulukkona',
-    source: c.sourceLine({ sources: [srcAnnual, A.sources.ykhi], updated: ctx.latest.updated?.khiAnnual ?? ctx.latest.khi.updated }),
+    source: c.sourceLine({ sources: [srcAnnual, A.sources.ykhi], updated }),
   });
 
   // Decades
@@ -589,8 +716,8 @@ function overviewPage(ctx, A) {
   const main = html`${c.pageHeader({
     eyebrow: `Kuluttajahintaindeksi · ${span}`,
     title: `Inflaatio Suomessa vuosittain ${span}`,
-    lede: `Kuluttajahintojen vuosimuutos Tilastokeskuksen virallisina vuosilukuina vuodesta ${first.year} alkaen. Jokaisella vuodella ja vuodesta ${fmt.yearOf(MONTH_PAGES_FROM)} alkaen jokaisella kuukaudella on oma sivunsa.${partial ? ` Vuoden ${partial.year} luku on ${partial.khi.span}kuun keskiarvo.` : ''}`,
-    meta: sourceMeta(ctx, [srcAnnual, A.sources.ykhi], ctx.latest.khi.updated),
+    lede: `Suomen inflaatio vuodesta ${first.year} alkaen Tilastokeskuksen virallisina vuosimuutoksina. Jokaisella vuodella ja vuodesta ${fmt.yearOf(MONTH_PAGES_FROM)} alkaen jokaisella kuukaudella on oma sivunsa.${partial ? ` Vuoden ${partial.year} luku on ${partial.khi.span}kuun keskiarvo.` : ''}`,
+    meta: sourceMeta(ctx, [srcAnnual, A.sources.ykhi], updated),
   })}
 ${c.section({ id: 'tunnusluvut', title: 'Tunnusluvut', className: 'section--tight', body: kpis })}
 ${c.section({
@@ -628,6 +755,7 @@ ${c.section({
     path,
     priority: 0.9,
     changefreq: 'monthly',
+    lastmod: A.overviewLastmod ?? undefined,
     html: ctx.layout({
       title: `Inflaatio vuosittain ${span}`,
       description,
@@ -651,7 +779,7 @@ ${c.section({
             { '@type': 'Organization', name: 'Eurostat', url: 'https://ec.europa.eu/eurostat' },
           ],
           license: 'https://creativecommons.org/licenses/by/4.0/',
-          dateModified: ctx.latest.dataUpdated ?? undefined,
+          dateModified: A.overviewLastmod ?? ctx.latest.dataUpdated ?? undefined,
         },
       ],
       main,
@@ -684,21 +812,23 @@ export function yearText(A, r) {
   } else {
     out.push(
       r.khi.partial && r.khi.months === 1
-        ? `Vuoden ${r.year} ensimmäinen kuukausiluku on julkaistu: ${fmt.inessive(r.khi.spanStart)} inflaatio oli ${fmt.pct(v)}. Vuoden luku tarkentuu, kun loput kuukaudet julkaistaan.`
+        ? `Vuoden ${r.year} ensimmäinen kuukausiluku on julkaistu: ${fmt.inessive(r.khi.spanStart)} inflaatio oli ${fmt.pct(v)}. Vuoden luku tarkentuu, kun loppuvuoden kuukaudet julkaistaan.`
         : r.khi.partial
-        ? `Vuoden ${r.year} ${r.khi.span}kuun kuukausittaisten vuosimuutosten keskiarvo on ${fmt.pct(v)}. Luku tarkentuu, kun vuoden loput kuukaudet julkaistaan.`
+        ? `Vuoden ${r.year} ${r.khi.span}kuun kuukausittaisten vuosimuutosten keskiarvo on ${fmt.pct(v)}. Luku tarkentuu, kun loppuvuoden kuukaudet julkaistaan.`
         : `Vuoden ${r.year} kuukausittaisten vuosimuutosten keskiarvo on ${fmt.pct(v)}. Tilastokeskuksen virallinen vuosimuutos ei ole vielä aineistossa.`,
     );
   }
   if (prev) {
     const d = stats.ppChange(v, prev.khi.value);
     const verb = deltaVerb(d);
+    // Running text spells the unit out ("1,2 prosenttiyksikköä").
+    const ppWords = fmt.isNum(d) ? `${fmt.num(Math.abs(d), 1)} prosenttiyksikköä` : '';
     if (!r.khi.official && verb) {
       // Partial (or not yet official) year: compare the mean without calling it a full-year change.
-      const cmp = verb === 'kiihtyi' ? `${fmt.pp(Math.abs(d), { sign: false })} korkeampi kuin` : verb === 'hidastui' ? `${fmt.pp(Math.abs(d), { sign: false })} matalampi kuin` : 'sama kuin';
+      const cmp = verb === 'kiihtyi' ? `${ppWords} korkeampi kuin` : verb === 'hidastui' ? `${ppWords} matalampi kuin` : 'sama kuin';
       out.push(`Keskiarvo on ${cmp} vuoden ${prev.year} inflaatio (${fmt.pct(prev.khi.value)}).`);
-    } else if (verb === 'pysyi ennallaan') out.push(`Inflaatio pysyi edellisvuoden tasolla (${prev.year}: ${fmt.pct(prev.khi.value)}).`);
-    else if (verb) out.push(`Inflaatio ${verb} edellisvuodesta ${fmt.pp(Math.abs(d), { sign: false })} (${prev.year}: ${fmt.pct(prev.khi.value)}).`);
+    } else if (verb === 'pysyi ennallaan') out.push(`${changeSubject(verb, prev.khi.value, v)} edellisvuoden tasolla (${prev.year}: ${fmt.pct(prev.khi.value)}).`);
+    else if (verb) out.push(`${changeSubject(verb, prev.khi.value, v)} edellisvuodesta ${ppWords} (${prev.year}: ${fmt.pct(prev.khi.value)}).`);
   }
   if (r.khi.official) {
     const official = A.years.filter((x) => x.khi.official);
@@ -706,10 +836,12 @@ export function yearText(A, r) {
     if (i > 1) {
       const high = rankSince(official, r.year, 'high');
       const low = rankSince(official, r.year, 'low');
+      // "Highest/lowest since" only when at least two years lie in between;
+      // otherwise the previous year alone explains it (e.g. 2023 after 2022).
       if (high === null) out.push(`Vuosi-inflaatio oli siihen mennessä korkein vuodesta ${official[0].year} alkaen.`);
-      else if (high && high.year < r.year - 1) out.push(`Vuosi-inflaatio oli korkein sitten vuoden ${high.year} (${fmt.pct(high.value)}).`);
+      else if (high && high.year < r.year - 2) out.push(`Vuosi-inflaatio oli korkein sitten vuoden ${high.year} (${fmt.pct(high.value)}).`);
       else if (low === null) out.push(`Vuosi-inflaatio oli siihen mennessä matalin vuodesta ${official[0].year} alkaen.`);
-      else if (low && low.year < r.year - 1) out.push(`Vuosi-inflaatio oli matalin sitten vuoden ${low.year} (${fmt.pct(low.value)}).`);
+      else if (low && low.year < r.year - 2) out.push(`Vuosi-inflaatio oli matalin sitten vuoden ${low.year} (${fmt.pct(low.value)}).`);
     }
   }
   if (hi && lo && ms.length > 1) {
@@ -743,7 +875,7 @@ function yearPage(ctx, A, r) {
   const yoys = rows.map((m) => m.yoy);
   const hi = ctx.stats.max(ms, yoys);
   const lo = ctx.stats.min(ms, yoys);
-  const monthsShort = (list) => listFi(list.map((m) => fmt.monthShort(m, { year: false })));
+  const monthsShort = (list) => monthsListFi(list);
   const hasY = rows.some((m) => fmt.isNum(m.ykhi.yoy));
   const anyComputedMom = rows.some((m) => !m.momOfficial && fmt.isNum(m.mom));
 
@@ -753,9 +885,9 @@ function yearPage(ctx, A, r) {
     c.kpiCard({ label: kpiLabel, value: fmt.pct(v), note: r.khi.official ? 'Tilastokeskuksen virallinen vuosimuutos' : (r.khi.months ?? ms.length) === 1 ? fmt.capitalize(fmt.monthName(ms[0])) : `Keskiarvo ${r.khi.months ?? ms.length} kuukaudesta` }),
     prev
       ? c.kpiCard({ label: 'Muutos edellisestä vuodesta', value: fmt.pp(d), delta: ctx.stats.deltaClass(d), note: `${prev.year}: ${fmt.pct(prev.khi.value)}` })
-      : c.kpiCard({ label: 'Kuukausia', value: String(ms.length), note: fmt.monthRange(ms[0], ms.at(-1)) }),
-    c.kpiCard({ label: 'Korkein kuukausi', value: fmt.pct(hi?.value), note: monthsShort(hi?.months ?? []) }),
-    c.kpiCard({ label: 'Alin kuukausi', value: fmt.pct(lo?.value), note: monthsShort(lo?.months ?? []) }),
+      : c.kpiCard({ label: 'Kuukausia', value: String(ms.length), note: `${fmt.capitalize(fmt.monthsSpan(ms[0], ms.at(-1)))} ${r.year}` }),
+    c.kpiCard({ label: 'Korkein kuukausi', value: fmt.pct(hi?.value), note: fmt.capitalize(monthsShort(hi?.months ?? [])) }),
+    c.kpiCard({ label: 'Alin kuukausi', value: fmt.pct(lo?.value), note: fmt.capitalize(monthsShort(lo?.months ?? [])) }),
   ]);
 
   const bars = svg.barChart({
@@ -835,7 +967,7 @@ function yearPage(ctx, A, r) {
       eyebrow: 'Vertailu',
       title: 'Suomi ja euroalue',
       intro: 'YKHI on EU:n yhdenmukaistettu kuluttajahintaindeksi, jolla maiden inflaatiota verrataan. Siitä puuttuvat omistusasumisen kulut, kuten asuntolainojen korot.',
-      body: html`${c.statsList(items)}${line
+      body: html`<div class="stack-lg">${c.statsList(items)}${line
         ? c.chartFigure({
             id: 'vertailu-kaavio',
             title: `KHI, YKHI ja euroalue ${r.year}`,
@@ -850,7 +982,7 @@ function yearPage(ctx, A, r) {
             summary: `${fmt.capitalize(fmt.inessive(ms.at(-1)))} KHI oli ${fmt.pct(yoys.at(-1))}, Suomen YKHI ${fmt.pct(rows.at(-1).ykhi.yoy)} ja euroalueen YKHI ${fmt.pct(rows.at(-1).ea.yoy)}. Kuukausiluvut ovat taulukossa kohdassa Inflaatio kuukausittain ${r.year}.`,
             source: c.sourceLine({ sources: [A.sources.khi, A.sources.ykhi], updated: ctx.latest.ykhi?.updated }),
           })
-        : ''}`,
+        : ''}</div>`,
     });
   }
 
@@ -860,10 +992,10 @@ function yearPage(ctx, A, r) {
 
   const summaryBody = html`<div class="prose">
   ${text.slice(2).map((s) => html`<p>${s}</p>`)}
-  ${level ? html`<p>Hinnat ovat nousseet vuoden ${r.year} keskimääräiseltä tasolta ${fmt.illative(A.latestMonth)} mennessä ${fmt.pct(level.change)}: ostokset, jotka maksoivat vuonna ${r.year} ${r.year < 2002 ? 'euroiksi muunnettuna ' : ''}100 euroa, maksavat nyt noin ${fmt.num(level.eur100, 0)} euroa. <a href="/rahanarvo/">Laske rahan arvo</a>.</p>` : ''}
+  ${level ? html`<p>Hinnat ovat nousseet vuoden ${r.year} keskimääräiseltä tasolta ${fmt.illative(A.latestMonth)} mennessä ${fmt.pct(level.change)}: ostokset, joiden hinta vuonna ${r.year} oli ${r.year < 2002 ? 'euroiksi muunnettuna ' : ''}100 euroa, maksavat nyt noin ${fmt.num(level.eur100, 0)} euroa. <a href="/rahanarvo/">Laske rahan arvo</a>.</p>` : ''}
   ${r.year === A.latestYear && ms.length ? html`<p>Uusin kuukausi: <a href="${monthPath(ms.at(-1))}">${fmt.monthName(ms.at(-1))}</a>${ms.at(-1) >= KATSAUS_FROM ? html` · <a href="${katsausPath(ms.at(-1))}">Inflaatiokatsaus ${fmt.monthName(ms.at(-1))}</a>` : ''}.</p>` : ''}
 </div>`;
-  const levelNote = level ? html`<p class="table-note">Hintatason muutos: Tilastokeskuksen viralliset pisteluvut 1972=100, vuoden ${r.year} keskiarvo ${fmt.idx(level.from, 1)} ja ${fmt.monthName(A.latestMonth)} ${fmt.idx(level.to)}.</p>` : '';
+  const levelNote = level ? html`<p class="table-note">Hintatason muutos: Tilastokeskuksen viralliset pisteluvut 1972=100, vuoden ${r.year} keskiarvo ${fmt.idx(level.from, 1)} ja ${fmt.genitive(A.latestMonth)} pisteluku ${fmt.idx(level.to)}.</p>` : '';
 
   const h1 = r.khi.official ? `Inflaatio Suomessa vuonna ${r.year}: ${fmt.pct(v)}` : `Inflaatio Suomessa vuonna ${r.year}`;
   const lede = text.slice(0, 2).join(' ');
@@ -894,12 +1026,18 @@ ${c.section({
     r.khi.official
       ? `Suomen inflaatio vuonna ${r.year} oli ${fmt.pct(v)} (Tilastokeskus, virallinen vuosimuutos).`
       : `Suomen inflaatio vuonna ${r.khi.label}: keskimäärin ${fmt.pct(v)} (Tilastokeskus).`,
-    'Kuukausiluvut, korkein ja alin kuukausi sekä vertailu euroalueeseen.',
+    // Promise only the sections the page has (no YKHI before 1996/97).
+    comparison
+      ? 'Kuukausiluvut, korkein ja alin kuukausi sekä vertailu euroalueeseen.'
+      : level
+      ? 'Kuukausiluvut, korkein ja alin kuukausi sekä hinnat nykyrahassa.'
+      : 'Kuukausiluvut sekä korkein ja alin kuukausi.',
   ]);
   return {
     path,
     priority: r.year >= A.latestYear - 1 ? 0.8 : 0.6,
     changefreq: r.year === A.latestYear ? 'monthly' : 'yearly',
+    lastmod: A.yearLastmod(r.year) ?? undefined,
     html: ctx.layout({
       title,
       description,
@@ -916,7 +1054,7 @@ ${c.section({
           inLanguage: 'fi',
           isPartOf: { '@type': 'WebSite', name: ctx.site.brand, url: `${ctx.baseUrl}/` },
           about: { '@type': 'Thing', name: `Inflaatio Suomessa vuonna ${r.year}` },
-          dateModified: ctx.latest.dataUpdated ?? undefined,
+          dateModified: A.yearLastmod(r.year) ?? ctx.latest.dataUpdated ?? undefined,
         },
       ],
       main,
@@ -949,6 +1087,11 @@ export function contributionsFigure(ctx, A, m, { id = 'vaikutukset', headingLeve
   const top = rows[0];
   const bottom = rows.at(-1);
   if (m.groups.mode === 'yoy') {
+    // Group names follow "pääryhmä(ssä)" capitalised, so a name such as
+    // "Hygienia, sosiaalipalvelut ja muut" does not read as a list.
+    const topPct = fmt.pct(top.yoy, { sign: true });
+    const bottomPct = fmt.pct(bottom.yoy, { sign: true });
+    const bottomFell = fmt.round(bottom.yoy, 1) < 0;
     return c.chartFigure({
       id,
       headingLevel,
@@ -957,9 +1100,11 @@ export function contributionsFigure(ctx, A, m, { id = 'vaikutukset', headingLeve
       chart: svg.hBarChart({
         bars: rows.map((g) => ({ label: g.name, value: g.yoy })),
         formatValue: (v) => fmt.pct(v, { sign: true }),
-        ariaLabel: `Kuluttajahintaindeksin pääryhmien vuosimuutos ${fmt.inessive(m.ym)}: eniten nousivat ${lowerFirst(top.name)} (${fmt.pct(top.yoy, { sign: true })}), vähiten ${lowerFirst(bottom.name)} (${fmt.pct(bottom.yoy, { sign: true })}).`,
+        ariaLabel: `Kuluttajahintaindeksin pääryhmien vuosimuutos ${fmt.inessive(m.ym)}: hinnat nousivat eniten pääryhmässä ${top.name} (${topPct}), ${bottomFell ? 'eniten laskivat' : 'vähiten nousivat'} pääryhmässä ${bottom.name} (${bottomPct}).`,
       }),
-      summary: `Hinnat nousivat vuodessa eniten pääryhmässä ${lowerFirst(top.name)} (${fmt.pct(top.yoy, { sign: true })}) ja vähiten pääryhmässä ${lowerFirst(bottom.name)} (${fmt.pct(bottom.yoy, { sign: true })}).`,
+      summary: bottomFell
+        ? `Hinnat nousivat vuodessa eniten pääryhmässä ${top.name} (${topPct}) ja laskivat eniten pääryhmässä ${bottom.name} (${bottomPct}).`
+        : `Hinnat nousivat vuodessa eniten pääryhmässä ${top.name} (${topPct}) ja vähiten pääryhmässä ${bottom.name} (${bottomPct}).`,
       table: c.dataTable({
         id: `${id}-taulukko`,
         caption: `Pääryhmien vuosimuutos ${fmt.inessive(m.ym)}`,
@@ -971,16 +1116,19 @@ export function contributionsFigure(ctx, A, m, { id = 'vaikutukset', headingLeve
       source: c.sourceLine({ sources: [A.sources.groups], updated: ctx.latest.updated?.hyodykkeet }),
     });
   }
+  const pp2 = (v) => fmt.pp(v, { decimals: 2 });
+  const bottomLowered = fmt.round(bottom.contribution, 2) < 0;
+  const totalText = `Pääryhmien vaikutukset ovat yhteensä ${pp2(m.groups.sum)}; kokonaisindeksin vuosimuutos oli ${fmt.pct(m.yoy)}.`;
   return c.chartFigure({
     id,
     headingLevel,
     title: 'Pääryhmien vaikutus inflaatioon',
     subtitle: `Vaikutus vuosimuutokseen, %-yks. · ${fmt.monthName(m.ym)}`,
     chart: svg.hBarChart({
-      bars: rows.map((g) => ({ label: g.name, value: g.contribution, title: `${g.name}: vaikutus ${fmt.pp(g.contribution, { decimals: 2 })}, vuosimuutos ${fmt.pct(g.yoy)}` })),
-      ariaLabel: `Pääryhmien vaikutus kuluttajahintojen vuosimuutokseen ${fmt.inessive(m.ym)}: eniten nosti ${lowerFirst(top.name)} (${fmt.pp(top.contribution, { decimals: 2 })}), eniten laski ${lowerFirst(bottom.name)} (${fmt.pp(bottom.contribution, { decimals: 2 })}).`,
+      bars: rows.map((g) => ({ label: g.name, value: g.contribution, title: `${g.name}: vaikutus ${pp2(g.contribution)}, vuosimuutos ${fmt.pct(g.yoy)}` })),
+      ariaLabel: `Pääryhmien vaikutus kuluttajahintojen vuosimuutokseen ${fmt.inessive(m.ym)}: eniten nosti pääryhmä ${top.name} (${pp2(top.contribution)})${bottomLowered ? `, eniten laski pääryhmä ${bottom.name} (${pp2(bottom.contribution)})` : ''}. ${totalText}`,
     }),
-    summary: `Eniten vuosimuutosta nosti ${lowerFirst(top.name)} (${fmt.pp(top.contribution, { decimals: 2 })})${bottom.contribution < 0 ? ` ja eniten laski ${lowerFirst(bottom.name)} (${fmt.pp(bottom.contribution, { decimals: 2 })})` : ''}. Pääryhmien vaikutukset ovat yhteensä ${fmt.num(m.groups.total, 2, { sign: true })} prosenttiyksikköä.`,
+    summary: `Eniten vuosimuutosta nosti pääryhmä ${top.name} (${pp2(top.contribution)})${bottomLowered ? ` ja eniten laski pääryhmä ${bottom.name} (${pp2(bottom.contribution)})` : ''}. ${totalText}`,
     table: c.dataTable({
       id: `${id}-taulukko`,
       caption: `Pääryhmien vuosimuutos ja vaikutus kokonaisinflaatioon ${fmt.inessive(m.ym)}`,
@@ -1030,7 +1178,7 @@ export function contextFigure(ctx, A, m, { id = 'kehitys', headingLevel = 3, spa
       height: 260,
       ariaLabel: `Vuosimuutos kuukausittain ${period}: KHI ${fmt.pct(m.yoy)}${hasY ? `, YKHI ${fmt.pct(m.ykhi.yoy)} ja euroalue ${fmt.pct(m.ea.yoy)}` : ''} ${fmt.inessive(m.ym)}.`,
     }),
-    summary: `KHI oli ${fmt.inessive(m.ym)} ${fmt.pct(m.yoy)}${hasY ? `, YKHI ${fmt.pct(m.ykhi.yoy)} ja euroalueen YKHI ${fmt.pct(m.ea.yoy)}` : ''}.`,
+    summary: `${fmt.capitalize(fmt.inessive(m.ym))} KHI oli ${fmt.pct(m.yoy)}${hasY ? `, YKHI ${fmt.pct(m.ykhi.yoy)} ja euroalueen YKHI ${fmt.pct(m.ea.yoy)}` : ''}.`,
     table: c.dataTable({
       id: `${id}-taulukko`,
       caption: `Vuosimuutos kuukausittain, ${period}`,
@@ -1069,7 +1217,7 @@ function monthPage(ctx, A, ym) {
       label: 'Muutos edellisestä kuukaudesta',
       value: fmt.pp(m.delta),
       delta: ctx.stats.deltaClass(m.delta),
-      note: `${fmt.capitalize(fmt.inessive(m.prevYm, { year: fmt.yearOf(m.prevYm) !== year }))} ${fmt.pct(m.prevYoy)}`,
+      note: prevMonthNote(m.prevYm, m.prevYoy),
     }),
     c.kpiCard({
       label: 'Hinnat kuukaudessa',
@@ -1118,7 +1266,7 @@ ${c.sourceLine({ sources: [{ ...A.sources.khi, detail: fmt.isNum(m.eki) ? 'kulut
     : '';
 
   const related = [
-    { href: yearPath(year), eyebrow: 'Vuosi', title: `Inflaatio ${year}`, text: `Vuoden ${year} kaikki kuukaudet ja vuosiluku.`, meta: 'Katso' },
+    { href: yearPath(year), eyebrow: 'Vuosi', title: `Inflaatio ${year}`, text: `Vuoden ${year} inflaatio ja kaikki kuukaudet.`, meta: 'Katso' },
     m.hasKatsaus ? { href: katsausPath(ym), eyebrow: 'Katsaus', title: `Inflaatiokatsaus: ${name}`, text: 'Kuukauden luvut sanallisena katsauksena.', meta: 'Lue' } : null,
     { href: '/pisteluvut/', eyebrow: 'Indeksit', title: 'Pisteluvut', text: 'Kuluttajahintaindeksin ja elinkustannusindeksin pisteluvut.', meta: 'Katso' },
   ].filter(Boolean);
@@ -1131,7 +1279,7 @@ ${c.sourceLine({ sources: [{ ...A.sources.khi, detail: fmt.isNum(m.eki) ? 'kulut
     meta: html`Lähde: <a href="${A.sources.khi.href}">Tilastokeskus</a> (kuluttajahintaindeksi)${released}`,
   })}
 ${c.section({ id: 'tunnusluvut', title: 'Tunnusluvut', className: 'section--tight', body: kpis })}
-${c.section({ id: 'kehitys', eyebrow: 'Kehitys', title: 'Kaksi vuotta taaksepäin', body: contextFigure(ctx, A, m, { id: 'kehitys-kaavio' }) })}
+${c.section({ id: 'kehitys', eyebrow: 'Kehitys', title: 'Inflaatio kahden vuoden ajalta', body: contextFigure(ctx, A, m, { id: 'kehitys-kaavio' }) })}
 ${m.groups ? c.section({ id: 'nostajat', eyebrow: 'Hyödykeryhmät', title: 'Mikä nosti hintoja?', intro: html`${m.groups.mode === 'contribution' ? 'Kuluttajahintaindeksin 13 pääryhmän vaikutus vuosimuutokseen.' : 'Kuluttajahintaindeksin 13 pääryhmän hintojen muutos vuodessa.'} Yksittäisten hyödykkeiden hinnat: <a href="/hinnat/">Hinnat</a>.`, body: contributionsFigure(ctx, A, m) }) : ''}
 ${c.section({ id: 'pisteluvut', eyebrow: 'Indeksit', title: `Pisteluvut ${fmt.inessive(ym)}`, body: pointsBody })}
 ${c.section({ id: 'vertailu', eyebrow: 'Vertailu', title: 'Suomi ja euroalue', intro: 'YKHI on EU:n yhdenmukaistettu kuluttajahintaindeksi. Siitä puuttuvat omistusasumisen kulut, kuten asuntolainojen korot.', body: html`${compare}${compareNote}${c.sourceLine({ sources: [A.sources.ykhi], updated: ctx.latest.ykhi?.updated })}` })}
@@ -1152,13 +1300,14 @@ ${c.section({
     fmt.isNum(m.prevYoy) ? `${fmt.capitalize(fmt.inessive(m.prevYm, { year: false }))} ${fmt.pct(m.prevYoy)}.` : '',
     fmt.isNum(m.mom) && m.momOfficial ? `Hinnat kuukaudessa ${fmt.pct(m.mom, { sign: true })}.` : '',
     fmt.isNum(m.ykhi.yoy) ? `YKHI ${fmt.pct(m.ykhi.yoy)}${m.ykhi.provisional ? ' (ennakko)' : ''}, euroalue ${fmt.pct(m.ea.yoy)}.` : '',
-    'Pisteluvut.',
+    'Myös pisteluvut kaikilla perusvuosilla.',
   ]);
   const title = `Inflaatio ${fmt.inessive(ym)}: ${fmt.pct(m.yoy)}`;
   return {
     path,
     priority: ym >= fmt.ymAdd(A.latestMonth, -2) ? 0.7 : 0.4,
     changefreq: ym === A.latestMonth ? 'monthly' : 'yearly',
+    lastmod: A.monthLastmod(ym) ?? undefined,
     html: ctx.layout({
       title,
       description,

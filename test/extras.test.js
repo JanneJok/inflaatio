@@ -13,10 +13,11 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 import * as fmt from '../src/js/lib/format.js';
-import { csvNum, csvCell, toCsv, khiCsv, khiAnnualCsv, ykhiCsv, ekiCsv, fileSize, CSV_BOM } from '../src/pages/data.js';
+import { csvNum, csvCell, toCsv, khiCsv, khiAnnualCsv, ykhiCsv, ekiCsv, fileSize, CSV_BOM, chainedBases, seriesStartSentence } from '../src/pages/data.js';
 import { woffToSfnt, pngSize, FALLBACK_FILE, OG_WIDTH, OG_HEIGHT, sparkPath, xmlEscape } from '../src/pages/og.js';
-import { enMonth, enMonthShort, enNum, enPct, enPp, enDate, enLevelSentence, enDeltaSentence } from '../src/pages/en.js';
-import { embedCode, WIDGET_HEIGHT } from '../src/pages/upotus.js';
+import { enMonth, enMonthShort, enNum, enPct, enPp, enDate, enLevelSentence, enDeltaSentence, enChartSummary } from '../src/pages/en.js';
+import { embedCode, previewUrl, WIDGET_HEIGHT, WIDGET_THEMES, PREVIEW_PARAM } from '../src/pages/upotus.js';
+import { isPreview } from '../src/js/pages/upotus-kortti.js';
 import { latestSentence } from '../src/pages/notfound.js';
 import { build, cspProblems } from '../scripts/build.js';
 
@@ -70,6 +71,32 @@ describe('data.js – CSV helpers', () => {
     assert.equal(fileSize(900, fmt), `0,9${fmt.NBSP}kt`);
     assert.equal(fileSize(52_000, fmt), `51${fmt.NBSP}kt`);
     assert.equal(fileSize(3 * 1024 * 1024, fmt), `3,0${fmt.NBSP}Mt`);
+  });
+
+  test('chained point-figure series: 2025=100 starts before its base year (15b5)', () => {
+    const khi = readData('khi');
+    const chained = chainedBases(khi.months, khi.index);
+    // Every series that does not start in its base year is listed, with the data's own first month.
+    for (const [base, arr] of Object.entries(khi.index)) {
+      const first = khi.months[arr.findIndex((v) => v != null)];
+      const listed = chained.find((c) => c.base === base);
+      if (Number.parseInt(first, 10) < Number.parseInt(base, 10)) assert.deepEqual(listed, { base, from: first }, base);
+      else assert.equal(listed, undefined, base);
+    }
+    const s = seriesStartSentence(khi.months, khi.index, fmt);
+    assert.doesNotMatch(s, /^Jokainen pistelukusarja/);
+    const c2025 = chained.find((c) => c.base === '2025=100');
+    assert.ok(c2025, '2025=100 is chained backwards in the committed data');
+    assert.ok(s.includes(`paitsi 2025=100, jonka Tilastokeskus julkaisee ketjutettuna ${fmt.elative(c2025.from)} alkaen (taulukko 15b5).`), s);
+
+    const fixture = { '2025=100': [1, 2, 3], '2015=100': [null, null, 3] };
+    const months = ['2014-12', '2015-01', '2025-01'];
+    assert.deepEqual(chainedBases(months, fixture), [{ base: '2025=100', from: '2014-12' }]);
+    assert.equal(
+      seriesStartSentence(months, fixture, fmt),
+      'Pistelukusarjat alkavat perusvuodestaan, paitsi 2025=100, jonka Tilastokeskus julkaisee ketjutettuna joulukuusta 2014 alkaen (taulukko 15b5).',
+    );
+    assert.equal(seriesStartSentence(['2015-01'], { '2015=100': [100] }, fmt), 'Jokainen pistelukusarja alkaa perusvuodestaan.');
   });
 });
 
@@ -216,6 +243,20 @@ describe('en.js – English formatting', () => {
     assert.equal(enDeltaSentence(-0.5, 0.5, '2025-09'), 'Inflation slowed from 0.5% in September 2025.');
     assert.equal(enDeltaSentence(null, 2.1, '2026-07'), '');
   });
+
+  test('chart summary names the latest value, the high and the low with every month', () => {
+    const months = ['2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02'];
+    const values = [1.0, -0.2, 0.4, 2.2, -0.2, 1.5];
+    assert.equal(
+      enChartSummary(months, values, { month: '2026-02', yoy: 1.5 }),
+      `CPI inflation was 1.5% in February 2026. Between September 2025 and February 2026 it peaked at 2.2% (December 2025) and was lowest at ${MINUS}0.2% (October 2025, January 2026).`,
+    );
+    assert.equal(
+      enChartSummary(['2026-01', '2026-02'], [2, 2], { month: '2026-02', yoy: 2 }),
+      'CPI inflation was 2.0% in February 2026. Between January 2026 and February 2026 it stayed at 2.0%.',
+    );
+    assert.equal(enChartSummary([], [], { month: '2026-02', yoy: 2 }), 'CPI inflation was 2.0% in February 2026.');
+  });
 });
 
 describe('upotus.js / notfound.js helpers', () => {
@@ -227,9 +268,24 @@ describe('upotus.js / notfound.js helpers', () => {
     assert.equal(WIDGET_HEIGHT, 140);
   });
 
+  test('preview URL is marked (not counted) and the embed code never is', () => {
+    assert.equal(previewUrl(), '/upotus/?esikatselu=1');
+    assert.equal(previewUrl('auto'), '/upotus/?esikatselu=1');
+    assert.equal(previewUrl('tumma'), '/upotus/?teema=tumma&esikatselu=1');
+    assert.equal(previewUrl('vaalea'), '/upotus/?teema=vaalea&esikatselu=1');
+    for (const theme of Object.keys(WIDGET_THEMES)) {
+      assert.ok(isPreview(new URL(previewUrl(/** @type {any} */ (theme)), 'https://inflaatio.fi').search), theme);
+      for (const width of ['320', 'full']) assert.ok(!embedCode('https://inflaatio.fi', { theme, width }).includes(PREVIEW_PARAM), `${theme}|${width}`);
+    }
+    assert.equal(isPreview(''), false);
+    assert.equal(isPreview('?teema=tumma'), false);
+    assert.equal(isPreview('?teema=tumma&esikatselu=1'), true);
+  });
+
   test('404 sentence with month and source', () => {
     assert.equal(latestSentence(fmt, { month: '2026-08', yoy: 2.2 }), `Elokuussa 2026 kuluttajahinnat olivat 2,2${fmt.NBSP}% korkeammat kuin vuotta aiemmin (Tilastokeskus).`);
-    assert.match(latestSentence(fmt, { month: '2025-10', yoy: -0.2 }), /matalammat/);
+    assert.equal(latestSentence(fmt, { month: '2025-10', yoy: -0.2 }), `Lokakuussa 2025 kuluttajahinnat olivat 0,2${fmt.NBSP}% alemmat kuin vuotta aiemmin (Tilastokeskus).`);
+    assert.equal(latestSentence(fmt, { month: '2025-10', yoy: 0 }), 'Lokakuussa 2025 kuluttajahinnat olivat samalla tasolla kuin vuotta aiemmin (Tilastokeskus).');
   });
 });
 
@@ -297,9 +353,34 @@ describe('partial build of the EXTRAS modules', () => {
     const page = read('/upotus/ohje/');
     assert.match(page, /<code id="upotuskoodi">&lt;iframe src=&quot;https:\/\/inflaatio\.fi\/upotus\/&quot;/);
     assert.match(page, /data-copy-target="#upotuskoodi"[^>]*data-track="widget_code_copied"|data-track="widget_code_copied"[^>]*data-copy-target="#upotuskoodi"/);
-    assert.match(page, /<iframe class="embed-preview__frame" id="upotus-esikatselu" src="\/upotus\/"/);
-    assert.match(page, /<script type="application\/json" id="upotus-koodit">/);
+    // The live preview is marked so it is not counted as a widget load on another site.
+    assert.match(page, /<iframe class="embed-preview__frame" id="upotus-esikatselu" src="\/upotus\/\?esikatselu=1"/);
+    const island = page.match(/<script type="application\/json" id="upotus-koodit">(.*?)<\/script>/s);
+    assert.ok(island, 'variants data island');
+    const variants = JSON.parse(island[1]);
+    assert.equal(Object.keys(variants).length, 6);
+    for (const [key, v] of Object.entries(variants)) {
+      assert.match(v.preview, /[?&]esikatselu=1$/, key);
+      assert.doesNotMatch(v.code, /esikatselu/, `${key}: published embed code`);
+    }
+    assert.match(page, /seuraavan kuukauden puolivälissä/);
+    assert.match(page, /Kortti päivittyy yleensä samana päivänä\./);
   });
+
+  test('widget has its own page-view entry (preview not counted)', () => {
+    const widget = read('/upotus/');
+    const m = widget.match(/<script type="module" src="(\/assets\/pages\/upotus-kortti-[A-Z0-9]+\.js)"><\/script>/);
+    assert.ok(m, 'module entry pages/upotus-kortti.js');
+    assert.ok(read(m[1]).includes('esikatselu'), 'preview check in the widget entry');
+  });
+
+  test(
+    'widget document does not load site.js',
+    () => {
+      const widget = read('/upotus/');
+      assert.doesNotMatch(widget, /\/assets\/site-[A-Z0-9]+\.js/);
+    },
+  );
 
   test('English page: lang, hreflang pairs, figures with month and source', () => {
     const page = read('/en/');
@@ -311,6 +392,14 @@ describe('partial build of the EXTRAS modules', () => {
     const month = enMonth(khi.months.at(-1));
     assert.ok(page.includes(`<h1>Inflation in Finland: ${enPct(khi.yoy.at(-1))} (${month})</h1>`));
     assert.ok(page.includes('href="/en/rent-increase-calculator/"') && page.includes('href="/en/value-of-money/"'));
+    // Chart summary: latest, high and low of the two-year period.
+    const i = khi.months.length - 1;
+    const months = khi.months.slice(i - 24, i + 1);
+    const summary = enChartSummary(months, khi.yoy.slice(i - 24, i + 1), { month: khi.months[i], yoy: khi.yoy[i] });
+    assert.match(summary, /peaked at .* and was lowest at /);
+    assert.ok(page.includes(summary), summary);
+    assert.doesNotMatch(page, /markkaa|1951:10 = 100/);
+    assert.ok(page.includes('Finnish markka') && page.includes('1951:10=100'));
   });
 
   test('open data: CSV files, JSON copies, latest.json and Dataset JSON-LD', () => {
@@ -336,5 +425,32 @@ describe('partial build of the EXTRAS modules', () => {
     }
     assert.match(page, /data-track="csv_download"/);
     assert.match(page, /Näin viittaat/);
+  });
+
+  test('open data texts: series starts, elative dates, citation, licences', () => {
+    const page = read('/data/');
+    const khi = readData('khi');
+    // 2025=100 is chained back by Tilastokeskus: not every series starts in its base year.
+    assert.doesNotMatch(page, /Jokainen pistelukusarja alkaa perusvuodestaan|jokainen sarja alkaa perusvuodestaan/);
+    const start = seriesStartSentence(khi.months, khi.index, fmt);
+    assert.equal(page.split(start).length - 1, 2, 'file description and the note on bases');
+    // "alkaen" takes the elative.
+    assert.ok(page.includes(`Kuukausimuutos on virallinen ${fmt.elative(khi.momOfficialFrom)} alkaen`));
+    assert.ok(page.includes(`(vuosimuutos ${fmt.elative(khi.months[khi.yoy.findIndex((v) => v != null)])} alkaen)`));
+    assert.match(page, /\(vuodesta \d{4} alkaen\)/);
+    assert.doesNotMatch(page, /\b(tammi|helmi|maalis|huhti|touko|kesä|heinä|elo|syys|loka|marras|joulu) \d{4} alkaen/);
+    assert.doesNotMatch(page, /\(esim\. \d{4} \(/, 'no nested parentheses');
+    // SVT citation format.
+    assert.ok(page.includes('Suomen virallinen tilasto (SVT): Kuluttajahintaindeksi [verkkojulkaisu]. Helsinki: Tilastokeskus [viitattu: päivämäärä]. Saantitapa: https://stat.fi/tilasto/khi. Aineisto koottu: Inflaatio.fi, https://inflaatio.fi/data/.'));
+    // The header does not claim CC BY 4.0 for everything (ECB data is not CC BY).
+    assert.doesNotMatch(page, /Lisenssi CC BY 4\.0/);
+    assert.match(page, /Lisenssit: ks\. <a href="#lisenssi">Käyttöoikeus ja lähteet<\/a>/);
+    assert.match(page, /päivittyvät automaattisesti, yleensä samana päivänä/);
+  });
+
+  test('404 page wording', () => {
+    const page = read('/404.html');
+    assert.match(page, /Hakemaasi sivua ei ole olemassa tai se on siirretty\./);
+    assert.doesNotMatch(page, /matalammat/);
   });
 });

@@ -131,3 +131,9 @@
 [data-page='oma-inflaatio'] .oi-total > * {
   border-top: 2px solid var(--border-strong);
 }
+
+/* 5-year chart: SVG fallback until the Chart.js canvas is ready. */
+.oi-chart [data-chart-fallback][hidden],
+.oi-chart .chart-canvas[hidden] {
+  display: none;
+}

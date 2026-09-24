@@ -2,7 +2,9 @@
 # Data commits made by update-data.yml do NOT trigger this workflow (pushes
 # with GITHUB_TOKEN never trigger workflows); that workflow deploys itself.
 # Both share the concurrency group "fly-deploy", so deployments never overlap.
-# The FLY_API_TOKEN secret is a deploy token of the Fly app (docs/OPERATIONS.md).
+# The FLY_API_TOKEN secret is a deploy token of the Fly app, stored in the
+# GitHub environment "production", which only main may use (docs/OPERATIONS.md,
+# step 1.4). A manual run from any other branch is skipped.
 name: Julkaisu (Fly.io)
 
 on:
@@ -31,6 +33,10 @@ concurrency:
 jobs:
   deploy:
     name: Testaa ja julkaise
+    # Only main goes to production, also when started by hand
+    # (gh workflow run deploy.yml --ref <other branch> does nothing).
+    if: github.ref == 'refs/heads/main'
+    environment: production
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -45,8 +51,10 @@ jobs:
           node-version: '24'
           cache: npm
 
+      # --ignore-scripts: no install script of any dependency runs in the job
+      # that holds the deploy token.
       - name: Asenna riippuvuudet
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       # A direct push to main (without a pull request) must not go live broken.
       - name: Testit, build ja linkit ennen julkaisua
@@ -55,8 +63,12 @@ jobs:
           npm run build
           node scripts/check-links.js
 
+      # The action installs flyctl itself: pinned too (docs/OPERATIONS.md →
+      # Päivitykset), the same version in update-data.yml.
       - name: flyctl
         uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be # 1.5
+        with:
+          version: '0.4.104'
 
       - name: flyctl deploy --remote-only
         run: flyctl deploy --remote-only

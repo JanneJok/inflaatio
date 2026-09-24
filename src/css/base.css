@@ -248,10 +248,11 @@ pre code {
   background: none;
 }
 
-/* Numbers never jump: tabular figures wherever values are shown. */
+/* Numbers never jump: tabular figures wherever values are shown. Tables get
+   them per numeric cell (.num), not as a whole, so text cells keep normal
+   hyphens ("IP-osoite", not "IP - osoite"). */
 .num,
 .tabular,
-table,
 time,
 data {
   font-variant-numeric: tabular-nums;

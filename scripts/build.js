@@ -403,7 +403,7 @@ export function cspProblems(doc) {
 }
 
 const isNoindex = (doc) => /<meta\s+name="robots"\s+content="[^"]*noindex/i.test(doc);
-const xmlEscape = (s) => String(s).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' })[c]);
+const { xmlEscape } = htmlLib;
 
 /** Default robots.txt (PSA-29): AI training crawlers blocked, search allowed. */
 function robotsTxt(baseUrl) {

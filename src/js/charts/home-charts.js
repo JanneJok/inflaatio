@@ -13,7 +13,7 @@ import * as fmt from '../lib/format.js';
 import { onVisible } from '../lib/dom.js';
 import { sliceRange } from '../lib/stats.js';
 import { createChart, lineDataset, targetLine, eventLine, downloadPng, applyTheme, loadChartJs } from './setup.js';
-import { decodeSeries, monthAxis, priceLevel, wrapText, METRIC_INFO } from './home-model.js';
+import { decodeSeries, monthAxis, priceLevel, wrapText, METRIC_INFO, DEFAULT_BASE } from './home-model.js';
 
 /** Series of the main chart, in dataset order. */
 const TREND = [
@@ -75,7 +75,13 @@ export function initHomeCharts(data, getState) {
   let trend = null;
   let trendMonths = [];
 
-  const trendSlice = (key) => sliceRange(months, TREND.map((t) => S[t.key] ?? months.map(() => null)), key);
+  // The range is fixed by KHI and YKHI (as in the texts and the month table);
+  // the optional series are cut to the same months.
+  const trendSlice = (key) => {
+    const r = sliceRange(months, [S.khi, S.ykhi].map((a) => a ?? months.map(() => null)), key);
+    const pick = (a) => (r.end < 0 ? [] : (a ?? months.map(() => null)).slice(r.start, r.end + 1));
+    return { months: r.months, series: TREND.map((t) => pick(S[t.key])) };
+  };
 
   function trendAnnotations(labels, st) {
     const out = { target: targetLine(2) };
@@ -165,9 +171,16 @@ export function initHomeCharts(data, getState) {
   let level = null;
   let levelView = null;
 
+  /** Official base of the price level for a view (the newest base covering the range start). */
+  const levelBase = (st) => data.text?.level?.[st.mittari]?.[st.jakso]?.base ?? DEFAULT_BASE;
+  /** @type {Record<string, (number|null)[]>} decoded index series by "metric base" */
+  const levelSeries = {};
+
   function levelData(st) {
-    const idx = S[`${st.mittari}Idx`] ?? months.map(() => null);
-    return priceLevel(months, idx, st.jakso);
+    const base = levelBase(st);
+    const id = `${st.mittari} ${base}`;
+    levelSeries[id] ??= decodeSeries(data.lvl?.[st.mittari]?.[base], data.n);
+    return priceLevel(months, levelSeries[id], st.jakso);
   }
 
   async function createLevel() {
@@ -186,7 +199,7 @@ export function initHomeCharts(data, getState) {
         tooltipFooter: (items) => {
           const i = items[0]?.dataIndex;
           const v = levelView?.index?.[i];
-          return fmt.isNum(v) ? `Pisteluku ${fmt.idx(v)} (${data.base?.[getState().mittari] ?? '2025=100'})` : '';
+          return fmt.isNum(v) ? `Pisteluku ${fmt.idx(v)} (${levelBase(getState())})` : '';
         },
       });
     } catch (err) {

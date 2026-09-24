@@ -71,6 +71,13 @@ SMOKE_URL=http://127.0.0.1:8108 node --test --test-name-pattern='^smoke' test/op
 docker stop inflaatio-local
 ```
 
+Komennot ovat POSIX-muotoa (Git Bash, WSL, macOS, Linux). PowerShellissä
+savutesti ajetaan näin:
+
+```powershell
+$env:SMOKE_URL = "http://127.0.0.1:8108"; node --test --test-name-pattern="^smoke" test/ops.test.js
+```
+
 Käsin: `gh workflow run update-data.yml`, `gh workflow run deploy.yml` tai
 `fly deploy --remote-only`. Siirto GitHub Pagesista Fly.io:hon, paluusuunnitelma,
 ylläpitäjän tilitehtävät (avainten kierrätys, Cloudflare, GA4, Supabase,
@@ -81,4 +88,6 @@ EmailJS, GitHubin asetukset) ja vianetsintä: [`docs/OPERATIONS.md`](docs/OPERAT
 - `docs/ARCHITECTURE.md` – arkkitehtuuri, build-sopimus ja komponentit
 - `docs/DATA.md` – datalähteet, tiedostomuodot ja laskentasäännöt
 - `docs/OPERATIONS.md` – julkaisu, ajastetut ajot ja ylläpitäjän tehtävät
+- `docs/ROADMAP.md` – kehityssuunnitelma: mitä on tehty ja mitä on jäljellä
+- `docs/SEO-CHECKLIST.md` – hakukoneoptimoinnin tila ja jatkuva tarkistuslista
 - `CONTRIBUTING.md` – kehitysohjeet ja säännöt (CSP, saavutettavuus, tekstit)

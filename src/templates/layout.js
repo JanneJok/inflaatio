@@ -13,7 +13,6 @@ import * as fmt from '../js/lib/format.js';
 import { breadcrumb, icon, field } from './components.js';
 import { GA_COOKIE_MAX_AGE_DAYS } from '../js/lib/analytics.js';
 import { CONTACT_LIMITS } from '../js/lib/contact.js';
-import { formatter } from '../js/lib/calc.js';
 
 /** Recommended maximum lengths (search result truncation). */
 export const TITLE_MAX = 60;
@@ -50,16 +49,14 @@ const CHROME = {
 };
 
 const isEn = (lang) => String(lang ?? '').startsWith('en');
+
+/** English formatters for the chrome (format.js; same output as calc.js formatter('en')). */
+const EN_F = Object.freeze({ period: (ym) => fmt.enMonthName(ym), periodShort: (ym) => fmt.enMonthShort(ym), pct: (v) => fmt.enPct(v), num: (v, d) => fmt.enNum(v, d) });
 /** Chrome texts for a language ('fi' for anything but English). */
 export const chromeText = (lang) => (isEn(lang) ? CHROME.en : CHROME.fi);
 
 /** '17 September 2026' (Helsinki calendar date) for English chrome. */
-function enDate(v) {
-  const iso = fmt.isoDate(v);
-  if (!iso) return fmt.DASH;
-  const [y, m, d] = iso.split('-').map(Number);
-  return `${d} ${formatter('en').monthNames[m - 1]} ${y}`;
-}
+const enDate = (v) => fmt.enDate(v);
 
 /**
  * @typedef {object} LayoutOptions
@@ -140,7 +137,7 @@ function header(ctx, path, lang = 'fi') {
   const ym = k ? fmt.parseYm(k.month) : null;
   let chip = '';
   if (k && fmt.isNum(k.yoy)) {
-    const F = formatter('en');
+    const F = EN_F;
     const chipTitle = en
       ? `Annual change in consumer prices in ${F.period(k.month)} (Statistics Finland)`
       : `Kuluttajahintojen vuosimuutos ${fmt.inessive(k.month)} (Tilastokeskus)`;
@@ -198,9 +195,9 @@ function footer(ctx, lang = 'fi') {
   const cols = en ? (ctx.site.footerEn ?? ctx.site.footer) : ctx.site.footer;
   const updatedTime = html`<time datetime="${String(updated).slice(0, 10)}">${en ? enDate(updated) : fmt.date(updated)}</time>`;
   const brandText = en
-    ? html`<p>Inflaatio.fi brings Finland’s official inflation figures together in clear charts and tables. The figures are based on statistics from Statistics Finland and Eurostat and are updated monthly.</p>
+    ? html`<p>Inflaatio.fi brings Finland’s official inflation figures together in clear charts and tables. The figures are based on statistics from Statistics Finland, Eurostat and the ECB and are updated monthly.</p>
       <p class="site-footer__disclaimer">The information on this site is general information, not investment or financial advice.</p>`
-    : html`<p>Inflaatio.fi kokoaa Suomen viralliset inflaatioluvut yhteen paikkaan selkeinä kuvaajina ja taulukkoina. Luvut perustuvat Tilastokeskuksen ja Eurostatin tilastoihin ja päivittyvät kuukausittain.</p>
+    : html`<p>Inflaatio.fi kokoaa Suomen viralliset inflaatioluvut yhteen paikkaan selkeinä kuvaajina ja taulukkoina. Luvut perustuvat Tilastokeskuksen, Eurostatin ja EKP:n tilastoihin ja päivittyvät kuukausittain.</p>
       <p class="site-footer__disclaimer">Sivuston tiedot ovat yleistä tietoa eivätkä ole sijoitus- tai talousneuvontaa.</p>`;
   const bottom = en
     ? html`© ${year} Inflaatio.fi · Operated by ${ctx.site.operator.name} · Sources: Statistics Finland (CPI), Eurostat (HICP) · Updated ${updatedTime}`
@@ -269,7 +266,8 @@ function consentBanner() {
 
 /**
  * Consent settings dialog: one instance per page; the analytics toggle is a
- * labelled checkbox. "Vain välttämättömät" and "Salli kaikki" have equal
+ * labelled checkbox. "Vain välttämättömät" and "Salli analytiikka" (the
+ * same label as in the banner; analytics is the only optional category) have equal
  * weight; "Tallenna valinnat" stores the toggle state.
  * @param {object} ctx
  */
@@ -301,10 +299,10 @@ function consentDialog(ctx) {
         </div>
       </div>
     </fieldset>
-    <p class="form__note">Evästeetön kävijälaskuri toimii valinnasta riippumatta: se tallentaa sivulatauksesta vain sivun osoitteen, viittaavan sivuston verkkotunnuksen ja laitetyypin, ei evästeitä eikä tunnisteita. <a href="/kayttoehdot/#kavijatilasto">Tietosuojaseloste</a></p>
+    <p class="form__note">Evästeetön kävijälaskuri toimii valinnasta riippumatta: se tallentaa sivulatauksesta vain sivun osoitteen, viittaavan sivuston verkkotunnuksen, laitetyypin ja ajan – ei evästeitä eikä tunnisteita. Jos selaimesi lähettää GPC- tai Do Not Track -signaalin, mitään ei lähetetä. <a href="/kayttoehdot/#kavijatilasto">Tietosuojaseloste</a></p>
     <div class="dialog__actions">
       <button type="button" class="button button--secondary" data-consent="necessary">Vain välttämättömät</button>
-      <button type="button" class="button button--secondary" data-consent="analytics">Salli kaikki</button>
+      <button type="button" class="button button--secondary" data-consent="analytics">Salli analytiikka</button>
       <button type="button" class="button button--primary" data-consent-save>Tallenna valinnat</button>
     </div>
   </div>
@@ -327,7 +325,7 @@ function contactDialog(ctx) {
       <button type="button" class="icon-button" data-dialog-close aria-label="Sulje">${icon('close')}</button>
     </div>
     <form class="form" id="yhteydenottolomake" data-contact-form data-fallback="${fallback}" novalidate>
-      <p class="dialog__lede">Kysyttävää luvuista, huomasitko virheen tai onko sinulla idea sivuston parantamiseksi? Kirjoita meille – vastaamme yleensä muutaman arkipäivän kuluessa.</p>
+      <p class="dialog__lede">Onko sinulla kysyttävää luvuista, huomasitko virheen tai onko sinulla idea sivuston parantamiseksi? Kirjoita meille – vastaamme yleensä muutaman arkipäivän kuluessa.</p>
       ${field({ id: 'yhteys-nimi', name: 'name', label: 'Nimi', optional: true, attrs: { autocomplete: 'name', maxlength: L.name } })}
       ${field({ id: 'yhteys-email', name: 'email', type: 'email', label: 'Sähköposti', required: true, hint: 'Vastaamme tähän osoitteeseen.', attrs: { autocomplete: 'email', maxlength: L.email, inputmode: 'email', spellcheck: 'false' } })}
       ${field({ id: 'yhteys-viesti', name: 'message', as: 'textarea', label: 'Viesti', required: true, hint: `Enintään ${fmt.num(L.message)} merkkiä. Jos viesti koskee lukua, kerro sivu ja kuukausi.`, attrs: { rows: 6, maxlength: L.message } })}
@@ -397,10 +395,10 @@ function consentDialogEn(ctx) {
         </div>
       </div>
     </fieldset>
-    <p class="form__note">The cookieless visitor counter works regardless of your choice: from a page load it stores only the page address, the domain of the referring site and the device type, with no cookies or identifiers. <a href="/kayttoehdot/#kavijatilasto" hreflang="fi">Privacy policy (in Finnish)</a></p>
+    <p class="form__note">The cookieless visitor counter works regardless of your choice: from a page load it stores only the page address, the referring domain, the device type and the time – no cookies or identifiers. Nothing is sent if your browser sends a GPC or Do Not Track signal. <a href="/kayttoehdot/#kavijatilasto" hreflang="fi">Privacy policy (in Finnish)</a></p>
     <div class="dialog__actions">
       <button type="button" class="button button--secondary" data-consent="necessary">Necessary only</button>
-      <button type="button" class="button button--secondary" data-consent="analytics">Allow all</button>
+      <button type="button" class="button button--secondary" data-consent="analytics">Allow analytics</button>
       <button type="button" class="button button--primary" data-consent-save>Save choices</button>
     </div>
   </div>
@@ -410,7 +408,7 @@ function consentDialogEn(ctx) {
 /** @param {object} ctx */
 function contactDialogEn(ctx) {
   const L = CONTACT_LIMITS;
-  const F = formatter('en');
+  const F = EN_F;
   const fallback = `You can also send a message by post: ${ctx.site.operator.name}, ${operatorAddress(ctx)}, Finland.`;
   return html`<dialog class="dialog" id="yhteydenotto" aria-labelledby="yhteydenotto-otsikko">
   <div class="dialog__inner">
@@ -419,7 +417,7 @@ function contactDialogEn(ctx) {
       <button type="button" class="icon-button" data-dialog-close aria-label="Close">${icon('close')}</button>
     </div>
     <form class="form" id="yhteydenottolomake" data-contact-form data-fallback="${fallback}" novalidate>
-      <p class="dialog__lede">Questions about the figures, spotted an error or have an idea for improving the site? Write to us – we usually reply within a few working days.</p>
+      <p class="dialog__lede">Have a question about the figures, spotted an error or got an idea for improving the site? Write to us – we usually reply within a few working days.</p>
       ${field({ id: 'yhteys-nimi', name: 'name', label: 'Name', optional: true, lang: 'en', attrs: { autocomplete: 'name', maxlength: L.name } })}
       ${field({ id: 'yhteys-email', name: 'email', type: 'email', label: 'Email', required: true, hint: 'We will reply to this address.', attrs: { autocomplete: 'email', maxlength: L.email, inputmode: 'email', spellcheck: 'false' } })}
       ${field({ id: 'yhteys-viesti', name: 'message', as: 'textarea', label: 'Message', required: true, hint: `Up to ${F.num(L.message, 0)} characters. If your message is about a figure, tell us the page and the month.`, attrs: { rows: 6, maxlength: L.message } })}
@@ -428,7 +426,7 @@ function contactDialogEn(ctx) {
         <input type="text" id="yhteys-sivusto" name="website" tabindex="-1" autocomplete="off">
       </div>
       <p class="form__error" id="yhteys-virhe" role="alert"></p>
-      <p class="form__note">The message is forwarded to our email through the EmailJS service. We use your contact details only to reply to your message. <a href="/kayttoehdot/#yhteydenotot" hreflang="fi">Privacy policy (in Finnish)</a></p>
+      <p class="form__note">Your message is forwarded to our email via EmailJS. We use your contact details only to reply to your message. <a href="/kayttoehdot/#yhteydenotot" hreflang="fi">Privacy policy (in Finnish)</a></p>
       <div class="dialog__actions">
         <button type="button" class="button button--secondary" data-dialog-close>Cancel</button>
         <button type="submit" class="button button--primary"><span class="button__label">Send message</span></button>
@@ -452,7 +450,7 @@ function defaultOgAlt(ctx, lang) {
   const k = ctx.latest?.khi;
   if (!k || !fmt.isNum(k.yoy)) return ctx.site.ogImage.alt;
   if (isEn(lang)) {
-    const F = formatter('en');
+    const F = EN_F;
     return `Inflation in Finland in ${F.period(k.month)}: ${F.pct(k.yoy)} (Statistics Finland) – Inflaatio.fi`;
   }
   return `Inflaatio Suomessa ${fmt.inessive(k.month)}: ${fmt.pct(k.yoy)} (Tilastokeskus) – Inflaatio.fi`;
@@ -525,7 +523,10 @@ export function layout(ctx, o) {
 
   const crumbsLd = breadcrumbs.length ? [breadcrumbJsonLd(ctx, breadcrumbs, path)] : [];
   const ld = [...jsonLd, ...crumbsLd];
-  const entries = ['site.js', ...scripts];
+  // The bare widget document (/upotus/) gets only its own scripts: no site.js,
+  // so no consent, Google Analytics, contact or theme-menu code is loaded in
+  // an embedded card (the embed terms promise no cookies and no GA).
+  const entries = bare ? [...scripts] : ['site.js', ...scripts];
   const preloads = [...new Set(entries.flatMap((e) => ctx.assetImports?.(e) ?? []))];
   const font = ctx.asset('fonts/inter-latin-wght-normal.woff2', { optional: true });
 

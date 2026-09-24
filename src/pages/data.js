@@ -63,6 +63,42 @@ const baseKeys = (index) =>
   Object.keys(index ?? {}).sort((a, b) => Number.parseInt(b, 10) - Number.parseInt(a, 10));
 
 /**
+ * Point-figure series that start before their base year, i.e. series that
+ * Tilastokeskus publishes chained backwards (e.g. 2025=100 from 1995-01,
+ * table 15b5). Every other series starts in its base year.
+ * @param {string[]} months ascending 'YYYY-MM'
+ * @param {Record<string, (number|null)[]>} index base key ('2025=100') → values aligned with months
+ * @returns {{base: string, from: string}[]} newest base first
+ */
+export function chainedBases(months, index) {
+  const out = [];
+  for (const base of baseKeys(index)) {
+    const baseYear = Number.parseInt(base, 10);
+    const first = index[base].findIndex((v) => v != null);
+    if (first < 0 || !Number.isFinite(baseYear)) continue;
+    if (Number.parseInt(months[first], 10) < baseYear) out.push({ base, from: months[first] });
+  }
+  return out;
+}
+
+/**
+ * Finnish sentence on where the point-figure series start: "Pistelukusarjat
+ * alkavat perusvuodestaan, paitsi 2025=100, jonka Tilastokeskus julkaisee
+ * ketjutettuna tammikuusta 1995 alkaen (taulukko 15b5)."
+ * @param {string[]} months
+ * @param {Record<string, (number|null)[]>} index
+ * @param {any} fmt ctx.fmt
+ * @returns {string}
+ */
+export function seriesStartSentence(months, index, fmt) {
+  const chained = chainedBases(months, index);
+  if (!chained.length) return 'Jokainen pistelukusarja alkaa perusvuodestaan.';
+  const list = chained.map((c) => `${c.base}, jonka Tilastokeskus julkaisee ketjutettuna ${fmt.elative(c.from)} alkaen`);
+  const table = chained.some((c) => c.base === '2025=100') ? ' (taulukko 15b5)' : '';
+  return `Pistelukusarjat alkavat perusvuodestaan, paitsi ${list.join(' ja ')}${table}.`;
+}
+
+/**
  * KHI monthly CSV (data/khi.json): one row per month.
  * @param {any} khi ctx.data.khi
  * @returns {{header: string[], rows: string[][], body: string}}
@@ -238,13 +274,14 @@ export default async function data(ctx) {
   const csvFiles = [];
   const khi = khiCsv(d.khi);
   const firstYoy = d.khi.yoy.findIndex((v) => v != null);
+  const seriesStart = seriesStartSentence(d.khi.months, d.khi.index, fmt);
   csvFiles.push({
     id: 'khi',
     file: 'khi.csv',
     title: 'Kuluttajahintaindeksi kuukausittain',
-    desc: html`Vuosimuutos (inflaatio), kuukausimuutos ja pisteluvut kaikilla Tilastokeskuksen perusvuosilla (${baseKeys(d.khi.index).join(', ')}). Jokainen pistelukusarja alkaa perusvuodestaan. Kuukausimuutos on virallinen ${fmt.monthShort(d.khi.momOfficialFrom)} alkaen; sitä ennen se on laskettu virallisesta 1972=100-pisteluvusta (sarake <em>Kuukausimuutos: tieto</em>).`,
+    desc: html`Vuosimuutos (inflaatio), kuukausimuutos ja pisteluvut kaikilla Tilastokeskuksen perusvuosilla (${baseKeys(d.khi.index).join(', ')}). ${seriesStart} Kuukausimuutos on virallinen ${fmt.elative(d.khi.momOfficialFrom)} alkaen; sitä ennen se on laskettu virallisesta 1972=100-pisteluvusta (sarake <em>Kuukausimuutos: tieto</em>).`,
     csv: khi,
-    period: `${fmt.monthRange(d.khi.months[0], d.khi.months.at(-1))} (vuosimuutos ${fmt.monthShort(d.khi.months[firstYoy])} alkaen)`,
+    period: `${fmt.monthRange(d.khi.months[0], d.khi.months.at(-1))} (vuosimuutos ${fmt.elative(d.khi.months[firstYoy])} alkaen)`,
     rowsLabel: `${fmt.num(khi.rows.length)} kuukautta`,
     sources: [{ name: 'Tilastokeskus', href: KHI_URL, detail: `taulukot ${meta.khi?.table ?? '122p, 11xs, 15b5'}` }],
     updated: meta.khi?.updated ?? null,
@@ -258,11 +295,13 @@ export default async function data(ctx) {
   if (ka?.years?.length) {
     const csv = khiAnnualCsv(ka);
     const firstAnnual = ka.years[ka.yoy.findIndex((v) => v != null)];
+    const cy = L.khi.currentYear;
+    const partialExample = cy && !cy.complete && cy.label ? `, esimerkiksi ”${cy.label}”` : '';
     csvFiles.push({
       id: 'khi-vuosi',
       file: 'khi-vuosi.csv',
       title: 'Kuluttajahintaindeksi vuosittain',
-      desc: html`Tilastokeskuksen virallinen vuosimuutos (${firstAnnual} alkaen) ja pistelukujen vuosikeskiarvot. Vain päättyneet vuodet; kuluvan vuoden keskiarvo näkyy etusivulla kuukausien mukaan merkittynä (esim. ${L.khi.currentYear?.label ?? fmt.yearOf(L.khi.month)}).`,
+      desc: html`Tilastokeskuksen virallinen vuosimuutos (vuodesta ${firstAnnual} alkaen) ja pistelukujen vuosikeskiarvot. Vain päättyneet vuodet; kuluvan vuoden keskiarvo näkyy etusivulla kuukausien mukaan merkittynä${partialExample}.`,
       csv,
       period: `${ka.years[0]}–${ka.years.at(-1)}`,
       rowsLabel: `${fmt.num(csv.rows.length)} vuotta`,
@@ -283,7 +322,7 @@ export default async function data(ctx) {
       id: 'ykhi',
       file: 'ykhi.csv',
       title: 'Yhdenmukaistettu kuluttajahintaindeksi (YKHI), Suomi ja euroalue',
-      desc: html`Eurostatin YKHI (HICP) Suomelle ja euroalueelle: vuosimuutos (${fmt.monthShort(firstFi)} alkaen), kuukausimuutos, pohjainflaatio (ilman energiaa, ruokaa, alkoholia ja tupakkaa) sekä pisteluvut. Sarake <em>tila</em> kertoo, jos kuukauden luku on vielä ennakkotieto.`,
+      desc: html`Eurostatin YKHI (HICP) Suomelle ja euroalueelle: vuosimuutos (${fmt.elative(firstFi)} alkaen), kuukausimuutos, pohjainflaatio (ilman energiaa, ruokaa, alkoholia ja tupakkaa) sekä pisteluvut. Sarake <em>tila</em> kertoo, jos kuukauden luku on vielä ennakkotieto.`,
       csv,
       period: fmt.monthRange(y.months[0], y.months.at(-1)),
       rowsLabel: `${fmt.num(csv.rows.length)} kuukautta`,
@@ -383,7 +422,7 @@ export default async function data(ctx) {
   const notes = c.accordion([
     {
       summary: 'Miksi vanhoja pistelukuja on usealla perusvuodella?',
-      body: html`<p>Tilastokeskus julkaisee pisteluvut jokaisella perusvuodella erikseen, ja jokainen sarja alkaa perusvuodestaan. Käytä vanhoille kuukausille vanhempaa perusvuotta äläkä ketjuta uudempaa sarjaa itse taaksepäin. Oletuksena sivustolla näytetään uusin perusvuosi 2025=100.</p>`,
+      body: html`<p>Tilastokeskus julkaisee pisteluvut jokaisella perusvuodella erikseen. ${seriesStart} Käytä vanhoille kuukausille vanhempaa perusvuotta tai Tilastokeskuksen omaa ketjutettua sarjaa äläkä ketjuta uudempaa sarjaa itse taaksepäin. Oletuksena sivustolla näytetään uusin perusvuosi 2025=100.</p>`,
     },
     {
       summary: 'Mitä tarkoittaa YKHI:n tila ”ennakko”?',
@@ -399,7 +438,6 @@ export default async function data(ctx) {
     },
   ]);
 
-  const year = fmt.yearOf(k.month);
   const citations = [
     {
       id: 'viittaus-khi',
@@ -414,7 +452,7 @@ export default async function data(ctx) {
     {
       id: 'viittaus-luettelo',
       label: 'Lähdeluetteloon',
-      text: `Tilastokeskus (${year}). Kuluttajahintaindeksi [verkkojulkaisu]. Helsinki: Tilastokeskus. Aineisto koottu: Inflaatio.fi, ${base}/data/. Viitattu [päivämäärä].`,
+      text: `Suomen virallinen tilasto (SVT): Kuluttajahintaindeksi [verkkojulkaisu]. Helsinki: Tilastokeskus [viitattu: päivämäärä]. Saantitapa: ${KHI_URL}. Aineisto koottu: Inflaatio.fi, ${base}/data/.`,
     },
   ].filter(Boolean);
   const citationBlocks = html`<div class="citations">${citations.map(
@@ -426,7 +464,7 @@ export default async function data(ctx) {
   )}</div>`;
 
   const licence = html`<div class="prose">
-  <p>Tiedostojen luvut ovat Tilastokeskuksen ja Eurostatin julkaisemia virallisia tilastoja. Saat käyttää, muokata ja jakaa niitä vapaasti, myös kaupallisesti, kun mainitset alkuperäisen lähteen:</p>
+  <p>Tiedostojen luvut ovat Tilastokeskuksen, Eurostatin ja EKP:n julkaisemia virallisia tilastoja. Saat käyttää, muokata ja jakaa niitä vapaasti, myös kaupallisesti, kun mainitset alkuperäisen lähteen:</p>
   <ul>
     <li><strong>Tilastokeskus</strong> (kuluttajahintaindeksi, elinkustannusindeksi, hyödykkeet, polttonesteet, ansiot): <a href="https://creativecommons.org/licenses/by/4.0/deed.fi">CC BY 4.0</a> -lisenssi, lähdemerkintä ”Lähde: Tilastokeskus”.</li>
     <li><strong>Eurostat</strong> (YKHI): uudelleenkäyttö sallittu lähde mainiten (<a href="https://ec.europa.eu/eurostat/web/main/help/copyright-notice">Eurostatin tekijänoikeusilmoitus</a>).</li>
@@ -437,7 +475,7 @@ export default async function data(ctx) {
 
   const next = L.nextRelease?.khi;
   const updates = html`<div class="prose">
-  <p>Tiedostot päivittyvät automaattisesti samana päivänä, kun Tilastokeskus tai Eurostat julkaisee uudet luvut. Kuluttajahintaindeksin tuorein kuukausi on ${khiMonth}${L.ykhi ? html` ja YKHI:n ${ykhiMonth}${L.ykhi.provisional ? ' (ennakko)' : ''}` : ''}.${
+  <p>Tiedostot päivittyvät automaattisesti, yleensä samana päivänä, kun Tilastokeskus, Eurostat tai EKP julkaisee uudet luvut. Kuluttajahintaindeksin tuorein kuukausi on ${khiMonth}${L.ykhi ? html` ja YKHI:n ${ykhiMonth}${L.ykhi.provisional ? ' (ennakko)' : ''}` : ''}.${
     next ? html` Seuraava kuluttajahintaindeksi julkaistaan <time datetime="${next.date}">${fmt.date(next.date)}</time> (${fmt.monthName(next.period)}).` : ''
   }</p>
   <p>Uudet julkaisut näet myös <a href="/feed.xml">RSS-syötteestä</a>.</p>
@@ -453,8 +491,8 @@ ${c.sourceLine({
   const main = html`${c.pageHeader({
     eyebrow: `Avoin data · ${khiMonth}`,
     title: 'Avoin data',
-    lede: 'Lataa Suomen inflaatioluvut CSV- tai JSON-tiedostoina. Tiedostot päivittyvät automaattisesti, kun Tilastokeskus tai Eurostat julkaisee uudet luvut.',
-    meta: html`Päivitetty <time datetime="${L.dataUpdated ?? ''}">${fmt.date(L.dataUpdated)}</time> · Lähteet: Tilastokeskus, Eurostat · Lisenssi CC BY 4.0`,
+    lede: 'Lataa Suomen inflaatioluvut CSV- tai JSON-tiedostoina. Tiedostot päivittyvät automaattisesti, kun Tilastokeskus, Eurostat tai EKP julkaisee uudet luvut.',
+    meta: html`Päivitetty <time datetime="${L.dataUpdated ?? ''}">${fmt.date(L.dataUpdated)}</time> · Lähteet: Tilastokeskus, Eurostat, EKP · Lisenssit: ks. <a href="#lisenssi">Käyttöoikeus ja lähteet</a>`,
   })}
 ${c.section({
   id: 'csv',

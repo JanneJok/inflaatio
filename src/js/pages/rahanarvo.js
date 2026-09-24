@@ -1,6 +1,6 @@
 /**
  * Value of money (/rahanarvo/ and /en/value-of-money/) + the savings
- * calculators of /rahanarvo/#saastot.
+ * calculators of /rahanarvo/#saastot and /en/value-of-money/#savings.
  *
  * The page works without JS (server-rendered default results, SVG chart,
  * tables). This script recalculates with lib/calc.js on input, shows field
@@ -28,72 +28,8 @@ import {
   EURO_CASH_YEAR,
 } from '../lib/calc.js';
 import { ymDiff } from '../lib/format.js';
-import { createChart, lineDataset, downloadPng, monthTicks } from '../charts/setup.js';
-
-const $ = (id) => /** @type {any} */ (document.getElementById(id));
-const fill = (tpl, vars = {}) => Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(v), tpl ?? '');
-
-/** Month + year picker value: 'YYYY-MM', or 'YYYY' when the month is "whole year". */
-function readPeriod(id) {
-  const m = $(`${id}-kk`)?.value ?? '';
-  const y = $(`${id}-v`)?.value ?? '';
-  return m ? `${y}-${m}` : y;
-}
-
-/** Restore a picker from 'YYYY-MM' / 'YYYY' (ignored when not selectable). */
-function setPeriod(id, p) {
-  if (!isMonth(p) && !isYear(p)) return false;
-  const [y, m = ''] = p.split('-');
-  const ySel = $(`${id}-v`);
-  const mSel = $(`${id}-kk`);
-  if (!ySel || !mSel) return false;
-  if (!Array.from(ySel.options).some((o) => o.value === y)) return false;
-  if (!Array.from(mSel.options).some((o) => o.value === m)) return false;
-  ySel.value = y;
-  mSel.value = m;
-  return true;
-}
-
-/** Field error text + aria-invalid on its controls. */
-function setError(errorId, text, ids) {
-  const p = $(`${errorId}-virhe`);
-  if (p) p.textContent = text ?? '';
-  for (const id of ids) $(id)?.setAttribute('aria-invalid', text ? 'true' : 'false');
-}
-
-/** Write a view model into the [data-out] elements of `root`. */
-function render(root, view, hideEmpty = []) {
-  for (const node of root?.querySelectorAll('[data-out]') ?? []) {
-    const key = node.getAttribute('data-out');
-    if (!key || !(key in view)) continue;
-    node.textContent = view[key];
-    if (hideEmpty.includes(key)) node.hidden = !view[key];
-  }
-}
-
-/** Show the result or the error box of a result panel. */
-function showResult(panel, okState) {
-  const ok = panel?.querySelector('[data-result-ok]');
-  const err = panel?.querySelector('[data-result-error]');
-  if (ok) ok.hidden = !okState;
-  if (err) err.hidden = okState;
-}
-
-/** Debounced recalculation on input/change + immediate on submit. */
-function wire(form, fn) {
-  let timer = 0;
-  const later = () => {
-    window.clearTimeout(timer);
-    timer = window.setTimeout(() => fn({ user: true }), 250);
-  };
-  form.addEventListener('input', later);
-  form.addEventListener('change', later);
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    window.clearTimeout(timer);
-    fn({ user: true });
-  });
-}
+import { byId as $, fill, messages, setError, readPeriod, setPeriod, render, showResult, wireRecalc } from '../lib/calc-form.js';
+import { createChart, lineDataset, downloadPng } from '../charts/setup.js';
 
 /* ------------------------------------------------------- value of money */
 
@@ -110,37 +46,57 @@ function initMoney(data, form) {
   const F = formatter(lang);
   const P = data.params;
   const list = data.series;
-  const msg = (key, vars) => fill(form.dataset[`msg${key.charAt(0).toUpperCase()}${key.slice(1)}`], vars);
+  const msg = messages(form);
   const panel = $('raha-tulos');
   const figure = $('raha-kaavio');
+  const indexSelect = $('indeksi');
   let tracked = false;
   let lastPath = null;
   let lastTitle = '';
+  let lastIndex = 'khi';
 
-  const isFuture = (p) => (isMonth(p) ? p > data.latestMonth : p > data.latestYear);
+  /** 'khi' (the KHI chain, default) or 'ykhi' (Eurostat HICP, months only). */
+  const readIndex = () => (indexSelect?.value === 'ykhi' && data.ykhi ? 'ykhi' : 'khi');
 
   function calculate({ user = false } = {}) {
     const amountRaw = $('summa').value;
     const amount = parseDecimal(amountRaw, lang);
     const currency = $('valuutta').value === 'mk' ? 'mk' : 'eur';
+    const index = readIndex();
     const from = readPeriod('alku');
     const to = readPeriod('loppu');
     const errors = {};
     if (amount == null || amount < 0 || amount > 1e12) errors.summa = msg('amount');
     if (currency === 'mk' && periodYear(from) >= EURO_CASH_YEAR) errors.valuutta = msg('markka');
-    const futureVars = (p) => ({ aika: F.period(p), viimeisin: F.period(data.latestMonth), vuosi: data.latestYear });
-    if (isFuture(from)) errors.alku = msg('future', futureVars(from));
-    if (isFuture(to)) errors.loppu = msg('future', futureVars(to));
+
+    const periodError = (p) => {
+      if (index === 'ykhi') {
+        if (isYear(p)) return msg('ykhiYear');
+        if (p > data.ykhi.latest) return msg('futureYkhi', { aika: F.period(p), viimeisin: F.period(data.ykhi.latest) });
+        if (p < data.ykhi.start) return msg('beforeYkhi');
+        return null;
+      }
+      const future = isMonth(p) ? p > data.latestMonth : p > data.latestYear;
+      return future ? msg('future', { aika: F.period(p), viimeisin: F.period(data.latestMonth), vuosi: data.latestYear }) : null;
+    };
+    const fromError = periodError(from);
+    const toError = periodError(to);
+    if (fromError) errors.alku = fromError;
+    if (toError) errors.loppu = toError;
     let pick = null;
     if (!errors.alku && !errors.loppu) {
-      pick = pickMoneySeries(list, from, to);
+      pick = pickMoneySeries(list, from, to, { families: data.families[index] });
       if ('error' in pick) {
         const key = periodYear(from) <= periodYear(to) ? 'alku' : 'loppu';
-        errors[key] = pick.error === 'future' ? msg('future', futureVars(key === 'alku' ? from : to)) : msg('before', { alku: String(data.firstYear) });
+        const p = key === 'alku' ? from : to;
+        errors[key] = {
+          future: periodError(p) ?? msg('future', { aika: F.period(p), viimeisin: F.period(data.latestMonth), vuosi: data.latestYear }),
+          annual: msg('ykhiYear'),
+        }[pick.error] ?? (index === 'ykhi' ? msg('beforeYkhi') : msg('before', { alku: String(data.firstYear) }));
       }
     }
-    setError('summa', errors.summa, ['summa']);
-    setError('valuutta', errors.valuutta, ['valuutta']);
+    setError('summa', errors.summa);
+    setError('valuutta', errors.valuutta);
     setError('alku', errors.alku, ['alku-kk', 'alku-v']);
     setError('loppu', errors.loppu, ['loppu-kk', 'loppu-v']);
     const failed = Object.keys(errors).length > 0;
@@ -156,12 +112,13 @@ function initMoney(data, form) {
     const summary = `${view.sentence} ${view.change}`;
     render(figure, { chartSummary: summary });
     rebuildTable(path);
+    lastIndex = index;
     lastTitle = `${lang === 'en' ? 'Value of' : 'Rahan arvo:'} ${currency === 'mk' ? F.markka(amount) : F.eur(amount)} ${F.periodIn(pick.from)}`;
     updateChart(path, summary);
 
     setParams(
-      { [P.amount]: amountRaw.trim(), [P.currency]: currency, [P.from]: from, [P.to]: to },
-      { defaults: { [P.amount]: String(data.defaults.amount), [P.currency]: 'eur', [P.from]: data.defaults.from, [P.to]: data.defaults.to } },
+      { [P.amount]: amountRaw.trim(), [P.currency]: currency, [P.index]: index, [P.from]: from, [P.to]: to },
+      { defaults: { [P.amount]: String(data.defaults.amount), [P.currency]: 'eur', [P.index]: 'khi', [P.from]: data.defaults.from, [P.to]: data.defaults.to } },
     );
     if (user && !tracked) {
       tracked = true;
@@ -211,7 +168,7 @@ function initMoney(data, form) {
         datasets: [lineDataset({ series: 'khi', label: lang === 'en' ? 'Value' : 'Rahan arvo', data: path.values })],
         unit: '€',
         decimals: 2,
-        ...(lang === 'en' ? { options: englishOptions(monthly) } : {}),
+        locale: lang,
       });
       chartKind = path.kind;
       if (fallback) fallback.hidden = true;
@@ -239,64 +196,15 @@ function initMoney(data, form) {
     chart.setMonths(path.labels, [path.values]);
   }
 
-  /** English axis/tooltip formatting (setup.js formats in Finnish by default). */
-  function englishOptions(monthly) {
-    const axis = (v) => F.eur(Number(v), Math.abs(Number(v)) < 10 ? 2 : 0);
-    let ticks = new Map();
-    return {
-      locale: 'en-GB',
-      scales: {
-        x: {
-          grid: { display: false },
-          border: { display: true },
-          ticks: {
-            autoSkip: !monthly,
-            maxRotation: 0,
-            callback(value, index) {
-              if (!monthly) return this.getLabelForValue(value);
-              if (index === 0) {
-                // Same positions as the Finnish ticks, English month names.
-                const labels = this.chart.data.labels;
-                ticks = new Map([...monthTicks(labels, this.chart.width)].map(([i, text]) => [i, /^\d{4}$/.test(text) ? text : text.includes(' ') ? F.periodShort(labels[i]) : F.periodShort(labels[i]).split(' ')[0]]));
-              }
-              return ticks.get(index) ?? null;
-            },
-          },
-        },
-        y: { beginAtZero: false, border: { display: false }, ticks: { maxTicksLimit: 7, callback: axis } },
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          borderWidth: 1,
-          cornerRadius: 6,
-          padding: 10,
-          boxWidth: 10,
-          boxHeight: 2,
-          usePointStyle: false,
-          titleFont: { weight: '600' },
-          callbacks: {
-            title: (items) => {
-              const l = items[0]?.label ?? '';
-              return isMonth(l) ? F.period(l) : l;
-            },
-            label: (item) => `${item.dataset.label}: ${F.eur(item.raw)}`,
-          },
-        },
-        annotation: { annotations: {} },
-        lastValue: { enabled: true, format: (v) => F.eur(v, v >= 1000 ? 0 : 2), color: () => '' },
-      },
-    };
-  }
-
   // Restore from the URL, then calculate once (no GA event for page loads).
   const amountParam = getParam(P.amount);
   if (amountParam != null && parseDecimal(amountParam, lang) != null) $('summa').value = amountParam;
   if (getParam(P.currency, ['eur', 'mk'])) $('valuutta').value = getParam(P.currency, ['eur', 'mk']);
+  if (indexSelect && data.ykhi && getParam(P.index, ['khi', 'ykhi'])) indexSelect.value = getParam(P.index, ['khi', 'ykhi']);
   setPeriod('alku', getParam(P.from));
   setPeriod('loppu', getParam(P.to));
   calculate();
-  wire(form, calculate);
+  wireRecalc(form, calculate);
 
   for (const b of form.querySelectorAll('[data-preset]')) {
     b.addEventListener('click', () => {
@@ -314,7 +222,8 @@ function initMoney(data, form) {
     });
   }
   document.querySelector('[data-chart-download="raha-kaavio"]')?.addEventListener('click', () => {
-    if (chart) downloadPng(chart, `rahan-arvo-${readPeriod('alku')}-${readPeriod('loppu')}.png`, { title: lastTitle, source: data.chart?.source ?? '' });
+    const source = lastIndex === 'ykhi' ? data.chart?.sourceYkhi : data.chart?.source;
+    if (chart) downloadPng(chart, `rahan-arvo-${readPeriod('alku')}-${readPeriod('loppu')}.png`, { title: lastTitle, source: source ?? '' });
   });
   document.querySelector('[data-print]')?.addEventListener('click', () => window.print());
 }
@@ -325,45 +234,52 @@ const savings = readDataIsland('saasto-data');
 if (savings && data) initSavings(savings, data);
 
 /**
- * Historical and forecast savings calculators (Finnish page only).
- * @param {any} s island { defaults, messages }
+ * Historical and forecast savings calculators (Finnish and English page).
+ * @param {any} s island { lang, params, defaults, messages }
  * @param {any} money the value-of-money island (series)
  */
 function initSavings(s, money) {
+  const lang = s.lang === 'en' ? 'en' : 'fi';
+  const F = formatter(lang);
   const M = s.messages;
   const D = s.defaults;
+  const P = s.params;
   // Server-rendered values are the defaults (left out of the URL).
   const initial = (id) => $(id)?.value?.trim() ?? '';
-  const defaultsH = { hsumma: initial('h-summa'), halku: D.hFrom, hloppu: D.hTo, hkorko: initial('h-korko') };
-  const defaultsE = { esumma: initial('e-summa'), evuodet: initial('e-vuodet'), ekorko: initial('e-korko'), einfl: initial('e-inflaatio') };
+  const defaultsH = { [P.hAmount]: initial('h-summa'), [P.hFrom]: D.hFrom, [P.hTo]: D.hTo, [P.hRate]: initial('h-korko') };
+  const defaultsE = { [P.eAmount]: initial('e-summa'), [P.eYears]: initial('e-vuodet'), [P.eRate]: initial('e-korko'), [P.eInflation]: initial('e-inflaatio') };
   let trackedH = false;
   let trackedE = false;
+  const num = (id) => parseDecimal($(id).value, lang);
   const pct = (id, { min = -50, max = 50 } = {}) => {
     const raw = $(id).value.trim();
-    const v = raw === '' ? 0 : parseDecimal(raw);
+    const v = raw === '' ? 0 : parseDecimal(raw, lang);
     return v == null || v < min || v > max ? null : v;
   };
+  const futureText = (p) => fill(M.future, { aika: F.period(p), viimeisin: F.period(money.latestMonth), vuosi: money.latestYear });
 
   const histForm = $('saasto-historia');
   const histPanel = $('saasto-historia-tulos');
   function history({ user = false } = {}) {
-    const amount = parseDecimal($('h-summa').value);
+    const amount = num('h-summa');
     const from = readPeriod('h-alku');
     const to = readPeriod('h-loppu');
     const rate = pct('h-korko', { min: -10, max: 50 });
     const errors = {};
     if (amount == null || amount <= 0 || amount > 1e12) errors['h-summa'] = M.amount;
     if (rate == null) errors['h-korko'] = M.rate;
-    if (from > money.latestMonth) errors['h-alku'] = fill(M.future, { aika: formatter('fi').period(from), viimeisin: formatter('fi').period(money.latestMonth), vuosi: money.latestYear });
-    if (to > money.latestMonth) errors['h-loppu'] = fill(M.future, { aika: formatter('fi').period(to), viimeisin: formatter('fi').period(money.latestMonth), vuosi: money.latestYear });
+    if (!isMonth(from)) errors['h-alku'] = M.beforeMonthly;
+    else if (from > money.latestMonth) errors['h-alku'] = futureText(from);
+    if (!isMonth(to)) errors['h-loppu'] = M.beforeMonthly;
+    else if (to > money.latestMonth) errors['h-loppu'] = futureText(to);
     if (!errors['h-alku'] && !errors['h-loppu'] && ymDiff(from, to) <= 0) errors['h-loppu'] = M.order;
     let pick = null;
     if (!errors['h-alku'] && !errors['h-loppu']) {
       pick = pickMoneySeries(money.series, from, to);
       if ('error' in pick || pick.annualFallback) errors['h-alku'] = M.beforeMonthly;
     }
-    setError('h-summa', errors['h-summa'], ['h-summa']);
-    setError('h-korko', errors['h-korko'], ['h-korko']);
+    setError('h-summa', errors['h-summa']);
+    setError('h-korko', errors['h-korko']);
     setError('h-alku', errors['h-alku'], ['h-alku-kk', 'h-alku-v']);
     setError('h-loppu', errors['h-loppu'], ['h-loppu-kk', 'h-loppu-v']);
     const failed = Object.keys(errors).length > 0;
@@ -374,22 +290,22 @@ function initSavings(s, money) {
       showResult(histPanel, false);
       return;
     }
-    render(histPanel, savingsView(r, { kind: 'history', from, to }), ['realReturn']);
+    render(histPanel, savingsView(r, { kind: 'history', from, to, lang }), ['realReturn']);
     setParams(
-      { hsumma: $('h-summa').value.trim(), halku: from, hloppu: to, hkorko: $('h-korko').value.trim() },
+      { [P.hAmount]: $('h-summa').value.trim(), [P.hFrom]: from, [P.hTo]: to, [P.hRate]: $('h-korko').value.trim() },
       { defaults: defaultsH },
     );
     if (user && !trackedH) {
       trackedH = true;
-      track('calculator_used', { laskuri: 'saastot_historia' });
+      track('calculator_used', { laskuri: 'saastot_historia', kieli: lang });
     }
   }
 
   const fcForm = $('saasto-ennuste');
   const fcPanel = $('saasto-ennuste-tulos');
   function forecast({ user = false } = {}) {
-    const amount = parseDecimal($('e-summa').value);
-    const years = parseDecimal($('e-vuodet').value);
+    const amount = num('e-summa');
+    const years = num('e-vuodet');
     const rate = pct('e-korko', { min: -10, max: 50 });
     const infl = pct('e-inflaatio', { min: -10, max: 30 });
     const errors = {};
@@ -397,7 +313,7 @@ function initSavings(s, money) {
     if (years == null || years < 1 || years > 50) errors['e-vuodet'] = M.years;
     if (rate == null) errors['e-korko'] = M.rate;
     if (infl == null) errors['e-inflaatio'] = M.inflation;
-    for (const id of ['e-summa', 'e-vuodet', 'e-korko', 'e-inflaatio']) setError(id, errors[id], [id]);
+    for (const id of ['e-summa', 'e-vuodet', 'e-korko', 'e-inflaatio']) setError(id, errors[id]);
     const failed = Object.keys(errors).length > 0;
     showResult(fcPanel, !failed);
     if (failed) return;
@@ -406,36 +322,36 @@ function initSavings(s, money) {
       showResult(fcPanel, false);
       return;
     }
-    render(fcPanel, savingsView(r, { kind: 'forecast' }), ['realReturn']);
+    render(fcPanel, savingsView(r, { kind: 'forecast', lang }), ['realReturn']);
     setParams(
-      { esumma: $('e-summa').value.trim(), evuodet: $('e-vuodet').value.trim(), ekorko: $('e-korko').value.trim(), einfl: $('e-inflaatio').value.trim() },
+      { [P.eAmount]: $('e-summa').value.trim(), [P.eYears]: $('e-vuodet').value.trim(), [P.eRate]: $('e-korko').value.trim(), [P.eInflation]: $('e-inflaatio').value.trim() },
       { defaults: defaultsE },
     );
     if (user && !trackedE) {
       trackedE = true;
-      track('calculator_used', { laskuri: 'saastot_ennuste' });
+      track('calculator_used', { laskuri: 'saastot_ennuste', kieli: lang });
     }
   }
 
   // Restore from the URL.
   const restore = (param, id) => {
     const v = getParam(param);
-    if (v != null && parseDecimal(v) != null) $(id).value = v;
+    if (v != null && parseDecimal(v, lang) != null) $(id).value = v;
   };
-  restore('hsumma', 'h-summa');
-  restore('hkorko', 'h-korko');
-  setPeriod('h-alku', getParam('halku'));
-  setPeriod('h-loppu', getParam('hloppu'));
-  restore('esumma', 'e-summa');
-  restore('evuodet', 'e-vuodet');
-  restore('ekorko', 'e-korko');
-  restore('einfl', 'e-inflaatio');
+  restore(P.hAmount, 'h-summa');
+  restore(P.hRate, 'h-korko');
+  setPeriod('h-alku', getParam(P.hFrom));
+  setPeriod('h-loppu', getParam(P.hTo));
+  restore(P.eAmount, 'e-summa');
+  restore(P.eYears, 'e-vuodet');
+  restore(P.eRate, 'e-korko');
+  restore(P.eInflation, 'e-inflaatio');
   if (histForm) {
     history();
-    wire(histForm, history);
+    wireRecalc(histForm, history);
   }
   if (fcForm) {
     forecast();
-    wire(fcForm, forecast);
+    wireRecalc(fcForm, forecast);
   }
 }

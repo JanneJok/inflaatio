@@ -16,6 +16,8 @@ import {
   gaCookieNames,
   cookieDomains,
   expireCookies,
+  shouldRevoke,
+  initConsent,
 } from '../src/js/lib/consent.js';
 import {
   isProductionHost,
@@ -25,11 +27,14 @@ import {
   pagePath,
   pageViewPayload,
   isValidEventName,
+  countsPageView,
+  gaPageUrl,
   PAGE_VIEW_FIELDS,
   RETENTION_MONTHS,
   GA_COOKIE_MAX_AGE_DAYS,
 } from '../src/js/lib/analytics.js';
-import { validateContact, CONTACT_LIMITS, MIN_FILL_MS } from '../src/js/lib/contact.js';
+import { validateContact, initialFocusTarget, CONTACT_LIMITS, MIN_FILL_MS } from '../src/js/lib/contact.js';
+import { SOURCES } from '../scripts/fetch/index.js';
 import { formatPeriod, releaseTime, upcomingReleases, officialVsMonthlyMean, kkiBaseRows } from '../src/pages/menetelmat.js';
 import * as fmt from '../src/js/lib/format.js';
 import * as stats from '../src/js/lib/stats.js';
@@ -109,6 +114,95 @@ describe('consent cookie (pure helpers)', () => {
   });
 });
 
+describe('initConsent: GA cookies without a valid positive choice', () => {
+  const GA_CONTAINER = `_ga_${GA_ID.slice(2)}`;
+
+  test('shouldRevoke: everything but a current "analytics: true" revokes', () => {
+    assert.equal(shouldRevoke({ analytics: true, date: '2026-09-20' }), false);
+    assert.equal(shouldRevoke({ analytics: false, date: '2026-09-20' }), true);
+    assert.equal(shouldRevoke(null), true, 'missing, outdated version, expired or malformed');
+    assert.equal(shouldRevoke(undefined), true);
+  });
+
+  /**
+   * Run initConsent() against a minimal document/window stub with a cookie
+   * jar (Max-Age=0 deletes; the Domain attribute is ignored like a host-only jar).
+   * @param {Record<string, string>} cookies
+   */
+  function runInit(cookies) {
+    const jar = new Map(Object.entries(cookies));
+    const banner = { hidden: true, contains: () => false };
+    const doc = {
+      get cookie() {
+        return [...jar].map(([k, v]) => `${k}=${v}`).join('; ');
+      },
+      set cookie(str) {
+        const [pair, ...attrs] = str.split(';');
+        const eq = pair.indexOf('=');
+        const name = pair.slice(0, eq).trim();
+        if (attrs.some((a) => /^\s*max-age=0\s*$/i.test(a))) jar.delete(name);
+        else jar.set(name, pair.slice(eq + 1).trim());
+      },
+      getElementById: (id) => (id === 'evasteilmoitus' ? banner : null),
+      addEventListener() {},
+      documentElement: { classList: { add() {}, remove() {} } },
+      activeElement: null,
+    };
+    const win = { location: { hostname: 'inflaatio.fi', protocol: 'https:' }, localStorage: { removeItem() {} } };
+    const saved = { document: globalThis.document, window: globalThis.window };
+    globalThis.document = doc;
+    globalThis.window = win;
+    try {
+      initConsent();
+    } finally {
+      for (const [k, v] of Object.entries(saved)) {
+        if (v === undefined) delete globalThis[k];
+        else globalThis[k] = v;
+      }
+    }
+    return { names: [...jar.keys()].sort(), bannerShown: !banner.hidden, gaDisabled: win[`ga-disable-${GA_ID}`] === true };
+  }
+
+  const today = fmt.isoDate();
+  const ga = { _ga: 'GA1.1.123.456', [GA_CONTAINER]: 'GS1.1.1' };
+
+  test('a choice made under an older version (the old site) asks again AND deletes the _ga cookies', () => {
+    const old = encodeURIComponent(JSON.stringify({ analytics: true, necessary: true, timestamp: '2026-09-01T10:00:00.000Z' }));
+    const r = runInit({ ...ga, [CONSENT.cookieName]: old, theme: 'dark' });
+    assert.equal(r.bannerShown, true);
+    assert.deepEqual(r.names, [CONSENT.cookieName, 'theme'].sort(), 'GA cookies deleted, others kept');
+    assert.equal(r.gaDisabled, true);
+    const v1 = runInit({ ...ga, [CONSENT.cookieName]: serializeConsent(true, { version: CONSENT_VERSION - 1, date: today }) });
+    assert.equal(v1.bannerShown, true);
+    assert.deepEqual(v1.names, [CONSENT.cookieName]);
+  });
+
+  test('an expired positive choice asks again and deletes the _ga cookies', () => {
+    const r = runInit({ ...ga, [CONSENT.cookieName]: serializeConsent(true, { date: '2020-01-01' }) });
+    assert.equal(r.bannerShown, true);
+    assert.deepEqual(r.names, [CONSENT.cookieName]);
+  });
+
+  test('no choice at all: banner, and stray GA cookies are deleted', () => {
+    const r = runInit({ ...ga });
+    assert.equal(r.bannerShown, true);
+    assert.deepEqual(r.names, []);
+  });
+
+  test('a current refusal deletes the GA cookies without showing the banner', () => {
+    const r = runInit({ ...ga, [CONSENT.cookieName]: serializeConsent(false, { date: today }) });
+    assert.equal(r.bannerShown, false);
+    assert.deepEqual(r.names, [CONSENT.cookieName]);
+  });
+
+  test('a current consent keeps the GA cookies and shows no banner', () => {
+    const r = runInit({ ...ga, [CONSENT.cookieName]: serializeConsent(true, { date: today }) });
+    assert.equal(r.bannerShown, false);
+    assert.deepEqual(r.names, ['_ga', GA_CONTAINER, CONSENT.cookieName].sort());
+    assert.equal(r.gaDisabled, false);
+  });
+});
+
 describe('cookieless page-view counter (analytics.js)', () => {
   test('production hosts only', () => {
     assert.ok(isProductionHost('inflaatio.fi'));
@@ -174,6 +268,38 @@ describe('cookieless page-view counter (analytics.js)', () => {
     assert.equal(GA_COOKIE_MAX_AGE_DAYS, 365);
   });
 
+  test('countsPageView: privacy signals, other hosts and our own preview frame are not counted', () => {
+    assert.equal(countsPageView({ hostname: 'inflaatio.fi', privacy: false }), true);
+    assert.equal(countsPageView({ hostname: 'www.inflaatio.fi', privacy: false, search: '?teema=tumma' }), true, 'a real embed with options');
+    assert.equal(countsPageView({ hostname: 'inflaatio.fi', privacy: true }), false);
+    assert.equal(countsPageView({ hostname: 'localhost', privacy: false }), false);
+    assert.equal(countsPageView({ hostname: 'inflaatio.fly.dev', privacy: false }), false);
+    assert.equal(countsPageView({ hostname: 'inflaatio.fi', privacy: false, framedBySameOrigin: true }), false, 'preview iframe on /upotus/ohje/');
+    assert.equal(countsPageView({ hostname: 'inflaatio.fi', privacy: false, search: '?esikatselu=1' }), false);
+    assert.equal(countsPageView({ hostname: 'inflaatio.fi', privacy: false, search: '?teema=vaalea&esikatselu' }), false);
+  });
+
+  test('gaPageUrl drops the query string and hash (calculator inputs never reach GA)', () => {
+    assert.equal(gaPageUrl('https://inflaatio.fi/ostovoima/?ennen=3200&nyt=3300#tulos'), 'https://inflaatio.fi/ostovoima/');
+    assert.equal(gaPageUrl('https://inflaatio.fi/oma-inflaatio/?eurot=500,120,80'), 'https://inflaatio.fi/oma-inflaatio/');
+    assert.equal(gaPageUrl('https://inflaatio.fi/'), 'https://inflaatio.fi/');
+    assert.equal(gaPageUrl('https://www.google.com/'), 'https://www.google.com/');
+    for (const bad of ['', null, undefined, 'not a url', 'android-app://com.google.android.gm/', 'mailto:matti@example.fi', 'data:text/plain,1']) {
+      assert.equal(gaPageUrl(bad), '', String(bad));
+    }
+  });
+
+  test('GA gets page_location/page_referrer without query strings and never loads in the bare widget', async () => {
+    const src = await fs.readFile(new URL('../src/js/lib/analytics.js', import.meta.url), 'utf8');
+    assert.match(src, /page_location: gaPageUrl\(window\.location\.href\)/);
+    assert.match(src, /page_referrer: gaPageUrl\(document\.referrer\)/);
+    assert.match(src, /window\.gtag\('set', page\)/);
+    assert.match(src, /window\.gtag\('config', GA_ID, \{\s*\.\.\.page,/);
+    assert.match(src, /window\.gtag\('event', event, \{ \.\.\.params, \.\.\.gaPageParams\(\) \}\)/);
+    assert.match(src, /function loadGa\(\) \{\s*if \(isBarePage\(\) \|\|/);
+    assert.match(src, /if \(isBarePage\(\)\) return;/);
+  });
+
   test('GA event names are validated', () => {
     for (const ok of ['calculator_used', 'csv_download', 'share', 'widget_code_copied', 'contact_form_sent']) assert.ok(isValidEventName(ok), ok);
     for (const bad of ['', '1abc', 'with space', 'a'.repeat(41), 'x-y', null]) assert.equal(isValidEventName(bad), false, String(bad));
@@ -207,6 +333,11 @@ describe('contact form validation (contact.js)', () => {
     assert.equal(errors.message, 'Kirjoita viesti.');
     assert.match(validateContact({ email: 'matti@', message: 'Hei hei' }).errors.email, /Tarkista sähköpostiosoite/);
     assert.match(validateContact({ email: 'a b@c.fi', message: 'Hei hei' }).errors.email, /Tarkista/);
+  });
+
+  test('touch screens focus the dialog title, not a field (no on-screen keyboard on open)', () => {
+    assert.equal(initialFocusTarget(true), 'title');
+    assert.equal(initialFocusTarget(false), 'field');
   });
 
   test('length limits are enforced (pasted text can exceed maxlength)', () => {
@@ -356,10 +487,53 @@ describe('built TRUST pages', () => {
     }
   });
 
+  test('update and changelog claims match the workflow and the fetch pipeline', async () => {
+    const wf = await fs.readFile(new URL('../.github/workflows/update-data.yml', import.meta.url), 'utf8');
+    const crons = [...wf.matchAll(/^\s*-\s*cron:/gm)].length;
+    assert.equal(crons, 2, 'the pages say the data is checked twice a day');
+    const m = textOf(pages.menetelmat);
+    const t = textOf(pages.tietoa);
+    assert.match(m, /kahdesti päivässä/);
+    assert.match(t, /kahdesti päivässä/);
+    for (const text of [m, t]) {
+      assert.doesNotMatch(text, /julkaisuaamuina useammin|joka päivä ja|näyttää uusimman luvun heti/);
+      assert.match(text, /seuraavan kuukauden puolivälissä/);
+      assert.match(text, /noin kaksi viikkoa myöhemmin/);
+    }
+    // Changelog: exactly the sources that emit events.
+    const logged = SOURCES.filter((s) => typeof s.events === 'function').map((s) => s.key).sort();
+    assert.deepEqual(logged, ['ansiot', 'khi', 'korot', 'ykhi']);
+    assert.match(t, /kirjaa muutoslokiin kuluttajahintaindeksin, YKHI:n ja ansiotasoindeksin uudet julkaisut sekä EKP:n talletuskoron muutokset/);
+  });
+
+  test('corrected claims: longest index, hand-entered forecasts, licences, legal basis', () => {
+    const m = textOf(pages.menetelmat);
+    const t = textOf(pages.tietoa);
+    const k = textOf(pages.kayttoehdot);
+    assert.doesNotMatch(m, /pisin yhtäjaksoinen/);
+    assert.match(m, /vuokrasopimuksissa yleisimmin käytetty hintaindeksi/);
+    assert.doesNotMatch(m, /virallinen vuosiluku|ulottuu vuoteen 1995/);
+    assert.match(m, /Perusvuoden 2025=100 sarja alkaa vuodesta 1995/);
+    assert.match(m, /itse lasketut luvut on merkitty/);
+    assert.match(m, /elinkustannusindeksi julkaistaan kokonaislukuina/);
+    assert.match(pages.menetelmat, /<span class="sr-only"> potenssiin \(12 jaettuna n:llä\)<\/span><sup aria-hidden="true">/);
+    assert.doesNotMatch(description(pages.menetelmat), /vuosiluku/);
+    assert.match(t, /Kaikki tilastoluvut haetaan suoraan/);
+    assert.match(t, /inflaatioennusteet, jotka kirjataan käsin/);
+    assert.doesNotMatch(t, /matalammat/);
+    assert.doesNotMatch(k, /lisenssillä\s+CC BY 4\.0/);
+    assert.match(k, /tilastotietoihin sovelletaan alla lueteltuja tuottajien lisenssejä/);
+    assert.match(k, /Välttämätön eväste \(ei vaadi suostumusta\)/);
+    assert.doesNotMatch(k, /Välttämätön valintasi toteuttamiseksi/);
+    assert.match(k, /tarkistetaan automaattisesti ennen julkaisua/);
+    assert.match(k, /Tilastokeskuksen ansiotasoindeksin uusimmat neljännekset/);
+    assert.match(k, /ilman hakuparametreja, joten esimerkiksi laskureihin syöttämäsi summat eivät välity Googlelle/);
+  });
+
   test('layout dialogs: consent settings and contact form wired to the policy', () => {
     const h = pages.kayttoehdot;
     assert.match(h, /<dialog class="dialog" id="evasteasetukset"/);
-    assert.match(h, /data-consent="necessary">Vain välttämättömät<\/button>[\s\S]*data-consent="analytics">Salli kaikki<\/button>[\s\S]*data-consent-save>Tallenna valinnat<\/button>/);
+    assert.match(h, /data-consent="necessary">Vain välttämättömät<\/button>[\s\S]*data-consent="analytics">Salli analytiikka<\/button>[\s\S]*data-consent-save>Tallenna valinnat<\/button>/);
     assert.match(h, /<label class="check__label" for="evaste-analytiikka">Analytiikka \(Google Analytics\)<\/label>/);
     assert.match(h, /data-fallback="Voit myös lähettää viestin postitse: Opak Oy, Kivikastintie 24, 65300 Vaasa\."/);
     assert.match(h, /id="yhteys-email"[^>]*maxlength="254"/);

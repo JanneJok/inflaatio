@@ -10,10 +10,13 @@
  *   docker run -d -p 8108:8080 --name inflaatio-local inflaatio-local
  *   SMOKE_URL=http://127.0.0.1:8108 node --test --test-name-pattern='^smoke' test/ops.test.js
  *
+ * PowerShell: $env:SMOKE_URL="http://127.0.0.1:8108"; node --test --test-name-pattern="^smoke" test/ops.test.js
+ *
  * Options: SMOKE_PAGE (page to inspect, default '/'), SMOKE_EXPECT_LATEST=1
- * (the page must show the latest KHI month of data/meta.json). CI runs them
- * against the built image, deploy.yml / update-data.yml against the Fly app
- * after a deployment, and site-check.yml against https://inflaatio.fi.
+ * (the page and /data/latest.json must show the latest data of
+ * data/meta.json). CI runs them against the built image, deploy.yml /
+ * update-data.yml against the Fly app after a deployment, and site-check.yml
+ * against https://inflaatio.fi.
  *
  * Only Node built-ins and dependency-free repository modules are imported, so
  * the smoke tests run without `npm ci`.
@@ -21,13 +24,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
 import https from 'node:https';
 import zlib from 'node:zlib';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { parseHeadersConf, cacheControl, contentType, MIME, REDIRECTS, EMBED_PATHS } from '../scripts/serve.js';
-import { monthName, monthShort } from '../src/js/lib/format.js';
+import { parseHeadersConf, cacheControl, contentType, createServer, loadHeaderSets, MIME, REDIRECTS, EMBED_PATHS } from '../scripts/serve.js';
+import { isoDate, monthName, monthShort } from '../src/js/lib/format.js';
 import { PAGES } from '../src/site.config.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -38,8 +43,37 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, ...rel.split('/')), 'utf8'
 // ---------------------------------------------------------------------------
 
 /**
+ * Unescape a word like nginx does (ngx_conf_read_token): \" \' \\ become the
+ * character, \t \r \n the control character; any other backslash is kept.
+ * So "\\\\" in the file is a literal backslash for PCRE and "\." stays "\.".
+ * @param {string} raw
+ */
+export function nginxUnescape(raw) {
+  let v = '';
+  for (let i = 0; i < raw.length; i++) {
+    const next = raw[i + 1];
+    if (raw[i] === '\\' && next !== undefined) {
+      if (next === '"' || next === "'" || next === '\\') {
+        v += next;
+        i++;
+        continue;
+      }
+      const control = { t: '\t', r: '\r', n: '\n' }[next];
+      if (control) {
+        v += control;
+        i++;
+        continue;
+      }
+    }
+    v += raw[i];
+  }
+  return v;
+}
+
+/**
  * Tokenise nginx configuration text: words (quoted or bare), '{', '}', ';'.
- * Comments are dropped. Inside quotes only an escaped quote is unescaped.
+ * Comments are dropped. Words are unescaped like nginx does (nginxUnescape),
+ * so a regular expression token is exactly what PCRE receives.
  * @param {string} text
  * @returns {{t: string, v?: string}[]}
  */
@@ -56,21 +90,21 @@ export function nginxTokens(text) {
       tokens.push({ t: ch });
       i++;
     } else if (ch === '"' || ch === "'") {
-      let v = '';
+      let raw = '';
       let j = i + 1;
       while (j < text.length && text[j] !== ch) {
-        if (text[j] === '\\' && text[j + 1] === ch) {
-          v += ch;
+        if (text[j] === '\\' && j + 1 < text.length) {
+          raw += text[j] + text[j + 1];
           j += 2;
-        } else v += text[j++];
+        } else raw += text[j++];
       }
       if (j >= text.length) throw new Error('Unterminated string in nginx configuration');
-      tokens.push({ t: 'word', v });
+      tokens.push({ t: 'word', v: nginxUnescape(raw) });
       i = j + 1;
     } else {
-      let v = '';
-      while (i < text.length && !/[\s;{}]/.test(text[i])) v += text[i++];
-      tokens.push({ t: 'word', v });
+      let raw = '';
+      while (i < text.length && !/[\s;{}]/.test(text[i])) raw += text[i++];
+      tokens.push({ t: 'word', v: nginxUnescape(raw) });
     }
   }
   return tokens;
@@ -116,9 +150,13 @@ function visit(nodes, fn, parents = []) {
 const directive = (block, name) => block.find((d) => d.name === name);
 const directives = (block, name) => block.filter((d) => d.name === name);
 
+/** Parameters of a map block that are not source values (nginx map module). */
+const MAP_PARAMETERS = new Set(['volatile', 'hostnames']);
+
 /**
  * Evaluate an nginx `map` like nginx does: exact strings first, then regular
- * expressions in order of appearance (captures substituted), then default.
+ * expressions in order of appearance (numbered and named captures
+ * substituted), then default.
  * @param {{name: string, args: string[]}[]} entries map block
  * @param {string} input
  */
@@ -126,6 +164,7 @@ export function evalMap(entries, input) {
   let fallback = '';
   const regexes = [];
   for (const e of entries) {
+    if (MAP_PARAMETERS.has(e.name) && e.args.length === 0) continue;
     if (e.name === 'default') fallback = e.args[0];
     else if (e.name.startsWith('~')) regexes.push(e);
     else if (e.name === input) return e.args[0];
@@ -133,7 +172,7 @@ export function evalMap(entries, input) {
   for (const e of regexes) {
     const insensitive = e.name.startsWith('~*');
     const m = input.match(new RegExp(e.name.slice(insensitive ? 2 : 1), insensitive ? 'i' : ''));
-    if (m) return e.args[0].replace(/\$(\d)/g, (_, n) => m[Number(n)] ?? '');
+    if (m) return e.args[0].replace(/\$(\w+)/g, (_, n) => (/^\d$/.test(n) ? m[Number(n)] : m.groups?.[n]) ?? '');
   }
   return fallback;
 }
@@ -300,10 +339,21 @@ test('redirects: …/index.html, old URLs of the previous site, relative Locatio
     return m ? `${m[1]}${m[2] ?? ''}` : null;
   };
   assert.equal(target('/index.html'), '/');
+  assert.equal(target('/index.html?a=1'), '/?a=1');
   assert.equal(target('/hinnat/index.html'), '/hinnat/');
   assert.equal(target('/hinnat/index.html?mittari=ykhi'), '/hinnat/?mittari=ykhi');
+  assert.equal(target('/upotus/index.html?teema=tumma'), '/upotus/?teema=tumma');
+  assert.equal(target('/inflaatio/2024/elokuu/index.html'), '/inflaatio/2024/elokuu/');
   assert.equal(target('/index.html.backup'), null);
   assert.equal(target('/hinnat/'), null);
+  // No open redirect: the Location must never be scheme-relative ("//host"
+  // or "/\host", which browsers treat alike; absolute_redirect is off).
+  for (const evil of ['//evil.example/index.html', '/\\evil.example/index.html', '//evil.example/x/index.html?y=1', '/\\/evil.example/index.html', '/?/index.html']) {
+    const to = target(evil);
+    assert.ok(to === null || !/^[/\\]{2}/.test(to), `${evil} → ${to}`);
+  }
+  assert.equal(target('//evil.example/index.html'), null);
+  assert.equal(target('/\\evil.example/index.html'), null);
 
   const redirects = mapBlock('$inflaatio_redirect');
   for (const [from, to] of Object.entries(REDIRECTS)) {
@@ -313,6 +363,9 @@ test('redirects: …/index.html, old URLs of the previous site, relative Locatio
   assert.equal(evalMap(redirects, '/image/apple-touch-icon.png'), '/icons/apple-touch-icon.png');
   assert.equal(evalMap(redirects, '/image/android-chrome-512x512.png'), '/icons/android-chrome-512x512.png');
   assert.equal(evalMap(redirects, '/image/favicon.ico'), '/favicon.ico');
+  // GitHub Pages also served the old terms page without its extension.
+  assert.equal(evalMap(redirects, '/terms-of-use'), '/kayttoehdot/');
+  assert.equal(evalMap(redirects, '/terms-of-use.html'), '/kayttoehdot/');
   // Static targets must exist (the others are page routes from the registry).
   for (const e of redirects) {
     const to = e.args[0];
@@ -352,28 +405,124 @@ test('old public files are 410 Gone, but no route of the new site is redirected 
     assert.equal(evalMap(redirects, r), '', `${r} must not be redirected`);
   }
   assert.ok(directives(mainServer.block, 'if').some((d) => d.args[0] === '($inflaatio_gone)' && directive(d.block, 'return').args[0] === '410'));
+  // error_page's internal redirect to /404.html runs the server-level `if`
+  // again: without `volatile` the cached value 1 would return 410 once more
+  // and nginx would send its built-in page instead of the site's 404 page.
+  assert.ok(directive(gone, 'volatile'), 'map $inflaatio_gone is volatile');
+  assert.equal(evalMap(gone, '/404.html'), '0');
 });
 
-test('no soft 404: real 404/410 status with /404.html, no fallback to a page', () => {
-  const errorPage = directive(mainServer.block, 'error_page');
-  assert.deepEqual(errorPage.args, ['404', '410', '/404.html']);
+test('no soft 404: real 404/410 status with /404.html, no fallback to a page, no 403 for folders', () => {
+  const errorPages = directives(mainServer.block, 'error_page').map((d) => d.args);
+  assert.deepEqual(errorPages, [
+    ['404', '410', '/404.html'],
+    // A folder without index.html (/assets/, /fonts/ …) is a 404, not
+    // nginx's 403 page with the folder's one-year Cache-Control.
+    ['403', '=404', '/404.html'],
+  ]);
   assert.ok(directive(location('=', '/404.html').block, 'internal'), '/404.html is internal');
   visit(conf, (n) => {
     if (n.name === 'try_files') assert.match(n.args.at(-1), /^=\d{3}$/, `try_files ${n.args.join(' ')} must end in =404`);
   });
 });
 
+/** Start scripts/serve.js on a free port over a tiny site; returns get(path, method). */
+async function startLocalServer(t, files) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'inflaatio-ops-'));
+  for (const [rel, text] of Object.entries(files)) {
+    const file = path.join(dir, ...rel.split('/'));
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, text);
+  }
+  const server = createServer({ dir, headers: await loadHeaderSets(), quiet: true });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => {
+    server.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  const { port } = /** @type {import('node:net').AddressInfo} */ (server.address());
+  // `path` is sent as it is (no URL parsing: "//host/…" must stay a path).
+  return (rawPath, method = 'GET') =>
+    new Promise((resolve, reject) => {
+      const req = http.request({ host: '127.0.0.1', port, path: rawPath, method }, (res) => {
+        let body = '';
+        res.setEncoding('utf8');
+        res.on('data', (c) => (body += c));
+        res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body }));
+      });
+      req.on('error', reject);
+      req.end();
+    });
+}
+
+test('scripts/serve.js answers like nginx: old URLs, 410 list, /404.html, /healthz, dotfiles, folders, 405', async (t) => {
+  const notFoundPage = '<!doctype html><html lang="fi"><title>Sivua ei löytynyt</title></html>';
+  const get = await startLocalServer(t, {
+    'index.html': '<!doctype html><html lang="fi"><title>Etusivu</title></html>',
+    '404.html': notFoundPage,
+    'hinnat/index.html': '<!doctype html><html lang="fi"><title>Hinnat</title></html>',
+    'assets/site-ABCDEFGH.js': 'export {};\n',
+    '.git/config': '[core]\n',
+    // Files that exist on disk are still gone (nginx answers before the file lookup).
+    'index.html.backup': 'old',
+    'image/footer.webp': 'old',
+  });
+  const redirects = mapBlock('$inflaatio_redirect');
+  const gone = mapBlock('$inflaatio_gone');
+
+  // Every exact redirect of nginx and samples of its regular expressions.
+  const exact = redirects.filter((e) => e.name !== 'default' && !e.name.startsWith('~') && !MAP_PARAMETERS.has(e.name)).map((e) => e.name);
+  for (const p of [...exact, '/image/favicon-16x16.png', '/image/android-chrome-192x192.png', '/image/apple-touch-icon.png']) {
+    const to = evalMap(redirects, p);
+    assert.ok(to, `${p} is redirected by nginx`);
+    const res = await get(`${p}?x=1`);
+    assert.equal(res.status, 301, `serve.js ${p}`);
+    assert.equal(res.headers.location, `${to}?x=1`, `serve.js ${p}`);
+  }
+  // The 410 list, with the site's 404 page as the body.
+  for (const p of ['/index.html.backup', '/image/footer.webp', '/image/muu.png', '/docs/plans/ROADMAP.html', '/scripts/bump-version.js', '/SEO-CHECKLIST.md', '/inflation-site-optimized.min.js', '/cookie-consent.js', '/package.json', '/Dockerfile', '/fly.toml']) {
+    assert.equal(evalMap(gone, p), '1', `${p} is gone in nginx`);
+    const res = await get(p);
+    assert.equal(res.status, 410, `serve.js ${p}`);
+    assert.match(res.body, /Sivua ei löytynyt/, `serve.js ${p}: the 404 page is the body`);
+  }
+  // 404 with the site's page: direct /404.html, dotfiles, folders without index.html.
+  for (const p of ['/404.html', '/.git/config', '/assets/', '/ei-ole-olemassa/']) {
+    const res = await get(p);
+    assert.equal(res.status, 404, `serve.js ${p}`);
+    assert.match(res.body, /Sivua ei löytynyt/, `serve.js ${p}`);
+  }
+  const health = await get('/healthz');
+  assert.equal(health.status, 200, 'serve.js /healthz');
+  assert.equal(health.body, 'ok\n');
+  assert.match(health.headers['content-type'] ?? '', /^text\/plain/);
+  for (const p of ['//evil.example/index.html', '/\\evil.example/index.html']) {
+    const res = await get(p);
+    assert.doesNotMatch(res.headers.location ?? '', /^[/\\]{2}/, `serve.js ${p}: no scheme-relative Location`);
+  }
+  const post = await get('/', 'POST');
+  assert.equal(post.status, 405);
+  assert.equal(post.headers.allow, 'GET, HEAD');
+  const dir = await get('/hinnat?mittari=ykhi');
+  assert.equal(dir.status, 301);
+  assert.equal(dir.headers.location, '/hinnat/?mittari=ykhi');
+});
+
 test('hardening, health check and compression', () => {
   const b = mainServer.block;
   assert.deepEqual(directive(b, 'server_tokens').args, ['off']);
   const healthz = location('=', '/healthz');
-  assert.deepEqual(directive(healthz.block, 'return').args, ['200', 'ok\\n']); // nginx turns \n into a newline
+  assert.deepEqual(directive(healthz.block, 'return').args, ['200', 'ok\n']);
   assert.equal(directive(healthz.block, 'default_type').args[0], 'text/plain');
   const dotfiles = location('~', '/\\.');
   assert.ok(dotfiles, 'dotfiles denied');
   assert.deepEqual(directive(dotfiles.block, 'return').args, ['404']);
   const method = directives(b, 'if').find((d) => d.args[0] === '($request_method');
   assert.deepEqual(directive(method.block, 'return').args, ['405']);
+  // RFC 9110: a 405 response lists the allowed methods (server level, where
+  // the 405 is produced; like scripts/serve.js).
+  const allow = directives(b, 'add_header').find((d) => d.args[0] === 'Allow');
+  assert.deepEqual(allow?.args, ['Allow', 'GET, HEAD', 'always']);
   for (const [name, value] of [['gzip', 'on'], ['gzip_static', 'on'], ['gzip_vary', 'on'], ['gzip_proxied', 'any']]) {
     assert.deepEqual(directive(b, name)?.args, [value], name);
   }
@@ -383,6 +532,40 @@ test('hardening, health check and compression', () => {
   const logFormat = conf.find((d) => d.name === 'log_format');
   assert.doesNotMatch(logFormat.args.slice(1).join(' '), /remote_addr|http_user_agent|http_referer|request_uri|args|x_forwarded|fly_client_ip/i);
   assert.deepEqual(directive(b, 'access_log').args, ['/dev/stdout', logFormat.args[0]]);
+  assert.deepEqual(directive(b, 'log_not_found')?.args, ['off'], 'misses are not repeated in the error log with their query string');
+});
+
+test('access log: the requested path (not the internal /index.html or /404.html), never the query string', () => {
+  const logFormat = conf.find((d) => d.name === 'log_format').args.slice(1).join(' ');
+  assert.match(logFormat, /"\$inflaatio_log_path"/);
+  assert.doesNotMatch(logFormat, /\$uri\b/, '$uri is the internal target after index/error_page redirects');
+  const mapDirective = conf.find((d) => d.name === 'map' && d.args[1] === '$inflaatio_log_path');
+  assert.equal(mapDirective.args[0], '$request_uri');
+  const map = mapDirective.block;
+  assert.equal(evalMap(map, '/hinnat/'), '/hinnat/');
+  assert.equal(evalMap(map, '/hinnat/?mittari=ykhi&vuokra=850'), '/hinnat/');
+  assert.equal(evalMap(map, '/ei-ole?q=hetu'), '/ei-ole');
+  assert.equal(evalMap(map, '/?'), '/');
+});
+
+test('X-Robots-Tag: the Fly app address (*.fly.dev) is noindex, inflaatio.fi gets no header', () => {
+  const map = mapBlock('$inflaatio_robots');
+  assert.equal(conf.find((d) => d.name === 'map' && d.args[1] === '$inflaatio_robots').args[0], '$host');
+  assert.equal(evalMap(map, 'inflaatio.fly.dev'), 'noindex, nofollow');
+  assert.equal(evalMap(map, 'inflaatio-fi.fly.dev'), 'noindex, nofollow');
+  assert.equal(evalMap(map, 'inflaatio.fi'), '', 'empty value = no header (nginx skips empty add_header values)');
+  assert.equal(evalMap(map, 'www.inflaatio.fi'), '');
+  assert.equal(evalMap(map, 'fly.dev.example'), '');
+  // add_header is not inherited: the server level and every location of the
+  // main server send it themselves.
+  const blocks = [mainServer];
+  visit(mainServer.block, (n) => {
+    if (n.name === 'location') blocks.push(n);
+  });
+  for (const blk of blocks) {
+    const robots = directives(blk.block, 'add_header').find((d) => d.args[0] === 'X-Robots-Tag');
+    assert.deepEqual(robots?.args, ['X-Robots-Tag', '$inflaatio_robots', 'always'], `${blk.name} ${blk.args.join(' ')}`.trim());
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -514,7 +697,12 @@ test('update-data.yml: off-the-hour schedule, fetch failure recorded, rebase bef
   assert.match(t, /status=\$\?/, 'exit status of the fetch recorded');
   assert.match(t, /git status --porcelain -- data src\/content\/julkaisukalenteri\.json/);
   assert.match(t, /node --test test\/data-contract\.test\.js/);
-  assert.match(t, /git pull -q --rebase origin main && git push -q origin HEAD:main/);
+  // The write token is not persisted by actions/checkout; only the push step
+  // gets it (a compromised dependency in npm ci / fetch / build cannot push).
+  assert.match(t, /remote="https:\/\/x-access-token:\$\{GH_PUSH_TOKEN\}@github\.com\/\$\{GITHUB_REPOSITORY\}\.git"/);
+  assert.match(t, /git pull -q --rebase "\$remote" main && git push -q "\$remote" HEAD:main/);
+  assert.equal((t.match(/github\.token/g) ?? []).length, 1, 'github.token only in the push step');
+  assert.match(t, /^\s*GH_PUSH_TOKEN: \$\{\{ github\.token \}\}\s*$/m);
   assert.match(t, /github-actions\[bot\]/);
   assert.match(t, /subject="data: /);
   assert.match(t, /flyctl deploy --remote-only/);
@@ -522,6 +710,47 @@ test('update-data.yml: off-the-hour schedule, fetch failure recorded, rebase bef
   assert.match(t, /group: data-update/);
   assert.match(t, /FETCH_STATUS" != "0"[\s\S]*exit 1/, 'the run fails at the end when the fetch failed');
   assert.match(t, /GITHUB_STEP_SUMMARY/);
+  // The deploy job ships main as it is when it starts (it may have replaced
+  // a pending deploy.yml run of a newer code commit in the fly-deploy queue).
+  const deployJob = t.slice(t.search(/^ {2}deploy:\s*$/m), t.search(/^ {2}status:\s*$/m));
+  assert.match(deployJob, /^\s*ref: main\s*$/m);
+  assert.match(deployJob, /^\s*environment: production\s*$/m);
+  assert.match(deployJob, /github\.ref == 'refs\/heads\/main'/);
+});
+
+/** The lines of the step that contains line `i` (until the next "- " step). */
+function stepAt(lines, i) {
+  let start = i;
+  while (start > 0 && !/^\s*-\s/.test(lines[start])) start--;
+  let end = i + 1;
+  while (end < lines.length && !/^\s*-\s/.test(lines[end]) && !/^\S/.test(lines[end]) && !/^ {2}\S/.test(lines[end])) end++;
+  return lines.slice(start, end).join('\n');
+}
+
+test('workflows: supply chain – no install scripts, no persisted token, pinned flyctl, no unused loop variables', () => {
+  const flyctlVersions = new Set();
+  for (const [file, text] of Object.entries(workflows)) {
+    const lines = text.split(/\r?\n/);
+    for (const line of lines.filter((l) => /\bnpm ci\b/.test(l) && !l.trim().startsWith('#'))) {
+      assert.match(line, /\bnpm ci --ignore-scripts\b/, `${file}: ${line.trim()}`);
+    }
+    lines.forEach((line, i) => {
+      if (/uses:\s*actions\/checkout@/.test(line)) {
+        assert.match(stepAt(lines, i), /^\s*persist-credentials: false\s*$/m, `${file}: actions/checkout keeps no token in .git/config`);
+      }
+      if (/uses:\s*superfly\/flyctl-actions\/setup-flyctl@/.test(line)) {
+        const version = stepAt(lines, i).match(/^\s*version: '(\d+\.\d+\.\d+)'\s*$/m)?.[1];
+        assert.ok(version, `${file}: setup-flyctl installs a pinned flyctl version`);
+        flyctlVersions.add(version);
+      }
+    });
+    // actionlint / shellcheck SC2034: a loop variable that is never used.
+    for (const m of text.matchAll(/\bfor (\w+) in\b/g)) {
+      if (m[1] === '_') continue;
+      assert.ok(new RegExp(`\\$\\{?${m[1]}\\b`).test(text), `${file}: loop variable ${m[1]} is unused (use _)`);
+    }
+  }
+  assert.equal(flyctlVersions.size, 1, `one flyctl version everywhere: ${[...flyctlVersions].join(', ')}`);
 });
 
 test('deploy.yml and site-check.yml', () => {
@@ -529,6 +758,9 @@ test('deploy.yml and site-check.yml', () => {
   assert.match(d, /group: fly-deploy/);
   assert.match(d, /flyctl deploy --remote-only/);
   assert.match(d, /workflow_dispatch:/);
+  // A manual run of another branch never reaches production.
+  assert.match(d, /^\s*if: github\.ref == 'refs\/heads\/main'\s*$/m);
+  assert.match(d, /^\s*environment: production\s*$/m);
   for (const p of ['src/**', 'scripts/**', 'deploy/**', 'data/**', 'Dockerfile', 'fly.toml', 'package-lock.json']) assert.ok(d.includes(`'${p}'`), `deploy.yml paths: ${p}`);
   const s = workflows['site-check.yml'];
   assert.match(s, /cron:\s*'\d+ \*\/6 \* \* \*'/);
@@ -679,16 +911,18 @@ const smoke = SMOKE_URL ? {} : { skip: 'SMOKE_URL not set' };
  * HTTP(S) request without redirects or automatic decompression surprises:
  * asks for gzip, decodes gzip/br, returns the raw status and headers.
  * @param {string} urlPath path (or absolute URL)
- * @param {{method?: string, headers?: Record<string, string>}} [o]
+ * @param {{method?: string, headers?: Record<string, string>, raw?: boolean}} [o]
+ *   raw: send urlPath to SMOKE_URL exactly as written (no URL parsing, which
+ *   would turn "//host/…" or "/\host/…" into another host)
  */
-async function request(urlPath, { method = 'GET', headers = {} } = {}) {
-  const url = new URL(urlPath, `${SMOKE_URL}/`);
+async function request(urlPath, { method = 'GET', headers = {}, raw = false } = {}) {
+  const url = new URL(raw ? '/' : urlPath, `${SMOKE_URL}/`);
   const once = () =>
     new Promise((resolve, reject) => {
       const lib = url.protocol === 'https:' ? https : http;
       const req = lib.request(
         url,
-        { method, timeout: 20000, headers: { 'user-agent': 'inflaatio-ops-smoke-test', 'accept-encoding': 'gzip', ...headers } },
+        { method, timeout: 20000, headers: { 'user-agent': 'inflaatio-ops-smoke-test', 'accept-encoding': 'gzip', ...headers }, ...(raw ? { path: urlPath } : {}) },
         (res) => {
           const chunks = [];
           res.on('data', (c) => chunks.push(c));
@@ -800,8 +1034,34 @@ test('smoke: unknown page → 404 page with status 404; old files → 410', smok
   const gone = await request('/index.html.backup');
   assert.equal(gone.status, 410);
   assertSecurityHeaders(gone, expectedHeaders, '410');
+  // The site's own page, not nginx's built-in "410 Gone" text.
+  assert.equal(gone.headers['content-type'], 'text/html; charset=utf-8');
+  assert.match(gone.text, /<html lang="fi"/, '410 body is the 404 page');
+  const direct = await request('/404.html');
+  assert.equal(direct.status, 404, '/404.html directly');
+  // A folder without index.html: 404 with the page, not 403 cached for a year.
+  const folder = await request('/assets/');
+  assert.equal(folder.status, 404, '/assets/');
+  assert.equal(folder.headers['cache-control'], 'no-cache', '/assets/ Cache-Control');
+  assert.match(folder.text, /<html lang="fi"/);
   const dotfile = await request('/.git/config');
   assert.ok([403, 404].includes(dotfile.status), `/.git/config → ${dotfile.status}`); // 403: a CDN firewall may answer first
+});
+
+test('smoke: no open redirect – a Location header never starts with // or /\\', smoke, async () => {
+  for (const p of ['//evil.example/index.html', '/\\evil.example/index.html', '//evil.example/', '/%5Cevil.example/index.html', '/\\/evil.example/index.html']) {
+    const res = await request(p, { raw: true });
+    const loc = locationOf(res);
+    assert.doesNotMatch(loc, /^[/\\]{2}/, `${p} → ${res.status} Location: ${loc}`);
+    assert.doesNotMatch(loc, /^(https?:)?[/\\]{2}evil\.example/i, `${p} → ${res.status} Location: ${loc}`);
+  }
+});
+
+test('smoke: X-Robots-Tag noindex on the Fly app address only', smoke, async () => {
+  const res = await request(SMOKE_PAGE);
+  const onFly = /\.fly\.dev$/i.test(new URL(SMOKE_URL).hostname);
+  if (onFly) assert.equal(res.headers['x-robots-tag'], 'noindex, nofollow', `${SMOKE_URL} must not be indexed`);
+  else assert.equal(res.headers['x-robots-tag'], undefined, `${SMOKE_URL} must be indexable`);
 });
 
 test('smoke: redirects keep the query string and use the public host', smoke, async () => {
@@ -811,6 +1071,9 @@ test('smoke: redirects keep the query string and use the public host', smoke, as
   res = await request('/terms-of-use.html?x=1');
   assert.equal(res.status, 301);
   assert.equal(locationOf(res), '/kayttoehdot/?x=1');
+  res = await request('/terms-of-use');
+  assert.equal(res.status, 301);
+  assert.equal(locationOf(res), '/kayttoehdot/');
   res = await request('/image/favicon.ico');
   assert.equal(res.status, 301);
   assert.equal(locationOf(res), '/favicon.ico');
@@ -832,6 +1095,7 @@ test('smoke: redirects keep the query string and use the public host', smoke, as
   assert.doesNotMatch(res.headers.location, /:8080/);
   res = await request('/', { method: 'POST' });
   assert.ok([403, 405].includes(res.status), `POST / → ${res.status}`);
+  if (res.status === 405) assert.equal(res.headers.allow, 'GET, HEAD', 'Allow on 405 (RFC 9110)');
 });
 
 test('smoke: the widget /upotus/ may be framed, other pages may not', smoke, async (t) => {
@@ -865,7 +1129,9 @@ test('smoke: robots.txt, sitemap.xml, manifest and the service worker kill switc
   assert.match(sw.text, /unregister\(\)/);
 });
 
-test('smoke: the page shows the latest KHI month of data/meta.json', { skip: !SMOKE_URL ? 'SMOKE_URL not set' : !EXPECT_LATEST ? 'SMOKE_EXPECT_LATEST not set' : false }, async () => {
+const expectLatest = { skip: !SMOKE_URL ? 'SMOKE_URL not set' : !EXPECT_LATEST ? 'SMOKE_EXPECT_LATEST not set' : false };
+
+test('smoke: the page shows the latest KHI month of data/meta.json', expectLatest, async () => {
   const latest = JSON.parse(read('data/meta.json')).sources.khi.latest;
   const res = await request(SMOKE_PAGE);
   assert.equal(res.status, 200);
@@ -874,4 +1140,51 @@ test('smoke: the page shows the latest KHI month of data/meta.json', { skip: !SM
     variants.some((v) => res.text.includes(v)),
     `${SMOKE_URL}${SMOKE_PAGE} does not show the latest KHI month ${latest} ("${variants.join('" / "')}") – is the latest data deployed?`,
   );
+});
+
+/** Newest valid timestamp of a list (ISO strings), or undefined. */
+const newestTimestamp = (list) => list.filter((d) => typeof d === 'string' && !Number.isNaN(Date.parse(d))).sort((a, b) => Date.parse(b) - Date.parse(a))[0];
+
+// The KHI month alone misses a deployment that failed after another update:
+// the YKHI flash estimate turning final, the cost-of-living index, a newer
+// source timestamp or a new release calendar entry. When such a deploy fails,
+// the next data run sees no change and does not deploy again.
+test('smoke: /data/latest.json matches data/meta.json and the release calendar (all deployed)', expectLatest, async (t) => {
+  // Query string: never an edge-cached copy (/data/ may be cached for an hour).
+  const res = await request(`/data/latest.json?tarkistus=${Date.now()}`);
+  if (res.status === 404) {
+    t.skip('/data/latest.json is not in this build');
+    return;
+  }
+  assert.equal(res.status, 200);
+  const live = JSON.parse(res.text);
+  const meta = JSON.parse(read('data/meta.json')).sources;
+  const hint = ' – is the latest data deployed?';
+  assert.equal(live.khi?.kuukausi, meta.khi.latest, `khi.kuukausi${hint}`);
+  assert.equal(live.khi?.julkaistu, isoDate(meta.khi.updated), `khi.julkaistu${hint}`);
+  assert.equal(live.ykhi?.kuukausi, meta.ykhi.latest, `ykhi.kuukausi${hint}`);
+  const flag = JSON.parse(read('data/ykhi.json')).flags?.FI?.[meta.ykhi.latest];
+  assert.equal(live.ykhi?.tila, flag === 'p' ? 'ennakko' : 'lopullinen', `ykhi.tila${hint}`);
+  assert.equal(live.ykhi?.julkaistu, isoDate(meta.ykhi.updated), `ykhi.julkaistu${hint}`);
+  assert.equal(live.elinkustannusindeksi?.kuukausi, meta.elinkustannusindeksi.latest, `elinkustannusindeksi.kuukausi${hint}`);
+  // The newest source timestamp of any source (hyödykkeet, korot, polttoaineet …).
+  assert.equal(live.paivitetty, isoDate(newestTimestamp(Object.values(meta).map((s) => s.updated))), `paivitetty${hint}`);
+  const calendar = JSON.parse(read('src/content/julkaisukalenteri.json'));
+  const next = calendar.find((e) => e.source === 'khi' && e.period > meta.khi.latest);
+  assert.deepEqual(live.seuraava_khi_julkaisu ?? null, next ? { paiva: next.date, kuukausi: next.period } : null, `seuraava_khi_julkaisu (release calendar)${hint}`);
+});
+
+// ---------------------------------------------------------------------------
+// Repository hygiene
+// ---------------------------------------------------------------------------
+
+test('repository: node_modules/ is ignored and not tracked (.gitignore does not untrack files)', (t) => {
+  assert.match(read('.gitignore'), /^\/?node_modules\/?\s*$/m);
+  const r = spawnSync('git', ['ls-files', '--', 'node_modules'], { cwd: ROOT, encoding: 'utf8' });
+  if (r.error || r.status !== 0) {
+    t.skip('git is not available');
+    return;
+  }
+  const tracked = r.stdout.split('\n').filter(Boolean);
+  assert.equal(tracked.length, 0, `${tracked.length} files under node_modules/ are tracked in git: run "git rm -r --cached node_modules" and commit`);
 });

@@ -60,16 +60,47 @@
   counter-increment: hinnat-rank;
 }
 
+/* Name cell: the rank stays on the first line next to the name, the name,
+   main group (and on phones the contribution) wrap in their own column. */
+[data-page='hinnat'] .hinnat-mover__name {
+  display: flex;
+  align-items: baseline;
+}
+
+[data-page='hinnat'] .hinnat-rank {
+  flex: none;
+  min-width: 2em;
+  white-space: nowrap;
+}
+
 [data-page='hinnat'] .hinnat-rank::before {
   content: counter(hinnat-rank) '.';
-  display: inline-block;
-  min-width: 1.75em;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
 
-[data-page='hinnat'] .hinnat-mover .hinnat-official {
-  padding-left: 1.75em;
+[data-page='hinnat'] .hinnat-mover__name > div {
+  min-width: 0;
+}
+
+/* Contribution under the name: shown only where its column is hidden. */
+[data-page='hinnat'] .hinnat-mover__contrib {
+  display: none;
+  margin-top: 2px;
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-regular);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  [data-page='hinnat'] .hinnat-movers .hinnat-col-contrib {
+    display: none;
+  }
+
+  [data-page='hinnat'] .hinnat-mover__contrib {
+    display: block;
+  }
 }
 
 /* ------------------------------------------------- commodity page lists */

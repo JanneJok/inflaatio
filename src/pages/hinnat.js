@@ -75,9 +75,21 @@ export function datasetLd(ctx, { path, name, description, creator = [TK_ORG], li
 }
 
 /**
+ * Period label inside a chart subtitle that src/js/pages/hinnat.js rewrites
+ * when the range of the interactive chart `id` changes ('tammi 2002 – elo 2026').
+ * @param {string} id chart id (as passed to interactiveChart)
+ * @param {string} period server-rendered period of the default range
+ */
+export function rangeLabel(id, period) {
+  return html`<span data-range-label="${id}">${period}</span>`;
+}
+
+/**
  * Interactive chart container (enhanced by src/js/pages/hinnat.js): optional
  * range control (JS only), the server SVG as the no-JS fallback, a hidden
  * canvas container and the chart spec as a JSON data island.
+ * `spec.param` names the query parameter that keeps the chosen range in the
+ * URL (e.g. 'jakso'); a dataset may carry its own `decimals`.
  * @param {any} ctx
  * @param {{id: string, spec: object, fallback: import('../../scripts/lib/html.js').SafeString}} o
  */
@@ -110,6 +122,43 @@ export const signed = (v, decimals = 1) => fmt.pct(v, { decimals, sign: fmt.isNu
 const lcFirst = (s) => (s ? s.charAt(0).toLocaleLowerCase('fi-FI') + s.slice(1) : s);
 /** Round away float noise. */
 const r3 = (v) => (fmt.isNum(v) ? Math.round(v * 1000) / 1000 : null);
+
+/** Finnish list: ['a'] → 'a', ['a', 'b', 'c'] → 'a, b ja c'. */
+export const joinFi = (items) => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} ja ${items.at(-1)}`);
+
+/** Finnish cardinal words 0–19 (sentence start: 'Kymmenen pääryhmää …'). */
+const CARDINALS = Object.freeze([
+  'nolla', 'yksi', 'kaksi', 'kolme', 'neljä', 'viisi', 'kuusi', 'seitsemän', 'kahdeksan', 'yhdeksän',
+  'kymmenen', 'yksitoista', 'kaksitoista', 'kolmetoista', 'neljätoista', 'viisitoista', 'kuusitoista', 'seitsemäntoista', 'kahdeksantoista', 'yhdeksäntoista',
+]);
+
+/** A count as a word when it is small (0–19), else as digits. */
+export const countWord = (n) => CARDINALS[n] ?? String(n);
+
+/**
+ * Elative ending of a number written in digits ('13:sta', '10:stä'): the
+ * vowel harmony follows the inflected word (kolmesta(toista), kymmenestä).
+ * @param {number} n non-negative integer
+ */
+export function elativeSuffix(n) {
+  const back = new Set([2, 3, 6, 8]); // kahdesta, kolmesta, kuudesta, kahdeksasta
+  const last = n % 10 === 0 ? 10 : n % 10;
+  return n > 0 && back.has(last) ? 'sta' : 'stä';
+}
+
+/**
+ * Summary sentence: how many of the main groups raised inflation.
+ * 'Kymmenen pääryhmää 13:sta nosti inflaatiota elokuussa 2026.'
+ * @param {number} positives groups with a positive contribution
+ * @param {number} total number of main groups
+ * @param {string} when inessive month ('elokuussa 2026')
+ */
+export function positivesSentence(positives, total, when) {
+  const of = `${total}:${elativeSuffix(total)}`;
+  if (positives === 0) return `Mikään pääryhmä ei nostanut inflaatiota ${when}.`;
+  if (positives === 1) return `Yksi pääryhmä ${of} nosti inflaatiota ${when}.`;
+  return `${fmt.capitalize(countWord(positives))} pääryhmää ${of} nosti inflaatiota ${when}.`;
+}
 
 /* =========================================================== calculations */
 
@@ -370,7 +419,8 @@ const pctPos = (f) => `${Math.round(f * 100000) / 1000}%`;
 
 /**
  * Stacked bar chart (server SVG, no-JS fallback of the contribution history):
- * positive parts stack up from zero, negative parts down; the total is a dot.
+ * positive parts stack up from zero, negative parts down; the total is a line
+ * with a dot per month (as in the interactive chart).
  * Uses the chart classes of components.css (colours from tokens).
  * @param {{months: string[], stacks: {cls: string, label: string, values: (number|null)[]}[],
  *   total?: {label: string, values: (number|null)[]}, ariaLabel: string, height?: number}} o
@@ -412,7 +462,19 @@ export function stackedBarsSvg({ months, stacks, total, ariaLabel, height = 300 
       rects.push(html`<rect class="chart-bar chart-bar--${st.cls}" x="${c2(i * slot + pad)}" y="${c2(y1)}" width="${c2(slot - 2 * pad)}" height="${c2(Math.max(y2 - y1, 0.5))}"><title>${st.label}, ${fmt.monthShort(ym)}: ${fmt.pp(v, { decimals: 2 })}</title></rect>`);
     }
   });
-  parts.push(html`<svg class="chart-plot" x="0" y="${top}" width="100%" height="${plotH}" viewBox="0 0 ${n * slot} ${plotH}" preserveAspectRatio="none" overflow="visible">${rects}</svg>`);
+  // Total as a line through the bar centres (non-scaling stroke keeps it 2 px).
+  let d = '';
+  let pen = false;
+  (total?.values ?? []).forEach((v, i) => {
+    if (!fmt.isNum(v)) {
+      pen = false;
+      return;
+    }
+    d += `${pen ? 'L' : 'M'}${c2(i * slot + slot / 2)} ${c2(yIn(v))}`;
+    pen = true;
+  });
+  const totalLine = d.includes('L') ? html`<path class="chart-line chart-line--khi" d="${d}" vector-effect="non-scaling-stroke"/>` : '';
+  parts.push(html`<svg class="chart-plot" x="0" y="${top}" width="100%" height="${plotH}" viewBox="0 0 ${n * slot} ${plotH}" preserveAspectRatio="none" overflow="visible">${rects}${totalLine}</svg>`);
   (total?.values ?? []).forEach((v, i) => {
     if (!fmt.isNum(v)) return;
     parts.push(html`<circle class="chart-dot chart-dot--khi" cx="${pctPos((i + 0.5) / n)}" cy="${c2(top + yIn(v))}" r="4"><title>${total.label}, ${fmt.monthShort(months[i])}: ${fmt.pp(v, { decimals: 2 })}</title></circle>`);
@@ -452,16 +514,17 @@ function hinnatIndex(ctx, models) {
   const share = topG && topG.contribution > 0 && sss.contribution >= 0.5 && topG.contribution <= sss.contribution
     ? Math.round((topG.contribution / sss.contribution) * 100)
     : null;
+  const When = fmt.capitalize(fmt.inessive(month));
   const ledeParts = [
-    sss.yoy === 0
-      ? `Kuluttajahinnat olivat ${fmt.inessive(month)} samalla tasolla kuin vuotta aiemmin.`
-      : `Kuluttajahinnat olivat ${fmt.inessive(month)} ${fmt.pct(Math.abs(sss.yoy))} ${rise ? 'korkeammat' : 'matalammat'} kuin vuotta aiemmin.`,
+    fmt.round(sss.yoy, 1) === 0
+      ? `${When} kuluttajahinnat olivat samalla tasolla kuin vuotta aiemmin.`
+      : `${When} kuluttajahinnat olivat ${fmt.pct(Math.abs(sss.yoy))} ${rise ? 'korkeammat' : 'alemmat'} kuin vuotta aiemmin.`,
   ];
   if (topG && topG.contribution > 0) {
-    ledeParts.push(`Eniten inflaatiota nosti ${lcFirst(groupLabel(topG))}: sen vaikutus oli ${fmt.pp(topG.contribution, { decimals: 2 })}${share != null ? ` eli noin ${share} % koko vuosimuutoksesta` : ''}.`);
+    ledeParts.push(`Eniten inflaatiota nosti pääryhmä ${groupLabel(topG)}: sen vaikutus oli ${fmt.pp(topG.contribution, { decimals: 2 })}${share != null ? ` eli noin ${share} % koko vuosimuutoksesta` : ''}.`);
   }
   if (lowG && lowG.contribution < 0) {
-    ledeParts.push(`Eniten hintojen nousua hillitsi ${lcFirst(groupLabel(lowG))} (${fmt.pp(lowG.contribution, { decimals: 2 })}).`);
+    ledeParts.push(`Eniten hintojen nousua hillitsi pääryhmä ${groupLabel(lowG)} (${fmt.pp(lowG.contribution, { decimals: 2 })}).`);
   }
 
   const header = c.pageHeader({
@@ -486,7 +549,7 @@ function hinnatIndex(ctx, models) {
   // Contribution bars
   const hbar = svg.hBarChart({
     bars: sorted.map((g) => ({ label: groupLabel(g), value: g.contribution, title: `${g.name}: ${fmt.pp(g.contribution, { decimals: 2 })}` })),
-    ariaLabel: `Pääryhmien vaikutus kuluttajahintojen vuosimuutokseen ${fmt.inessive(month)}, prosenttiyksikköä. Suurin ${lcFirst(groupLabel(topG))} ${fmt.pp(topG.contribution, { decimals: 2 })}, pienin ${lcFirst(groupLabel(lowG))} ${fmt.pp(lowG.contribution, { decimals: 2 })}.`,
+    ariaLabel: `Pääryhmien vaikutus kuluttajahintojen vuosimuutokseen ${fmt.inessive(month)}, prosenttiyksikköä. Suurin vaikutus pääryhmällä ${groupLabel(topG)} (${fmt.pp(topG.contribution, { decimals: 2 })}), pienin pääryhmällä ${groupLabel(lowG)} (${fmt.pp(lowG.contribution, { decimals: 2 })}).`,
   });
   const positives = sorted.filter((g) => g.contribution > 0).length;
   const contribFigure = c.chartFigure({
@@ -498,7 +561,7 @@ function hinnatIndex(ctx, models) {
       { cls: 'neg', label: 'Hillitsee inflaatiota', box: true },
     ]),
     chart: hbar,
-    summary: `${positives} pääryhmää ${groups.length}:stä nosti inflaatiota ${fmt.inessive(month)}. Suurin vaikutus oli ryhmällä ${groupLabel(topG)} (${fmt.pp(topG.contribution, { decimals: 2 })}). Luvut ovat taulukossa alla.`,
+    summary: `${positivesSentence(positives, sorted.length, fmt.inessive(month))} Suurin vaikutus oli pääryhmällä ${groupLabel(topG)} (${fmt.pp(topG.contribution, { decimals: 2 })}). Luvut ovat taulukossa alla.`,
     source: c.sourceLine({ sources: [src], updated }),
   });
 
@@ -539,16 +602,20 @@ function hinnatIndex(ctx, models) {
 
   // Top 10 lists
   const movers = topMovers(h);
+  // Name cell: rank (CSS counter) + name, main group and — on phones, where
+  // the contribution column is hidden — the contribution on its own line.
   const moverName = (it) => {
     const m = it.slug ? bySlug.get(it.slug) : null;
     const g = byCode.get(String(it.code).slice(0, 2));
-    return html`<span class="hinnat-rank" aria-hidden="true"></span>${m ? html`<a href="${m.path}">${m.name}</a>` : it.name}${g ? html`<span class="hinnat-official"><span class="sr-only">, pääryhmä: </span>${groupLabel(g)}</span>` : ''}`;
+    return html`<div class="hinnat-mover__name"><span class="hinnat-rank" aria-hidden="true"></span><div>${m ? html`<a href="${m.path}">${m.name}</a>` : it.name}${
+      g ? html`<span class="hinnat-official"><span class="sr-only">, pääryhmä: </span>${groupLabel(g)}</span>` : ''
+    }<span class="hinnat-mover__contrib">Vaikutus ${c.numUnit(fmt.pp(it.contribution, { decimals: 2 }))}</span></div></div>`;
   };
   const moverTable = (id, caption, list) =>
     c.dataTable({
       id,
       caption,
-      columns: [{ label: 'Hyödyke' }, { label: 'Vuosimuutos', num: true }, { label: 'Vaikutus, %-yks.', num: true }],
+      columns: [{ label: 'Hyödyke' }, { label: 'Vuosimuutos', num: true }, { label: 'Vaikutus, %-yks.', num: true, className: 'hinnat-col-contrib' }],
       rows: list.map((it) => ({ className: 'hinnat-mover', cells: [moverName(it), c.deltaChip({ value: it.yoy, unit: 'pct', plain: true }), c.numUnit(fmt.pp(it.contribution, { decimals: 2 }))] })),
       compact: true,
     });
@@ -605,7 +672,7 @@ function hinnatIndex(ctx, models) {
       subtitle: `Vaikutus vuosimuutokseen, %-yks. · ${period}`,
       legend: c.legend([...stacks.map((st) => ({ cls: st.cls, label: st.label, box: true })), { cls: 'khi', label: 'Kaikki yhteensä' }]),
       chart: interactiveChart(ctx, { id: 'vaikutushistoria', spec, fallback }),
-      summary: `Pylväät näyttävät, paljonko kukin pääryhmä nosti (ylöspäin) tai hillitsi (alaspäin) inflaatiota kunakin kuukautena; piste on kaikkien ryhmien summa (${fmt.inessive(history.months.at(-1))} ${fmt.pp(lastTotal, { decimals: 2 })}). Tilastokeskus julkaisee vaikutukset nykyisellä luokituksella ${fmt.elative(first)} alkaen, joten kaavio pitenee kuukausi kerrallaan.`,
+      summary: `Pylväät näyttävät, paljonko kukin pääryhmä nosti (ylöspäin) tai hillitsi (alaspäin) inflaatiota kunakin kuukautena. Viiva on koko kuluttajahintaindeksin vaikutus: ${fmt.inessive(history.months.at(-1))} se oli ${fmt.pp(lastTotal, { decimals: 2 })}, mikä vastaa pääryhmien vaikutusten summaa pyöristyksiä lukuun ottamatta. Tilastokeskus julkaisee vaikutukset nykyisellä luokituksella ${fmt.elative(first)} alkaen, joten kaavio pitenee kuukausi kerrallaan.`,
       table,
       source: c.sourceLine({ sources: [src], updated }),
       actions: downloadButton(ctx, 'vaikutushistoria'),
@@ -631,6 +698,7 @@ function hinnatIndex(ctx, models) {
       unit: '%',
       ranges: ['1v', '3v', '5v'],
       range: '5v',
+      param: 'jakso',
       datasets: lineSeries.map((s) => ({ type: 'line', series: s.cls, label: s.label, data: g.series[s.key].yoy })),
       download: { filename: `paaryhmien-vuosimuutos-${month}.png`, title: 'Pääryhmien hintojen vuosimuutos (%)', source: 'Lähde: Tilastokeskus · inflaatio.fi' },
     };
@@ -638,10 +706,10 @@ function hinnatIndex(ctx, models) {
     const yoyFigure = c.chartFigure({
       id: 'ryhmien-vuosimuutos',
       title: 'Pääryhmien hintojen vuosimuutos',
-      subtitle: 'Vuosimuutos, % · ryhmät, joiden vaikutus on ollut suurin',
+      subtitle: html`Vuosimuutos, % · ryhmät, joiden vaikutus on ollut suurin · ${rangeLabel('ryhmien-vuosimuutos', fmt.monthRange(five.months[0], five.months.at(-1)))}`,
       legend: c.legend(lineSeries.map((s) => ({ cls: s.cls, label: s.label }))),
       chart: interactiveChart(ctx, { id: 'ryhmien-vuosimuutos', spec: yoySpec, fallback: yoyFallback }),
-      summary: `${fmt.capitalize(fmt.inessive(month))} ${top3.map((s) => `${lcFirst(s.label)} ${signed(s.v)}`).join(', ')}; kaikki kuluttajahinnat ${signed(sss.yoy)}.`,
+      summary: `Vuosimuutos ${fmt.inessive(month)}: ${top3.map((s) => `${s.label} ${signed(s.v)}`).join(', ')}; kaikki kuluttajahinnat ${signed(sss.yoy)}.`,
       table: c.dataTable({
         id: 'ryhmien-vuosimuutos-taulukko',
         caption: `Pääryhmien vuosimuutos kuukausittain, ${fmt.monthRange(g.months[0], g.months.at(-1))}`,
@@ -649,6 +717,7 @@ function hinnatIndex(ctx, models) {
         rows: g.months.map((ym, i) => [fmt.monthShort(ym), ...lineSeries.map((s) => c.numUnit(fmt.pct(g.series[s.key].yoy[i])))]).reverse(),
         visibleRows: 12,
         compact: true,
+        toggleLabels: { more: `Näytä kaikki kuukaudet (${g.months.length})`, less: 'Näytä vain 12 viimeisintä kuukautta' },
       }),
       source: c.sourceLine({ sources: [src], updated }),
       actions: downloadButton(ctx, 'ryhmien-vuosimuutos'),
@@ -721,8 +790,8 @@ ${c.section({ id: 'luvuista', title: 'Näin luvut luetaan', body: explain })}`;
 
   const description = fitText(
     [
-      `Inflaatio oli ${fmt.inessive(month)} ${fmt.pct(sss.yoy)}. Eniten sitä nosti ${lcFirst(groupLabel(topG))} (${fmt.pp(topG.contribution, { decimals: 2 })}). Pääryhmät, kallistujat ja halventujat.`,
-      `Inflaatio ${fmt.inessive(month)} ${fmt.pct(sss.yoy)}: pääryhmien vaikutukset, eniten kallistuneet ja halventuneet hyödykkeet (Tilastokeskus).`,
+      `${When} inflaatio oli ${fmt.pct(sss.yoy)}. Eniten sitä nosti pääryhmä ${groupLabel(topG)} (${fmt.pp(topG.contribution, { decimals: 2 })}). Pääryhmät sekä eniten kallistuneet ja halventuneet hyödykkeet.`,
+      `${When} inflaatio oli ${fmt.pct(sss.yoy)}. Pääryhmien vaikutukset sekä eniten kallistuneet ja halventuneet hyödykkeet (Tilastokeskus).`,
     ],
     DESCRIPTION_MAX,
   );
@@ -763,18 +832,34 @@ function directionWord(v, { past = true } = {}) {
 
 /**
  * Plural subject of the generated texts for pages where "hinnat" would read
- * oddly (interest costs, rents, maintenance charges); default "hinnat".
+ * oddly (interest costs, rents, maintenance charges).
  */
-const SUBJECTS = Object.freeze({ 'asuntolainojen-korot': 'korkomenot', vuokra: 'vuokrat', hoitovastike: 'hoitovastikkeet' });
+const SUBJECTS = Object.freeze({ 'asuntolainojen-korot': 'asuntolainojen korkomenot', vuokra: 'vuokrat', hoitovastike: 'hoitovastikkeet' });
+
+/**
+ * Plural subject of a commodity page's sentences, from its title phrase:
+ * 'Kahvin hinta' → 'kahvin hinnat', 'Ravintolahinnat' → 'ravintolahinnat',
+ * vuokra → 'vuokrat'; plain 'hinnat' when the phrase has no genitive.
+ * @param {{slug: string, phrase?: string}} m
+ * @returns {{text: string, prices: boolean}}
+ */
+export function commoditySubject(m) {
+  if (SUBJECTS[m.slug]) return { text: SUBJECTS[m.slug], prices: false };
+  const phrase = m.phrase ?? TITLE_PHRASES[m.slug];
+  const hit = phrase?.match(/^(.+) (?:hinta|hinnat)$/);
+  if (hit) return { text: `${lcFirst(hit[1])} hinnat`, prices: true };
+  if (phrase && /^\S+hinnat$/.test(phrase)) return { text: lcFirst(phrase), prices: true };
+  return { text: 'hinnat', prices: true };
+}
 
 /** Generated description paragraph of a commodity page. */
 export function commodityText(m, long) {
-  const subject = SUBJECTS[m.slug] ?? 'hinnat';
-  const Subject = fmt.capitalize(subject);
-  const devWord = subject === 'hinnat' ? 'hintakehitys' : 'kehitys';
+  const { text: subject, prices } = commoditySubject(m);
+  const devWord = prices ? 'hintakehitys' : 'kehitys';
+  const When = fmt.capitalize(fmt.inessive(m.month));
   const out = [];
-  if (m.yoy === 0) out.push(`${Subject} olivat ${fmt.inessive(m.month)} samalla tasolla kuin vuotta aiemmin.`);
-  else out.push(`${Subject} olivat ${fmt.inessive(m.month)} ${fmt.pct(Math.abs(m.yoy))} ${m.yoy > 0 ? 'korkeammat' : 'matalammat'} kuin vuotta aiemmin.`);
+  if (fmt.round(m.yoy, 1) === 0) out.push(`${When} ${subject} olivat samalla tasolla kuin vuotta aiemmin.`);
+  else out.push(`${When} ${subject} olivat ${fmt.pct(Math.abs(m.yoy))} ${m.yoy > 0 ? 'korkeammat' : 'alemmat'} kuin vuotta aiemmin.`);
   if (fmt.isNum(m.khiYoy) && fmt.isNum(m.diff)) {
     const khiPart = m.khiYoy === 0 ? 'Kaikki kuluttajahinnat pysyivät samaan aikaan ennallaan' : `Kaikki kuluttajahinnat ${directionWord(m.khiYoy)} samaan aikaan ${fmt.pct(Math.abs(m.khiYoy))}`;
     const d = Math.abs(m.diff);
@@ -815,30 +900,33 @@ function commodityPage(ctx, m, models) {
   const kpis = c.kpiGrid([
     c.kpiCard({ label: 'Vuosimuutos', value: signed(m.yoy), note: `${fmt.capitalize(monthTxt)} · ${m.name}` }),
     c.kpiCard({
-      label: 'Muutos edellisestä kuukaudesta',
+      label: 'Vuosimuutoksen muutos',
       value: fmt.pp(m.delta),
       delta: stats.deltaClass(m.delta),
-      note: fmt.isNum(m.prevYoy) ? `${fmt.capitalize(fmt.inessive(fmt.ymAdd(m.month, -1)))} ${signed(m.prevYoy)}` : null,
+      deltaWords: 'pct',
+      note: fmt.isNum(m.prevYoy) ? `Vuosimuutos ${signed(m.prevYoy)} ${fmt.inessive(fmt.ymAdd(m.month, -1))}` : null,
     }),
     c.kpiCard({ label: 'Kaikki kuluttajahinnat', value: signed(m.khiYoy), note: `KHI, ${monthTxt}` }),
     c.kpiCard({ label: 'Pisteluku', value: fmt.idx(m.index), note: `Perusvuosi 2025=100, ${monthTxt}` }),
   ]);
 
-  // Comparison table: item, its main group, all items
+  // Comparison table: item, its main group, all items. Contributions with 3
+  // decimals in every row (as published): an item's is often below 0,01.
   const sss = h?.latest === m.month ? itemsByCode(h).get('SSS') : null;
+  const contrib = (v) => c.numUnit(fmt.pp(v, { decimals: 3 }));
   const cmpRows = [
-    [html`${m.name}<span class="hinnat-official"><span class="sr-only">, Tilastokeskuksen nimike: </span>${m.officialName}</span>`, c.numUnit(signed(m.yoy)), c.numUnit(signed(m.hItem?.mom)), c.numUnit(fmt.pp(m.hItem?.contribution, { decimals: 3 }))],
+    [html`${m.name}<span class="hinnat-official"><span class="sr-only">, Tilastokeskuksen nimike: </span>${m.officialName}</span>`, c.numUnit(signed(m.yoy)), c.numUnit(signed(m.hItem?.mom)), contrib(m.hItem?.contribution)],
   ];
   if (m.group && m.group.code !== m.code) {
-    cmpRows.push([html`Pääryhmä: ${groupLabel(m.group)}`, c.numUnit(signed(m.group.yoy)), c.numUnit(signed(m.group.mom)), c.numUnit(fmt.pp(m.group.contribution, { decimals: 2 }))]);
+    cmpRows.push([html`Pääryhmä: ${groupLabel(m.group)}`, c.numUnit(signed(m.group.yoy)), c.numUnit(signed(m.group.mom)), contrib(m.group.contribution)]);
   }
-  cmpRows.push({ className: 'is-total', cells: ['Kaikki kuluttajahinnat (KHI)', c.numUnit(signed(m.khiYoy)), c.numUnit(signed(sss?.mom)), c.numUnit(fmt.pp(sss?.contribution, { decimals: 2 }))] });
+  cmpRows.push({ className: 'is-total', cells: ['Kaikki kuluttajahinnat (KHI)', c.numUnit(signed(m.khiYoy)), c.numUnit(signed(sss?.mom)), contrib(sss?.contribution)] });
   const cmpTable = c.dataTable({
     id: 'vertailu-taulukko',
     caption: `${m.name} verrattuna pääryhmään ja kaikkiin kuluttajahintoihin, ${monthTxt}`,
     columns: [{ label: 'Ryhmä' }, { label: 'Vuosimuutos', num: true }, { label: 'Kuukausimuutos', num: true }, { label: 'Vaikutus inflaatioon, %-yks.', num: true }],
     rows: cmpRows,
-    note: `Sija ${m.rank}/${m.peers} kallistumisjärjestyksessä niistä hyödykkeistä, joille sivustolla on oma hintasivu. Vaikutus kertoo, montako prosenttiyksikköä ryhmä lisäsi kuluttajahintaindeksin vuosimuutokseen.`,
+    note: `Sija ${m.rank}/${m.peers} kallistumisjärjestyksessä niistä hyödykkeistä, joille sivustolla on oma hintasivu. Vaikutus kertoo, montako prosenttiyksikköä ryhmä nosti tai laski kuluttajahintaindeksin vuosimuutosta.`,
   });
 
   // Index chart (whole series) vs KHI, both 2025=100
@@ -848,7 +936,7 @@ function commodityPage(ctx, m, models) {
   const idxItem = m.indexSeries.slice(i0);
   const idxKhi = idxMonths.map((ym) => stats.seriesAt(khi.months, kIdx, ym));
   const idxPeriod = fmt.monthRange(idxMonths[0], idxMonths.at(-1));
-  const idxFormat = (v) => fmt.idx(v, 1);
+  const idxFormat = (v) => fmt.idx(v); // 2 decimals, as published (SPEC §6)
   const indexFigure = c.chartFigure({
     id: 'pisteluku',
     title: 'Hintaindeksi',
@@ -870,7 +958,9 @@ function commodityPage(ctx, m, models) {
       height: 300,
       ariaLabel: `${m.name}: hintaindeksi (2025=100) ${idxPeriod}, viimeisin ${fmt.idx(m.index)}; kaikkien kuluttajahintojen indeksi ${fmt.idx(idxKhi.at(-1))}.`,
     }),
-    summary: `Pisteluku ${fmt.idx(m.index)} tarkoittaa, että hinnat olivat ${fmt.inessive(m.month)} ${fmt.pct(Math.abs(m.index - 100))} ${m.index >= 100 ? 'korkeammat' : 'matalammat'} kuin vuonna 2025 keskimäärin. Kaikkien kuluttajahintojen pisteluku oli ${fmt.idx(idxKhi.at(-1))}.`,
+    summary: `${fmt.capitalize(fmt.genitive(m.month))} pisteluku ${fmt.idx(m.index)} tarkoittaa, että ${commoditySubject(m).text} olivat ${
+      fmt.round(m.index - 100, 1) === 0 ? 'samalla tasolla' : `${fmt.pct(Math.abs(m.index - 100))} ${m.index > 100 ? 'korkeammat' : 'alemmat'}`
+    } kuin vuonna 2025 keskimäärin. Kaikkien kuluttajahintojen pisteluku oli ${fmt.idx(idxKhi.at(-1))}.`,
     table: c.dataTable({
       id: 'pisteluku-taulukko',
       caption: `${m.name}: pisteluku ja vuosimuutos kuukausittain (2025=100), ${idxPeriod}`,
@@ -880,7 +970,7 @@ function commodityPage(ctx, m, models) {
         .reverse(),
       visibleRows: 12,
       compact: true,
-      toggleLabels: { more: `Näytä kaikki kuukaudet (${idxMonths.length})`, less: 'Näytä vain 12 viimeisintä' },
+      toggleLabels: { more: `Näytä kaikki kuukaudet (${idxMonths.length})`, less: 'Näytä vain 12 viimeisintä kuukautta' },
     }),
     source: c.sourceLine({ sources: [bothSrc], updated }),
   });
@@ -910,7 +1000,7 @@ function commodityPage(ctx, m, models) {
       ariaLabel: `${m.name}: hintojen vuosimuutos ${tenPeriod}, viimeisin ${signed(m.yoy)}; kaikki kuluttajahinnat ${signed(m.khiYoy)}.`,
     }),
     summary: tenMax && tenMin
-      ? `${fmt.capitalize(tenPeriod)}: suurin vuosimuutos ${signed(tenMax.value)} (${tenMax.months.map((x) => fmt.monthShort(x)).join(', ')}), pienin ${signed(tenMin.value)} (${tenMin.months.map((x) => fmt.monthShort(x)).join(', ')}). Viimeisin ${signed(m.yoy)}, kun kaikki kuluttajahinnat ${signed(m.khiYoy)}.`
+      ? `${fmt.capitalize(tenPeriod)}: suurin vuosimuutos ${signed(tenMax.value)} (${tenMax.months.map((x) => fmt.monthShort(x)).join(', ')}), pienin ${signed(tenMin.value)} (${tenMin.months.map((x) => fmt.monthShort(x)).join(', ')}). Viimeisin ${signed(m.yoy)}; kaikkien kuluttajahintojen muutos oli ${signed(m.khiYoy)}.`
       : `Viimeisin vuosimuutos ${signed(m.yoy)} (${monthTxt}).`,
     source: c.sourceLine({ sources: [bothSrc], updated }),
   });
@@ -926,14 +1016,14 @@ function commodityPage(ctx, m, models) {
     : ''}
 <h3 class="hinnat-list__title">Katso myös</h3>
 <ul class="hinnat-links">
-  <li><a href="/hinnat/">Mikä inflaatiota nostaa? Kaikki pääryhmät, kallistujat ja halventujat</a></li>
+  <li><a href="/hinnat/">Mikä inflaatiota nostaa? Pääryhmät sekä eniten kallistuneet ja halventuneet hyödykkeet</a></li>
   ${topic ? html`<li><a href="${topic.href}">${topic.label}</a></li>` : ''}
 </ul>`;
 
   const note = c.callout({
     tone: 'note',
     title: 'Hintaindeksi, ei euromääräinen hinta',
-    body: html`<p>Luvut kertovat, kuinka paljon hinnat ovat muuttuneet (Tilastokeskuksen kuluttajahintaindeksi, hyödykeryhmä ${m.coicop ?? m.code} ”${m.officialName}”). Ne eivät kerro, mitä tuote maksaa kaupassa.${
+    body: html`<p>Luvut kertovat, kuinka paljon hinnat ovat muuttuneet (Tilastokeskuksen kuluttajahintaindeksi, hyödykeryhmä ${m.coicop ?? m.code} ”${m.officialName}”). Ne eivät kerro euromääräistä hintaa.${
       topic?.href === '/polttoaineet/' ? html` Polttoaineiden euromääräiset keskihinnat ovat sivulla <a href="/polttoaineet/">polttoaineet</a>.` : ''
     }</p>`,
   });

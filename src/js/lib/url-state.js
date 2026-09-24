@@ -21,11 +21,6 @@ export function getParam(name, allowed) {
   return !allowed || allowed.includes(v) ? v : null;
 }
 
-/** All query parameters as an object. @returns {Record<string, string>} */
-export function getParams() {
-  return Object.fromEntries(new URLSearchParams(window.location.search));
-}
-
 /**
  * Set or remove query parameters in place. A value equal to its default (or
  * null/undefined/'') removes the parameter so default URLs stay clean.

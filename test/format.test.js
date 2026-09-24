@@ -5,11 +5,15 @@ import * as f from '../src/js/lib/format.js';
 const NB = ' ';
 const MI = '−';
 const DASH = '–';
+/** '%-yks.' with the non-breaking hyphen U+2011. */
+const PPU = '%‑yks.';
 
 test('constants are the expected code points', () => {
   assert.equal(f.NBSP.charCodeAt(0), 0x00a0);
   assert.equal(f.MINUS.charCodeAt(0), 0x2212);
   assert.equal(f.DASH.charCodeAt(0), 0x2013);
+  assert.equal(f.NB_HYPHEN.charCodeAt(0), 0x2011);
+  assert.equal(f.PP_UNIT, PPU);
 });
 
 test('Intl fi-FI in this runtime uses U+2212 minus and NBSP grouping', () => {
@@ -53,14 +57,16 @@ test('pct', () => {
 });
 
 test('pp (percentage points)', () => {
-  assert.equal(f.pp(0.1), `+0,1${NB}%-yks.`);
-  assert.equal(f.pp(-0.1), `${MI}0,1${NB}%-yks.`);
-  assert.equal(f.pp(0), `±0,0${NB}%-yks.`);
-  assert.equal(f.pp(0.04), `±0,0${NB}%-yks.`);
-  assert.equal(f.pp(-0.04), `±0,0${NB}%-yks.`);
-  assert.equal(f.pp(2.2 - 2.1), `+0,1${NB}%-yks.`, 'float noise');
-  assert.equal(f.pp(1.7, { sign: false }), `1,7${NB}%-yks.`);
+  assert.equal(f.pp(0.1), `+0,1${NB}${PPU}`);
+  assert.equal(f.pp(-0.1), `${MI}0,1${NB}${PPU}`);
+  assert.equal(f.pp(0), `±0,0${NB}${PPU}`);
+  assert.equal(f.pp(0.04), `±0,0${NB}${PPU}`);
+  assert.equal(f.pp(-0.04), `±0,0${NB}${PPU}`);
+  assert.equal(f.pp(2.2 - 2.1), `+0,1${NB}${PPU}`, 'float noise');
+  assert.equal(f.pp(1.7, { sign: false }), `1,7${NB}${PPU}`);
   assert.equal(f.pp(null), DASH);
+  // The unit never breaks at its hyphen in running text (QV-10).
+  assert.doesNotMatch(f.pp(0.1), /-/);
 });
 
 test('num, idx, eur', () => {
@@ -201,4 +207,27 @@ test('date, dateTime, isoDate', () => {
   assert.equal(f.isoDate('2026-09-14T05:00:00Z'), '2026-09-14');
   assert.equal(f.isoDate('garbage'), null);
   assert.match(f.isoDate(), /^\d{4}-\d{2}-\d{2}$/);
+});
+
+test('English formatters (en-GB digits, U+2212 minus)', () => {
+  assert.deepEqual([f.EN_MONTHS[0], f.EN_MONTHS[11], f.EN_MONTHS_SHORT[7]], ['January', 'December', 'Aug']);
+  assert.equal(f.enNum(1234.5, 1), '1,234.5');
+  assert.equal(f.enNum(-0.2, 1), `${MI}0.2`);
+  assert.equal(f.enNum(-0.04, 1), '0.0');
+  assert.equal(f.enNum(0, 1, { sign: true }), '±0.0');
+  assert.equal(f.enPct(2.2), '2.2%');
+  assert.equal(f.enPct(0.4, { sign: true }), '+0.4%');
+  assert.equal(f.enPp(-0.1), `${MI}0.1${NB}pp`);
+  assert.equal(f.enEur(1234.5), '€1,234.50');
+  assert.equal(f.enEur(-3, 0), `${MI}€3`);
+  assert.equal(f.enMonthName('2026-08'), 'August 2026');
+  assert.equal(f.enMonthShort('2026-08', { year: false }), 'Aug');
+  assert.equal(f.enDate('2026-09-17'), '17 September 2026');
+  assert.equal(f.enDate('2026-09-14T22:30:00Z'), '15 September 2026');
+  for (const bad of [null, undefined, NaN]) {
+    assert.equal(f.enPct(bad), DASH);
+    assert.equal(f.enEur(bad), DASH);
+  }
+  assert.equal(f.enDate(undefined), DASH);
+  assert.equal(f.enMonthName(null), DASH);
 });

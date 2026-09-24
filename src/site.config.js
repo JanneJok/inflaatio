@@ -12,7 +12,7 @@ export const BASE_URL = 'https://inflaatio.fi';
 export const BRAND = 'Inflaatio.fi';
 export const LANG = 'fi';
 
-/** Operator (rekisterinpitäjä) from the old terms-of-use.html. */
+/** Operator (rekisterinpitäjä), as in the previous site's terms of use. */
 export const OPERATOR = Object.freeze({
   name: 'Opak Oy',
   businessId: '2950233-8',

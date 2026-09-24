@@ -35,8 +35,10 @@ jobs:
           node-version: '24'
           cache: npm
 
+      # --ignore-scripts: no install script of any dependency runs (the build
+      # needs none; esbuild finds its platform binary without its postinstall).
       - name: Asenna riippuvuudet (package-lock.json)
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Lint
         run: npm run lint
@@ -71,7 +73,7 @@ jobs:
       - name: Käynnistä kontti
         run: |
           docker run -d --name inflaatio-ci -p 8080:8080 inflaatio:ci
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8080/healthz >/dev/null; then exit 0; fi
             sleep 1
           done

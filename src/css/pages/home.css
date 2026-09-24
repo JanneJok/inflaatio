@@ -100,6 +100,11 @@
   font-size: var(--fs-caption);
 }
 
+/* The solid 0 % line of the sparkline (chart-ref--muted) in its legend. */
+.home-hero__spark .series--muted {
+  color: var(--border-strong);
+}
+
 .home-hero__spark-axis {
   display: flex;
   justify-content: space-between;
@@ -288,11 +293,8 @@ html:not(.js) .home-panel + .home-panel {
   }
 }
 
-.home-legend .legend__item[hidden] {
-  display: none;
-}
-
-.home-legend__event {
+/* Event markers are vertical dotted lines in the chart. */
+.home #kehitys-kaavio .legend__item[data-series='events'] .legend__swatch {
   width: 0;
   height: 14px;
   border-top: 0;
@@ -344,6 +346,23 @@ html:not(.js) .home-panel + .home-panel {
 
 .home-annual-table {
   margin-top: var(--space-6);
+}
+
+/* "2026 tammi–elo": the month span stays on one line. */
+.home-annual-table .data-table__partial {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .home-annual-table .data-table__partial {
+    display: block;
+    margin-left: 0;
+  }
+
+  /* "KHI:n muutos, %-yks." may wrap so the four columns fit a phone. */
+  .home-annual-table thead th.num {
+    white-space: normal;
+  }
 }
 
 .home-more {

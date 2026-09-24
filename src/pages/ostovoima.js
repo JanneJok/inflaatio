@@ -1,5 +1,5 @@
 /**
- * /ostovoima/ – nominal vs real earnings and "Riittääkö palkankorotukseni?"
+ * /ostovoima/ – nominal vs real earnings and "Riittääkö palkankorotuksesi?"
  * (owner CALC).
  *
  * Earnings: Tilastokeskus ansiotasoindeksi and reaaliansioindeksi (table 14um,
@@ -10,7 +10,7 @@
 import { html } from '../../scripts/lib/html.js';
 import * as fmt from '../js/lib/format.js';
 import { buildSeries, pickMoneySeries, realWageChange, wageView, latestPeriod, periodYear } from '../js/lib/calc.js';
-import { monthYearField, out, calcJsonLd, messageData, noJsNote, calculatorCards, calcCrumbs, quarterName, quarterIn, SOURCES } from './laskurit.js';
+import { monthYearField, out, calcJsonLd, messageData, noJsNote, calculatorCards, calcCrumbs, quarterName, quarterInWords, earningsClause, SOURCES } from './laskurit.js';
 
 export const PATH = '/ostovoima/';
 /** Example salaries (inputs, not statistics). */
@@ -18,9 +18,9 @@ const BEFORE = 3200;
 const AFTER = 3300;
 
 const MESSAGES = {
-  salary: 'Anna palkka euroina, esimerkiksi 3200 tai 3 250,50.',
+  salary: 'Anna palkka euroina, esimerkiksi 3 200 tai 3 250,50.',
   future: 'Kuukauden {kuukausi} hintoja ei ole vielä julkaistu. Uusin on {viimeisin}.',
-  before: 'Laskuri kattaa kuukaudet {alku} lähtien.',
+  before: 'Laskurin varhaisin kuukausi on {alku}.',
   order: 'Jälkimmäisen kuukauden pitää olla ensimmäisen jälkeen.',
 };
 
@@ -48,7 +48,8 @@ export default async function ostovoima(ctx) {
   const lastYear = Number(lastQ.slice(0, 4));
   const tickStep = [1, 2, 3, 5].find((s) => (lastYear - firstYear) / s <= 7) ?? 5;
   const base = an.indexBase ?? '2015=100';
-  const summary = `Ansiotasoindeksi oli ${quarterIn(lastQ)} ${f.idx(nominal.at(-1), 1)} ja reaaliansioindeksi ${f.idx(real.at(-1), 1)} (${base}). Ansiot ovat nousseet vuoden ${base.slice(0, 4)} tasosta ${f.pct(nomSince)}, mutta hintojen nousu huomioiden ${f.pct(realSince, { sign: true })}.`;
+  const since = (v) => `${v >= 0 ? 'nousseet' : 'laskeneet'} ${f.pct(Math.abs(v))}`;
+  const summary = `${f.capitalize(quarterInWords(lastQ))} ansiotasoindeksi oli ${f.idx(nominal.at(-1), 1)} ja reaaliansioindeksi ${f.idx(real.at(-1), 1)} (${base}${prelim.has(lastQ) ? ', ennakko' : ''}). Nimelliset ansiot ovat ${since(nomSince)} vuoden ${base.slice(0, 4)} tasosta, reaaliansiot ${(nomSince >= 0) === (realSince >= 0) ? f.pct(Math.abs(realSince)) : since(realSince)}.`;
 
   const chart = svg.lineChart({
     series: [
@@ -86,7 +87,7 @@ export default async function ostovoima(ctx) {
     ],
     rows,
     visibleRows: 8,
-    toggleLabels: { more: `Näytä ${rows.length} neljännestä`, less: 'Näytä vain 8 viimeisintä' },
+    toggleLabels: { more: `Näytä kaikki neljännekset (${rows.length})`, less: 'Näytä vain 8 viimeisintä neljännestä' },
     compact: true,
     note: 'Vuosimuutos = muutos edellisen vuoden samasta neljänneksestä. Ennakkotiedot tarkentuvat myöhemmin.',
   });
@@ -140,7 +141,7 @@ export default async function ostovoima(ctx) {
     c.kpiCard({ label: 'Ansiot vuodessa', value: f.pct(la.nominalYoy, { sign: true }), note: `${quarterName(la.period)}${ennakko(la.period)}` }),
     c.kpiCard({ label: 'Reaaliansiot vuodessa', value: f.pct(la.realYoy, { sign: true }), note: `${quarterName(la.period)}${ennakko(la.period)}` }),
     c.kpiCard({ label: 'Inflaatio (KHI)', value: f.pct(k.yoy), note: f.monthName(k.month) }),
-    c.kpiCard({ label: `Reaaliansiot vs. ${base.slice(0, 4)}`, value: f.pct(realSince, { sign: true }), note: `${quarterName(lastQ)}${ennakko(lastQ)}` }),
+    c.kpiCard({ label: `Reaaliansiot vuoteen ${base.slice(0, 4)} verrattuna`, value: f.pct(realSince, { sign: true }), note: `${quarterName(lastQ)}${ennakko(lastQ)}` }),
   ]);
 
   // Wage calculator (default: the latest 12 months).
@@ -157,7 +158,7 @@ export default async function ostovoima(ctx) {
 
   const form = h`<form class="calc__form form js-only" id="palkka-lomake" novalidate${ctx.attrs({ data: messageData(MESSAGES) })}>
   <div class="calc__grid">
-    ${c.field({ id: 'palkka-ennen', label: 'Palkka ennen', value: String(BEFORE), suffix: '€', hint: 'Kuukausipalkka ennen korotusta.', required: true, attrs: decimalAttrs })}
+    ${c.field({ id: 'palkka-ennen', label: 'Palkka ennen', value: String(BEFORE), suffix: '€', hint: 'Kuukausipalkka ennen korotusta, esimerkiksi 3 200.', required: true, attrs: decimalAttrs })}
     ${c.field({ id: 'palkka-nyt', label: 'Palkka nyt', value: String(AFTER), suffix: '€', hint: 'Kuukausipalkka korotuksen jälkeen.', required: true, attrs: decimalAttrs })}
   </div>
   ${monthYearField({ id: 'palkka-alku', legend: 'Milloin sait vanhaa palkkaa?', value: from, minYear, maxYear, hint: 'Esimerkiksi edellisen palkankorotuksen kuukausi.' })}
@@ -192,24 +193,23 @@ export default async function ostovoima(ctx) {
 
   const explain = h`<div class="prose">
   <p><strong>Ansiotasoindeksi</strong> kuvaa palkansaajien säännöllisen työajan ansioiden muutosta. <strong>Reaaliansioindeksi</strong> on ansiotasoindeksi, josta on poistettu kuluttajahintojen muutos: kun ansiot nousevat hintoja nopeammin, ostovoima kasvaa.</p>
-  <p>Laskuri tekee saman omalle palkallesi: <code>reaalimuutos = (palkka nyt / palkka ennen) / (hintaindeksi nyt / hintaindeksi ennen) − 1</code>. Esimerkiksi ${f.eur(BEFORE, 0)} → ${f.eur(AFTER, 0)} on ${v.nominal}, ja hinnat nousivat ${f.monthName(from)} – ${f.monthName(latestMonth)} ${f.pct(r.pricePct)}, joten ostovoima muuttui ${v.real}.</p>
+  <p>Laskuri tekee saman omalle palkallesi: <code>reaalimuutos = (palkka nyt / palkka ennen) / (hintaindeksi nyt / hintaindeksi ennen) − 1</code>. Esimerkiksi ${f.eur(BEFORE, 0)} → ${f.eur(AFTER, 0)} on ${v.nominal}, ja hinnat ${r.pricePct >= 0 ? 'nousivat' : 'laskivat'} ${f.pct(Math.abs(r.pricePct))} ${f.elative(from)} ${f.illative(latestMonth)}, joten ostovoima ${r.realPct >= 0.05 ? 'kasvoi' : r.realPct <= -0.05 ? 'heikkeni' : 'pysyi ennallaan'}${Math.abs(r.realPct) >= 0.05 ? ` ${f.pct(Math.abs(r.realPct))}` : ''}.</p>
   <p>Laskelma käyttää bruttopalkkaa. Nettopalkkaan vaikuttavat myös verot ja maksut. Koko talouden keskimääräiset ansiot ja hintakehitys löytyvät yllä olevasta kaaviosta; inflaatiosta tarkemmin <a href="/inflaatio/">Inflaatio vuosittain</a> -sivulla.</p>
 </div>`;
 
   const main = h`${c.pageHeader({
     eyebrow: `Ostovoima · ${quarterName(la.period)}`,
     title: 'Ostovoima ja reaaliansiot',
-    lede: `Ansiotaso ${la.nominalYoy >= 0 ? 'nousi' : 'laski'} ${quarterIn(la.period)} ${f.pct(Math.abs(la.nominalYoy))} vuodessa ja reaaliansiot ${la.realYoy >= 0 ? 'nousivat' : 'laskivat'} ${f.pct(Math.abs(la.realYoy))}${la.preliminary ? ' (ennakkotieto)' : ''}. Laske, riittääkö oma palkankorotuksesi kattamaan hintojen nousun.`,
+    lede: `${f.capitalize(quarterInWords(la.period))} ${earningsClause(la.nominalYoy, la.realYoy)}${la.preliminary ? ' (ennakkotieto)' : ''}. Laske, riittääkö oma palkankorotuksesi kattamaan hintojen nousun.`,
     meta: h`Päivitetty <time datetime="${String(updatedAti ?? ctx.latest.dataUpdated).slice(0, 10)}">${f.date(updatedAti ?? ctx.latest.dataUpdated)}</time> · Lähde: Tilastokeskus (ansiotasoindeksi, kuluttajahintaindeksi)`,
   })}
 ${c.section({ id: 'tunnusluvut', title: 'Ansiot ja hinnat', className: 'section--flush-top', body: kpis })}
-${c.section({ id: 'palkkalaskuri', title: 'Riittääkö palkankorotukseni?', intro: 'Vertaa palkkasi muutosta kuluttajahintojen muutokseen samalla ajanjaksolla.', body: h`${noJsNote(c, 'Alla on esimerkkilaskelma uusimmilla hinnoilla. Voit laskea itse: jaa palkkojen suhde hintaindeksien suhteella.')}<div class="calc">${form}${result}</div>${island}` })}
+${c.section({ id: 'palkkalaskuri', title: 'Riittääkö palkankorotuksesi?', intro: 'Vertaa palkkasi muutosta kuluttajahintojen muutokseen samalla ajanjaksolla.', body: h`${noJsNote(c, 'Alla on esimerkkilaskelma uusimmilla hinnoilla. Voit laskea itse: jaa palkkojen suhde hintaindeksien suhteella.')}<div class="calc">${form}${result}</div>${island}` })}
 ${c.section({ id: 'kehitys', title: 'Ansioiden kehitys', intro: 'Nimelliset ansiot ja hintojen nousulla korjatut reaaliansiot.', body: h`${figure}${yoyFigure}` })}
 ${c.section({ id: 'selitys', title: 'Mitä luvut tarkoittavat?', body: explain })}
 ${c.section({ id: 'muut-laskurit', title: 'Muut laskurit', body: c.cardGrid(calculatorCards(ctx, { exclude: PATH })) })}`;
 
-  const realVerb = la.realYoy >= 0 ? `nousivat ${f.pct(la.realYoy)}` : `laskivat ${f.pct(-la.realYoy)}`;
-  const description = `Ansiot ${la.nominalYoy >= 0 ? 'nousivat' : 'laskivat'} ${f.pct(Math.abs(la.nominalYoy))} ja reaaliansiot ${realVerb} vuodessa (${quarterName(la.period)}${la.preliminary ? ', ennakko' : ''}). Riittääkö palkankorotuksesi?`;
+  const description = `${f.capitalize(earningsClause(la.nominalYoy, la.realYoy))} (${quarterName(la.period)}${la.preliminary ? ', ennakko' : ''}). Riittääkö palkankorotuksesi?`;
   return [
     {
       path: PATH,
@@ -220,7 +220,7 @@ ${c.section({ id: 'muut-laskurit', title: 'Muut laskurit', body: c.cardGrid(calc
         page: 'ostovoima',
         scripts: ['pages/ostovoima.js'],
         breadcrumbs: calcCrumbs(ctx, PATH, 'Ostovoima'),
-        jsonLd: [calcJsonLd(ctx, { name: 'Riittääkö palkankorotukseni? – ostovoimalaskuri', path: PATH, description })],
+        jsonLd: [calcJsonLd(ctx, { name: 'Riittääkö palkankorotuksesi? – ostovoimalaskuri', path: PATH, description })],
         main,
       }),
       changefreq: 'monthly',

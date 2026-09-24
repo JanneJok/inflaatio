@@ -1,7 +1,13 @@
 /**
  * Navigation: mobile menu (hamburger with aria-expanded, Esc, outside click,
- * closes on link click and when the viewport grows to desktop) and scrollspy
- * for in-page tables of contents (nav[data-scrollspy] a[href^="#"]).
+ * closes on link click, when focus leaves it and when the viewport grows to
+ * desktop) and scrollspy for in-page tables of contents
+ * (nav[data-scrollspy] a[href^="#"]).
+ *
+ * Keyboard: the <nav> comes before the hamburger in the DOM (desktop order),
+ * so opening the menu moves focus to its first link; Tab then walks the
+ * links, and leaving the menu (Tab past the last link, Shift+Tab before the
+ * first) closes it.
  */
 
 const DESKTOP = '(min-width: 960px)';
@@ -18,10 +24,19 @@ function initMenu() {
     const label = open ? toggle.dataset.labelClose || 'Sulje valikko' : toggle.dataset.labelOpen || 'Avaa valikko';
     toggle.setAttribute('aria-label', label);
     nav.classList.toggle('is-open', open);
-    if (!open && focus) toggle.focus();
+    // preventScroll: the header is sticky, focusing it must not scroll the page.
+    if (open && focus) nav.querySelector('a')?.focus({ preventScroll: true });
+    if (!open && focus) toggle.focus({ preventScroll: true });
   };
 
-  toggle.addEventListener('click', () => setOpen(!isOpen()));
+  toggle.addEventListener('click', () => setOpen(!isOpen(), { focus: !isOpen() }));
+  // Focus moved outside the open menu (Tab past the last link, a click on a
+  // focusable element elsewhere): close it. relatedTarget null = the window
+  // or a non-focusable area; outside clicks are handled below.
+  nav.addEventListener('focusout', (e) => {
+    const to = e.relatedTarget;
+    if (isOpen() && to instanceof Node && !nav.contains(to) && !toggle.contains(to)) setOpen(false);
+  });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && isOpen()) setOpen(false, { focus: true });
   });

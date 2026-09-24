@@ -123,6 +123,10 @@ mikä muutos rikkoi tai korjasi minkäkin asian.
   docker stop inflaatio-local
   ```
 
+  Komennot ovat POSIX-muotoa (Git Bash tai WSL Windowsissa). PowerShellissä
+  savutestin rivi on
+  `$env:SMOKE_URL = "http://127.0.0.1:8108"; node --test --test-name-pattern="^smoke" test/ops.test.js`.
+
 ## Tietoturva
 
 Älä koskaan commitoi salaisuuksia (API-avaimia, tokeneita, salasanoja).

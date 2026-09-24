@@ -11,7 +11,7 @@
  */
 import * as fmt from '../js/lib/format.js';
 import * as stats from '../js/lib/stats.js';
-import { fitDescription, sourceMeta } from './inflaatio.js';
+import { fitDescription, newestDate, sourceMeta } from './inflaatio.js';
 
 /** Default base key (official base since the January 2026 figures). */
 export const DEFAULT_BASE = '2025';
@@ -253,11 +253,14 @@ ${ctx.jsonScript('pisteluvut-data', island)}`;
     `Uusin ${fmt.monthName(latest)}.`,
   ]);
   const first = series.reduce((a, s) => (s.start < a ? s.start : a), latest);
+  // Content changes only with the KHI and cost-of-living index releases.
+  const lastmod = newestDate(ctx.latest.updated?.khi, ctx.latest.updated?.elinkustannusindeksi);
   return [
     {
       path,
       priority: 0.8,
       changefreq: 'monthly',
+      lastmod: lastmod ?? undefined,
       html: ctx.layout({
         title: 'Pisteluvut: KHI ja elinkustannusindeksi',
         description,
@@ -279,7 +282,7 @@ ${ctx.jsonScript('pisteluvut-data', island)}`;
             variableMeasured: series.map((s) => s.label),
             creator: { '@type': 'Organization', name: 'Tilastokeskus', url: 'https://stat.fi/' },
             license: 'https://creativecommons.org/licenses/by/4.0/',
-            dateModified: ctx.latest.dataUpdated ?? undefined,
+            dateModified: lastmod ?? ctx.latest.dataUpdated ?? undefined,
           },
         ],
         main,

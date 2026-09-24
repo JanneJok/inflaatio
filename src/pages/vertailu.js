@@ -9,7 +9,7 @@
 import * as fmt from '../js/lib/format.js';
 import * as stats from '../js/lib/stats.js';
 import { html } from '../../scripts/lib/html.js';
-import { fitText, datasetLd, itemsByCode, DESCRIPTION_MAX } from './hinnat.js';
+import { fitText, datasetLd, itemsByCode, joinFi, DESCRIPTION_MAX } from './hinnat.js';
 
 /** Comparison areas in display order. */
 export const GEOS = Object.freeze(['FI', 'EA', 'EU', 'SE', 'DK', 'NO', 'DE', 'EE']);
@@ -37,6 +37,69 @@ export function latestByGeo(y) {
       provisional: month ? y.flags?.[geo]?.[month] === 'p' : false,
     };
   });
+}
+
+/** Areas that are aggregates, not countries: never "the highest/lowest country". */
+export const AGGREGATES = Object.freeze(['EA', 'EU']);
+
+/**
+ * Highest and lowest value (as shown, 1 decimal) with every tied entry.
+ * @template {{value: number|null}} T
+ * @param {T[]} list
+ * @returns {null | {max: {value: number, rows: T[]}, min: {value: number, rows: T[]}}}
+ */
+export function extremesWithTies(list) {
+  const r1 = (v) => fmt.round(v, 1);
+  const vals = list.filter((r) => fmt.isNum(r.value));
+  if (!vals.length) return null;
+  const hi = Math.max(...vals.map((r) => r1(r.value)));
+  const lo = Math.min(...vals.map((r) => r1(r.value)));
+  return {
+    max: { value: hi, rows: vals.filter((r) => r1(r.value) === hi) },
+    min: { value: lo, rows: vals.filter((r) => r1(r.value) === lo) },
+  };
+}
+
+/**
+ * Ordinal in the translative for "N:nneksi matalin" (1 → '', 2 → 'toiseksi',
+ * 7 → 'seitsemänneksi' …); null above 19, where the word form gets unwieldy.
+ * @param {number} n
+ */
+export function ordinalTranslative(n) {
+  const units = ['', '', 'toiseksi', 'kolmanneksi', 'neljänneksi', 'viidenneksi', 'kuudenneksi', 'seitsemänneksi', 'kahdeksanneksi', 'yhdeksänneksi', 'kymmenenneksi'];
+  const teens = ['', 'yhdenneksi', 'kahdenneksi', 'kolmanneksi', 'neljänneksi', 'viidenneksi', 'kuudenneksi', 'seitsemänneksi', 'kahdeksanneksi', 'yhdeksänneksi'];
+  if (!Number.isInteger(n) || n < 1) return null;
+  if (n <= 10) return units[n];
+  if (n < 20) return `${teens[n - 10]}toista`;
+  return null;
+}
+
+/**
+ * "Suomen inflaatio … oli elokuussa 2026 seitsemänneksi matalin EU:n 27
+ * jäsenmaan joukossa." (rank 1: "matalin"; above 19 the rank is given as a number).
+ * @param {{rank: number, total: number, value: number, month: string}} r euRank() result
+ */
+export function rankSentence(r) {
+  const word = ordinalTranslative(r.rank);
+  const tail = `EU:n ${r.total} jäsenmaan joukossa`;
+  if (word == null) return `Suomen inflaatio ${fmt.pct(r.value)} oli ${fmt.inessive(r.month)} sijalla ${r.rank} ${tail}, kun maat järjestetään matalimmasta inflaatiosta korkeimpaan.`;
+  return `Suomen inflaatio ${fmt.pct(r.value)} oli ${fmt.inessive(r.month)} ${word ? `${word} ` : ''}matalin ${tail}.`;
+}
+
+/** Area name inside a sentence ('Euroalue' → 'euroalue'; country names stay capitalised). */
+export const areaInText = (label) => (label === 'Euroalue' ? 'euroalue' : label);
+
+/**
+ * "Elokuussa 2026: Suomi 2,4 %, euroalue 3,2 % ja EU 3,2 %." — with each
+ * area's own month when the months differ.
+ * @param {{label: string, value: number|null, month: string|null}[]} list rows of latestByGeo()
+ */
+export function latestSummary(list) {
+  const months = new Set(list.map((r) => r.month));
+  if (months.size === 1 && list[0]?.month) {
+    return `${fmt.capitalize(fmt.inessive(list[0].month))}: ${joinFi(list.map((r) => `${areaInText(r.label)} ${fmt.pct(r.value)}`))}.`;
+  }
+  return `Viimeisimmät luvut: ${joinFi(list.map((r) => `${areaInText(r.label)} ${fmt.pct(r.value)} (${fmt.monthShort(r.month)})`))}.`;
 }
 
 /**
@@ -98,7 +161,7 @@ export default async function vertailu(ctx) {
   const month = fi.month;
   const monthTxt = fmt.monthName(month);
   const updated = ctx.latest.updated?.ykhi;
-  const esSrc = { name: 'Eurostat', href: ctx.data.meta?.sources?.ykhi?.url ?? 'https://ec.europa.eu/eurostat/web/hicp', detail: 'yhdenmukaistettu kuluttajahintaindeksi (YKHI)' };
+  const esSrc = { name: 'Eurostat', href: ctx.data.meta?.sources?.ykhi?.url ?? 'https://ec.europa.eu/eurostat/web/hicp', detail: 'yhdenmukaistettu kuluttajahintaindeksi, YKHI' };
   const khiSrc = { name: 'Tilastokeskus', href: 'https://stat.fi/tilasto/khi', detail: 'kuluttajahintaindeksi' };
   const ennakko = (r) => (r?.provisional ? ' (ennakko)' : '');
   const rank = euRank(y, 'FI');
@@ -108,11 +171,11 @@ export default async function vertailu(ctx) {
   const sameMonth = fi.month === ea.month;
   let headline;
   if (!sameMonth) {
-    headline = `Suomen inflaatio oli ${fmt.inessive(fi.month)} ${fmt.pct(fi.value)}${ennakko(fi)} ja euroalueen ${fmt.inessive(ea.month)} ${fmt.pct(ea.value)}${ennakko(ea)}.`;
+    headline = `Suomen inflaatio oli ${fmt.pct(fi.value)}${ennakko(fi)} ${fmt.inessive(fi.month)} ja euroalueen ${fmt.pct(ea.value)}${ennakko(ea)} ${fmt.inessive(ea.month)}.`;
   } else if (gap === 0) {
     headline = `Suomen inflaatio (${fmt.pct(fi.value)}) oli ${fmt.inessive(month)} yhtä suuri kuin euroalueella${ennakko(fi)}.`;
   } else {
-    headline = `Suomen inflaatio (${fmt.pct(fi.value)}${ennakko(fi)}) oli ${fmt.inessive(month)} ${fmt.num(Math.abs(gap), 1)} prosenttiyksikköä euroalueen (${fmt.pct(ea.value)}) ${gap < 0 ? 'alapuolella' : 'yläpuolella'}.`;
+    headline = `${fmt.capitalize(fmt.inessive(month))} Suomen inflaatio (${fmt.pct(fi.value)}${ennakko(fi)}) oli ${fmt.num(Math.abs(gap), 1)} prosenttiyksikköä euroalueen inflaatiota (${fmt.pct(ea.value)}) ${gap < 0 ? 'matalampi' : 'korkeampi'}.`;
   }
 
   const header = c.pageHeader({
@@ -132,6 +195,17 @@ export default async function vertailu(ctx) {
   // Latest table + bars
   const geoCls = { FI: 'ykhi', EA: 'ea' };
   const sorted = [...rows].filter((r) => fmt.isNum(r.value)).sort((a, b) => b.value - a.value);
+  // Summary: the highest/lowest COUNTRY (aggregates left out) with every tie.
+  const areaName = (r) => (r.month !== month ? `${r.label}, ${fmt.monthShort(r.month)}` : r.label);
+  const ext = extremesWithTies(rows.filter((r) => !AGGREGATES.includes(r.geo)));
+  const extTxt = ext
+    ? `Korkein ${fmt.pct(ext.max.value)} (${joinFi(ext.max.rows.map(areaName))}), matalin ${fmt.pct(ext.min.value)} (${joinFi(ext.min.rows.map(areaName))}).`
+    : '';
+  const aggTxt = joinFi([
+    `Suomi ${fmt.pct(fi.value)}`,
+    `euroalue ${fmt.pct(ea.value)}`,
+    ...(by.EU && fmt.isNum(by.EU.value) ? [`EU ${fmt.pct(by.EU.value)}`] : []),
+  ]);
   const barsFigure = c.chartFigure({
     id: 'maat-kaavio',
     title: `Vuosi-inflaatio maittain, ${monthTxt}`,
@@ -146,7 +220,7 @@ export default async function vertailu(ctx) {
       formatValue: (v) => fmt.pct(v),
       ariaLabel: `Vuosi-inflaatio ${fmt.inessive(month)}: ${sorted.map((r) => `${r.label} ${fmt.pct(r.value)}`).join(', ')}.`,
     }),
-    summary: `Korkein: ${sorted[0].label} ${fmt.pct(sorted[0].value)}, matalin: ${sorted.at(-1).label} ${fmt.pct(sorted.at(-1).value)}. Suomi ${fmt.pct(fi.value)}, euroalue ${fmt.pct(ea.value)}. EKP:n tavoite on ${TARGET} %.`,
+    summary: `${extTxt} ${aggTxt}. EKP:n tavoite on ${TARGET} %.`.trim(),
     source: c.sourceLine({ sources: [esSrc], updated }),
   });
   const latestTable = c.dataTable({
@@ -189,7 +263,7 @@ export default async function vertailu(ctx) {
         height: 300,
         ariaLabel: `Vuosi-inflaatio ${period}: ${list.map((g) => `${y.labels?.[g] ?? g} ${fmt.pct(by[g]?.value)}`).join(', ')} (viimeisin kuukausi).`,
       }),
-      summary: `Viimeisimmät luvut: ${list.map((g) => `${y.labels?.[g] ?? g} ${fmt.pct(by[g]?.value)} (${fmt.monthShort(by[g]?.month)})`).join(', ')}.`,
+      summary: latestSummary(list.map((g) => by[g]).filter(Boolean)),
       table: c.dataTable({
         id: `${id}-taulukko`,
         caption: `${title}: vuosimuutos kuukausittain, ${period}`,
@@ -197,6 +271,7 @@ export default async function vertailu(ctx) {
         rows: r.months.map((ym, i) => [fmt.monthShort(ym), ...list.map((_, j) => c.numUnit(fmt.pct(r.series[j][i])))]).reverse(),
         visibleRows: 12,
         compact: true,
+        toggleLabels: { more: `Näytä kaikki kuukaudet (${r.months.length})`, less: 'Näytä vain 12 viimeisintä kuukautta' },
       }),
       source: c.sourceLine({ sources: [esSrc], updated }),
     });
@@ -212,14 +287,13 @@ ${areaChart('saksa-viro', 'Suomi, Saksa ja Viro', ['FI', 'DE', 'EE'], '5v', ['yk
   const targetNote = c.callout({
     tone: 'info',
     title: `EKP:n tavoite on ${TARGET} %`,
-    body: html`<p>Euroopan keskuspankki (EKP) tavoittelee euroalueelle ${TARGET} %:n inflaatiota keskipitkällä aikavälillä YKHI:llä mitattuna. Euroalueen inflaatio oli ${fmt.inessive(ea.month)} ${fmt.pct(ea.value)}${ennakko(ea)}, ${fmt.num(Math.abs(stats.ppChange(ea.value, TARGET)), 1)} prosenttiyksikköä tavoitteen ${ea.value >= TARGET ? 'yläpuolella' : 'alapuolella'}. EKP:n korkopäätökset ja euribor: <a href="/korot/">korot ja inflaatio</a>.</p>`,
+    body: html`<p>Euroopan keskuspankki (EKP) tavoittelee euroalueelle ${TARGET} %:n inflaatiota keskipitkällä aikavälillä YKHI:llä mitattuna. ${fmt.capitalize(fmt.inessive(ea.month))} euroalueen inflaatio oli ${fmt.pct(ea.value)}${ennakko(ea)}, ${fmt.num(Math.abs(stats.ppChange(ea.value, TARGET)), 1)} prosenttiyksikköä tavoitteen ${ea.value >= TARGET ? 'yläpuolella' : 'alapuolella'}. EKP:n korkopäätökset ja euribor: <a href="/korot/">korot ja inflaatio</a>.</p>`,
   });
 
   // EU ranking
   let euSection = '';
   if (rank) {
-    const low = rank.values[0];
-    const high = rank.values.at(-1);
+    const euExt = extremesWithTies(rank.values);
     const euBars = svg.hBarChart({
       bars: rank.values.map((v) => ({ label: v.label, value: v.value, cls: v.geo === 'FI' ? 'ykhi' : 's6' })),
       formatValue: (v) => fmt.pct(v),
@@ -241,7 +315,7 @@ ${areaChart('saksa-viro', 'Suomi, Saksa ja Viro', ['FI', 'DE', 'EE'], '5v', ['yk
           { cls: 's6', label: 'Muut EU-maat', box: true },
         ]),
         chart: euBars,
-        summary: `Suomen inflaatio ${fmt.pct(rank.value)} oli ${fmt.inessive(rank.month)} ${rank.rank}. matalin EU:n ${rank.total} jäsenmaan joukossa. Matalin: ${low.label} ${fmt.pct(low.value)}, korkein: ${high.label} ${fmt.pct(high.value)}.`,
+        summary: `${rankSentence(rank)} Matalin ${fmt.pct(euExt.min.value)} (${joinFi(euExt.min.rows.map((v) => v.label))}), korkein ${fmt.pct(euExt.max.value)} (${joinFi(euExt.max.rows.map((v) => v.label))}).`,
         table: c.dataTable({
           id: 'eu-taulukko',
           caption: `EU-maiden vuosi-inflaatio (YKHI), ${fmt.monthName(rank.month)}`,
@@ -299,7 +373,7 @@ ${c.chartFigure({
     height: 300,
     ariaLabel: `Kokonais- ja pohjainflaatio ${period}: Suomen pohjainflaatio ${fmt.pct(fiC)}, euroalueen ${fmt.pct(eaC)} ja Suomen kokonaisinflaatio ${fmt.pct(fiH)} (${fmt.monthShort(cMonth)}).`,
   }),
-  summary: `Suomen pohjainflaatio oli ${fmt.inessive(cMonth)} ${fmt.pct(fiC)} ja kokonaisinflaatio ${fmt.pct(fiH)}. ${reading} Euroalueen pohjainflaatio oli ${fmt.pct(eaC)}.`,
+  summary: `${fmt.capitalize(fmt.inessive(cMonth))} Suomen pohjainflaatio oli ${fmt.pct(fiC)} ja kokonaisinflaatio ${fmt.pct(fiH)}. ${reading} Euroalueen pohjainflaatio oli ${fmt.pct(eaC)}.`,
   table: c.dataTable({
     id: 'pohjainflaatio-taulukko',
     caption: `Kokonais- ja pohjainflaatio kuukausittain, ${period}`,
@@ -307,6 +381,7 @@ ${c.chartFigure({
     rows: r.months.map((ym, i) => [fmt.monthShort(ym), ...series.map((_, j) => c.numUnit(fmt.pct(r.series[j][i])))]).reverse(),
     visibleRows: 12,
     compact: true,
+    toggleLabels: { more: `Näytä kaikki kuukaudet (${r.months.length})`, less: 'Näytä vain 12 viimeisintä kuukautta' },
   }),
   source: c.sourceLine({ sources: [{ ...esSrc, detail: 'YKHI ilman energiaa, ruokaa, alkoholia ja tupakkaa' }], updated }),
 })}</div>`,
@@ -340,15 +415,15 @@ ${c.chartFigure({
       ? `${fmt.capitalize(fmt.inessive(gMonth))} KHI ja YKHI olivat yhtä suuret (${fmt.pct(kNow)}).`
       : `${fmt.capitalize(fmt.inessive(gMonth))} KHI oli ${fmt.pct(kNow)} ja YKHI ${fmt.pct(yNow)}, joten KHI oli ${fmt.num(Math.abs(gNow), 1)} prosenttiyksikköä YKHI:tä ${gNow > 0 ? 'korkeampi' : 'matalampi'}.`;
     const yearsTxt = maxPos && maxNeg && maxPos.gap > 0 && maxNeg.gap < 0
-      ? `Vuosina ${gaps[0].year}–${gaps.at(-1).year} KHI oli eniten YKHI:tä korkeampi vuonna ${maxPos.year} (${fmt.pct(maxPos.khi)} vs. ${fmt.pct(maxPos.ykhi)}) ja eniten matalampi vuonna ${maxNeg.year} (${fmt.pct(maxNeg.khi)} vs. ${fmt.pct(maxNeg.ykhi)}).`
+      ? `Vuosina ${gaps[0].year}–${gaps.at(-1).year} KHI oli eniten YKHI:tä korkeampi vuonna ${maxPos.year} (KHI ${fmt.pct(maxPos.khi)}, YKHI ${fmt.pct(maxPos.ykhi)}) ja eniten matalampi vuonna ${maxNeg.year} (KHI ${fmt.pct(maxNeg.khi)}, YKHI ${fmt.pct(maxNeg.ykhi)}).`
       : '';
     const ownerTxt = owner && fmt.isNum(owner.weight)
       ? html` KHI:ssä omistusasumisen paino on ${fmt.num(owner.weight, 0)} ‰ eli noin ${fmt.num(owner.weight / 10, 0)} % kulutuksesta${loans && fmt.isNum(loans.weight) ? `, josta asuntolainojen korkojen osuus on ${fmt.num(loans.weight, 0)} ‰` : ''}. ${fmt.capitalize(fmt.inessive(hMonth))} omistusasumisen vaikutus KHI:n vuosimuutokseen oli ${fmt.num(owner.contribution, 2, { sign: true })} prosenttiyksikköä.`
       : '';
 
     const explanation = html`<div class="prose">
-<p>Kuluttajahintaindeksi (KHI) ja yhdenmukaistettu kuluttajahintaindeksi (YKHI, engl. HICP) mittaavat samojen kulutustavaroiden ja -palvelujen hintoja, mutta niiden sisältö eroaa. <strong>Suurin ero: KHI sisältää omistusasumisen kuluja, kuten asuntolainojen korot ja uusien asuntojen hinnat, YKHI ei.</strong>${ownerTxt}</p>
-<p>Siksi korkojen nousu nostaa KHI:tä YKHI:tä nopeammin, ja korkojen laskiessa vaikutus kääntyy. ${yearsTxt}</p>
+<p>Kuluttajahintaindeksi (KHI) ja yhdenmukaistettu kuluttajahintaindeksi (YKHI, engl. HICP) mittaavat pääosin samojen tavaroiden ja palvelujen hintoja, mutta asumisen osalta niiden sisältö eroaa. <strong>Suurin ero: KHI sisältää omistusasumisen kuluja, kuten asuntolainojen korot ja uusien asuntojen hinnat, YKHI ei.</strong>${ownerTxt}</p>
+<p>Siksi korkojen nousu nostaa KHI:tä mutta ei YKHI:tä, ja korkojen lasku puolestaan laskee vain KHI:tä. ${yearsTxt}</p>
 <p>YKHI lasketaan kaikissa EU-maissa samalla tavalla, joten sillä verrataan maita keskenään ja EKP seuraa sillä ${TARGET} %:n tavoitettaan. KHI on Suomen virallinen inflaatiomittari, ja sen pohjalta lasketaan myös elinkustannusindeksi, johon monet vuokrasopimukset on sidottu. ${nowTxt}</p>
 </div>`;
 
@@ -386,7 +461,7 @@ ${c.chartFigure({
         height: 240,
         ariaLabel: `KHI:n ja YKHI:n ero ${period}, viimeisin ${fmt.pp(gNow)} (${fmt.monthShort(gMonth)}).`,
       }),
-      summary: `Kun viiva on nollan yläpuolella, KHI on YKHI:tä korkeampi. Ero oli ${fmt.inessive(gMonth)} ${fmt.num(gNow, 1, { sign: gNow !== 0 })} prosenttiyksikköä.`,
+      summary: `Kun viiva on nollan yläpuolella, KHI on YKHI:tä korkeampi. ${fmt.capitalize(fmt.inessive(gMonth))} ero oli ${fmt.num(gNow, 1, { sign: gNow !== 0 })} prosenttiyksikköä.`,
       table: c.dataTable({
         id: 'khi-ykhi-taulukko',
         caption: `KHI, YKHI ja niiden ero kuukausittain, ${period}`,
@@ -394,6 +469,7 @@ ${c.chartFigure({
         rows: r.months.map((ym, i) => [fmt.monthShort(ym), c.numUnit(fmt.pct(r.series[0][i])), c.numUnit(fmt.pct(r.series[1][i])), c.numUnit(fmt.pp(r.series[2][i]))]).reverse(),
         visibleRows: 12,
         compact: true,
+        toggleLabels: { more: `Näytä kaikki kuukaudet (${r.months.length})`, less: 'Näytä vain 12 viimeisintä kuukautta' },
       }),
       source: c.sourceLine({ sources: [khiSrc, esSrc] }),
     });
@@ -444,7 +520,7 @@ ${c.chartFigure({
 
   const main = html`${header}
 ${c.section({ id: 'tunnusluvut', title: 'Tunnusluvut', className: 'section--flush-top', body: kpis })}
-${c.section({ id: 'maat', eyebrow: 'Viimeisin kuukausi', title: 'Suomi, euroalue ja naapurit', intro: 'Vuosi-inflaatio YKHI:llä mitattuna. Kuukausi näkyy jokaisen luvun vieressä.', body: html`<div class="stack-lg">${barsFigure}${latestTable}</div>` })}
+${c.section({ id: 'maat', eyebrow: 'Viimeisin kuukausi', title: 'Suomi, euroalue ja vertailumaat', intro: 'Vuosi-inflaatio YKHI:llä mitattuna. Kuukausi näkyy jokaisen luvun vieressä.', body: html`<div class="stack-lg">${barsFigure}${latestTable}</div>` })}
 ${c.section({ id: 'kehitys', eyebrow: 'Kehitys', title: 'Inflaatio vuosien varrella', intro: 'Suomen inflaatio verrattuna euroalueeseen, Pohjoismaihin, Saksaan ja Viroon.', body: html`<div class="stack-lg">${targetNote}${trends}</div>` })}
 ${euSection}
 ${coreSection}
@@ -453,8 +529,8 @@ ${forecastSection}`;
 
   const description = fitText(
     [
-      `Suomen inflaatio (YKHI) oli ${fmt.inessive(month)} ${fmt.pct(fi.value)}, euroalueen ${fmt.pct(ea.value)}. Vertailu Pohjoismaihin, Saksaan ja Viroon, pohjainflaatio ja KHI:n ja YKHI:n ero.`,
-      `Suomen inflaatio (YKHI) ${fmt.inessive(month)} ${fmt.pct(fi.value)}, euroalue ${fmt.pct(ea.value)}. Vertailu Pohjoismaihin ja EU-maihin (Eurostat).`,
+      `${fmt.capitalize(fmt.inessive(month))} Suomen inflaatio (YKHI) oli ${fmt.pct(fi.value)} ja euroalueen ${fmt.pct(ea.value)}. Vertailu Pohjoismaihin, Saksaan ja Viroon, pohjainflaatio ja KHI:n ja YKHI:n ero.`,
+      `${fmt.capitalize(fmt.inessive(month))} Suomen inflaatio (YKHI) oli ${fmt.pct(fi.value)} ja euroalueen ${fmt.pct(ea.value)}. Vertailu Pohjoismaihin ja EU-maihin (Eurostat).`,
     ],
     DESCRIPTION_MAX,
   );

@@ -7,7 +7,7 @@
  * it rebuilds the 36-month table body and the per-year history with DOM
  * methods (no HTML strings). The choice is kept in the URL (?indeksi=2015).
  */
-import { el, readDataIsland, announce } from '../lib/dom.js';
+import { el, readDataIsland } from '../lib/dom.js';
 import { getParam, setParams } from '../lib/url-state.js';
 import { capitalize, idx, isNum, monthName, monthNameOnly, monthRange, num, pct, toYm, ymAdd, ymDiff } from '../lib/format.js';
 
@@ -130,8 +130,9 @@ export function init() {
     if (select.value !== s.key) select.value = s.key;
     if (user) {
       setParams({ indeksi: s.key }, { defaults: { indeksi: data.defaultKey } });
+      // The page's own polite live region announces the change; the shared
+      // toast announcer is not used here, so screen readers hear it once.
       if (status) status.textContent = `Näytetään ${s.label}.`;
-      announce(`Näytetään ${s.label}`);
     }
   };
 

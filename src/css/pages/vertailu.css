@@ -8,6 +8,13 @@
   gap: var(--space-7) var(--space-6);
 }
 
+/* Both figures of a pair start at the same height: the generic
+   .chart-figure + .chart-figure margin would push the second one down. The
+   grid row gap keeps them apart when they stack (≤ 1000 px). */
+[data-page='vertailu'] .vertailu-two > .chart-figure + .chart-figure {
+  margin-top: 0;
+}
+
 @media (max-width: 1000px) {
   [data-page='vertailu'] .vertailu-two {
     grid-template-columns: minmax(0, 1fr);

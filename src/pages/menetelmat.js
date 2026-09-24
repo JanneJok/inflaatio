@@ -174,7 +174,7 @@ ${cmpTable}
 <p><strong>Päättyneiden vuosien luvut</strong> ovat tilastojen tuottajien virallisia vuosimuutoksia: KHI:n osalta Tilastokeskuksen taulukko 122q, joka lasketaan vuoden keskimääräisistä pisteluvuista, ja YKHI:n osalta Eurostatin vuosikeskiarvo (prc_hicp_ainr). Virallinen luku voi poiketa kuukausien vuosimuutosten keskiarvosta.${
     diffYear ? html` Esimerkiksi vuonna ${diffYear.year} KHI:n virallinen vuosimuutos oli ${fmt.pct(diffYear.official)}, kun kuukausien vuosimuutosten keskiarvo oli ${fmt.pct(diffYear.mean)}.` : ''
   }</p>
-<p><strong>Kuluvan vuoden luku</strong> on tähän mennessä julkaistujen kuukausien vuosimuutosten keskiarvo. Se merkitään aina kuukausivälillä ja tarkentuu, kunnes vuosi on päättynyt ja virallinen vuosiluku julkaistu.${
+<p><strong>Kuluvan vuoden luku</strong> on tähän mennessä julkaistujen kuukausien vuosimuutosten keskiarvo. Se merkitään aina kuukausivälillä ja tarkentuu, kunnes vuosi on päättynyt ja virallinen vuosimuutos julkaistu.${
     cy && stats.isNum(cy.value) && !cy.complete ? html` Esimerkiksi kuluvan vuoden luku ${cy.label} on ${fmt.pct(cy.value)} (${cy.months} kuukauden keskiarvo; ${khiSrc}).` : ''
   }</p>
 <p>Kuluvaa vuotta ei päätellä kalenterista vaan uusimmasta julkaistusta kuukaudesta.</p>`;
@@ -220,7 +220,8 @@ ${momFrom ? html`<p>KHI:n kuukausimuutos on Tilastokeskuksen virallinen luku ${f
   }
   const cagr = html`
 <p>Pitkän aikavälin hintakehitys kerrotaan <strong>keskimääräisenä vuosimuutoksena</strong>. Se lasketaan pisteluvuista geometrisena keskiarvona, jolloin vuosien muutokset korkoa korolle -periaatteella tuottavat saman kokonaismuutoksen:</p>
-<p class="legal__formula"><span>keskimääräinen vuosimuutos = ((loppuarvo ÷ alkuarvo)<span class="sr-only"> potenssiin </span><sup>12 ÷ kuukausien määrä</sup> − 1) × 100${fmt.NBSP}%</span></p>
+<p class="legal__formula"><span>keskimääräinen vuosimuutos = ((loppuarvo ÷ alkuarvo)<span class="sr-only"> potenssiin (12 jaettuna n:llä)</span><sup aria-hidden="true">12${fmt.NBSP}÷${fmt.NBSP}n</sup> − 1) × 100${fmt.NBSP}%</span></p>
+<p>Kaavassa n on kuukausien määrä alku- ja loppukuukauden välillä: esimerkiksi tammikuusta 2016 tammikuuhun 2026 on 120 kuukautta.</p>
 ${cagrExample}
 <p>Kaavioiden jaksot lasketaan kuukausipisteinä: jakso ”1 v” sisältää 13 kuukautta (saman kuukauden vuotta aiemmin ja uusimman kuukauden), ”5 v” 61 kuukautta. Alle 12 kuukauden jaksoista näytetään kokonaismuutos, ei vuositasolle muunnettua lukua.</p>`;
 
@@ -244,8 +245,8 @@ ${cagrExample}
 <p><strong>Pisteluku</strong> kertoo hintatason suhteessa perusvuoteen, jonka keskimääräinen hintataso on 100. Pisteluku 125 tarkoittaa, että hinnat ovat ${fmt.pct(25, { decimals: 0 })} korkeammat kuin perusvuonna.</p>
 <p>Tilastokeskus otti tammikuun 2026 luvuista alkaen käyttöön perusvuoden 2025=100 ja uuden COICOP 2018 -hyödykeluokituksen. Eurostat siirsi YKHI:n samaan aikaan perusvuoteen 2025=100 ja ECOICOP 2 -luokitukseen. Sivusto näyttää oletuksena perusvuoden 2025=100 pisteluvut. Vanhemmat perusvuodet julkaistaan edelleen, koska monet sopimukset viittaavat niihin.</p>
 ${baseTable}
-<p>Perusvuodet kuvaavat samaa hintakehitystä, mutta pisteluvut ovat eri suuruisia. Käytä aina samaa perusvuotta kuin sopimuksessasi. Emme laske uudempaa perusvuotta taaksepäin itse: vanhoille kuukausille käytetään perusvuotta, jolla Tilastokeskus on luvun julkaissut. Perusvuoden 2025=100 sarja ulottuu vuoteen 1995, koska Tilastokeskus julkaisee sen ketjutettuna taaksepäin.</p>
-${eki && stats.isNum(eki.value) ? html`<p><strong>Elinkustannusindeksi</strong> (${eki.base}) on Suomen pisin yhtäjaksoinen hintaindeksi, ja monet vuokrasopimukset on sidottu siihen. Se oli ${fmt.num(eki.value)} ${fmt.inessive(eki.month)} (Tilastokeskus). Vielä vanhemmat sarjat ovat ${ekiData?.monthly1939 ? html`${ekiData.monthly1939.base} (kuukausittain ${fmt.elative(ekiData.monthly1939.months[0])} alkaen)` : ''}${ekiData?.monthly1939 && ekiData?.annual1914 ? ' ja ' : ''}${ekiData?.annual1914 ? html`${ekiData.annual1914.base} (vuosittain vuodesta ${ekiData.annual1914.years[0]})` : ''}.</p>` : ''}
+<p>Perusvuodet kuvaavat samaa hintakehitystä, mutta pisteluvut ovat eri suuruisia. Käytä aina samaa perusvuotta kuin sopimuksessasi. Emme laske uudempaa perusvuotta taaksepäin itse: vanhoille kuukausille käytetään perusvuotta, jolla Tilastokeskus on luvun julkaissut. Perusvuoden 2025=100 sarja alkaa vuodesta 1995, koska Tilastokeskus julkaisee sen ketjutettuna taaksepäin.</p>
+${eki && stats.isNum(eki.value) ? html`<p><strong>Elinkustannusindeksi</strong> (${eki.base}) on vuokrasopimuksissa yleisimmin käytetty hintaindeksi, ja sitä julkaistaan edelleen kuukausittain. Se oli ${fmt.num(eki.value)} ${fmt.inessive(eki.month)} (Tilastokeskus). Vielä vanhemmat sarjat ovat ${ekiData?.monthly1939 ? html`${ekiData.monthly1939.base} (kuukausittain ${fmt.elative(ekiData.monthly1939.months[0])} alkaen)` : ''}${ekiData?.monthly1939 && ekiData?.annual1914 ? ' ja ' : ''}${ekiData?.annual1914 ? html`${ekiData.annual1914.base} (vuosittain vuodesta ${ekiData.annual1914.years[0]})` : ''}.</p>` : ''}
 ${ykhiBases.length ? html`<p>YKHI:n pisteluvut ovat saatavilla perusvuosilla ${ykhiBases.join(' ja ')} (Eurostat).</p>` : ''}`;
 
   /* ------------------------------------------------ 6. Ennakkotiedot */
@@ -253,7 +254,7 @@ ${ykhiBases.length ? html`<p>YKHI:n pisteluvut ovat saatavilla perusvuosilla ${y
   const revision = loki.find((e) => e.source === 'ykhi' && e.kind === 'lopullinen' && /\(ennakko /.test(e.text ?? ''));
   const prelim = d.ansiot?.preliminary ?? [];
   const provisional = html`
-<p><strong>YKHI-ennakko.</strong> Eurostat julkaisee euroalueen ja jäsenmaiden inflaation ennakkoarvion (pikaennakon) kuukauden lopussa tai seuraavan kuun alussa ja lopulliset luvut noin kuukauden puolivälissä. Ennakkoarvio voi muuttua, joten se merkitään sivustolla sanalla ${c.chip({ text: 'ennakko', tone: 'provisional' })}.${
+<p><strong>YKHI-ennakko.</strong> Eurostat julkaisee euroalueen ja jäsenmaiden inflaation ennakkoarvion (pikaennakon) kuukauden vaihteessa ja lopulliset luvut noin kaksi viikkoa myöhemmin. Ennakkoarvio voi muuttua, joten se merkitään sivustolla sanalla ${c.chip({ text: 'ennakko', tone: 'provisional' })}.${
     y ? (y.provisional ? html` Tällä hetkellä YKHI:n ${fmt.genitive(y.month)} luku on ennakkotieto.` : html` Tällä hetkellä Suomen YKHI-luvut ovat lopullisia (uusin ${fmt.monthName(y.month)}).`) : ''
   }</p>
 ${revision ? html`<p>Esimerkki muutoslokista (<time datetime="${revision.date}">${fmt.date(revision.date)}</time>): ”${revision.text}”</p>` : ''}
@@ -276,8 +277,8 @@ ${prelim.length ? html`<p><strong>Ansiotasoindeksi.</strong> Tilastokeskus merki
       })
     : '';
   const updates = html`
-<p>Sivusto hakee luvut automaattisesti tilastojen tuottajien avoimista rajapinnoista joka päivä ja julkaisuaamuina useammin. Uusi kuukausi näkyy siksi yleensä jo julkaisupäivänä. Jokainen haku tarkistetaan ennen julkaisua: aikasarjojen on oltava yhtenäisiä, arvojen järkevissä rajoissa ja vuosimuutosten täsmättävä pistelukuihin. Jos lähde ei läpäise tarkistuksia, sivusto näyttää edelliset tarkistetut luvut.</p>
-<p>Tilastokeskus julkaisee kuluttajahintaindeksin yleensä kuukauden puolivälissä edellisen kuukauden luvuilla. Eurostat julkaisee YKHI-ennakon kuun vaihteessa ja lopulliset luvut kuukauden puolivälin jälkeen.${
+<p>Sivusto hakee luvut automaattisesti tilastojen tuottajien avoimista rajapinnoista kahdesti päivässä: aamulla Tilastokeskuksen klo 8.00 julkaisujen jälkeen ja iltapäivällä Eurostatin ja EKP:n julkaisujen jälkeen. Uusi kuukausi näkyy siksi yleensä jo julkaisupäivänä. Jokainen haku tarkistetaan automaattisesti ennen julkaisua: aikasarjojen on oltava yhtenäisiä, arvojen järkevissä rajoissa ja vuosimuutosten täsmättävä pistelukuihin. Jos lähde ei läpäise tarkistuksia, sivusto näyttää edelliset tarkistetut luvut.</p>
+<p>Tilastokeskus julkaisee kuluttajahintaindeksin kerran kuukaudessa, yleensä seuraavan kuukauden puolivälissä. Eurostat julkaisee YKHI-ennakon kuukauden vaihteessa ja lopulliset luvut noin kaksi viikkoa myöhemmin.${
     L.dataUpdated ? html` Viimeksi tiedot päivittyivät <time datetime="${L.dataUpdated}">${fmt.date(L.dataUpdated)}</time>.` : ''
   }</p>
 ${calTable}
@@ -294,7 +295,7 @@ ${calTable}
       s.updated ? html`<time datetime="${String(s.updated).slice(0, 10)}">${fmt.date(s.updated)}</time>` : fmt.DASH,
     ]);
   const sources = html`
-<p>Kaikki luvut ovat tilastojen tuottajien julkaisemia virallisia lukuja. Ne haetaan Tilastokeskuksen PxWeb-rajapinnasta, Eurostatin tilastorajapinnasta ja Euroopan keskuspankin (EKP) tietorajapinnasta.</p>
+<p>Sivuston luvut perustuvat tilastojen tuottajien julkaisemiin virallisiin lukuihin; itse lasketut luvut on merkitty (ks. yllä). Tilastoluvut haetaan Tilastokeskuksen PxWeb-rajapinnasta, Eurostatin tilastorajapinnasta ja Euroopan keskuspankin (EKP) tietorajapinnasta.</p>
 ${srcRows.length ? c.dataTable({
     id: 'lahteet-taulukko',
     caption: 'Sivuston tietolähteet',
@@ -307,7 +308,7 @@ ${srcRows.length ? c.dataTable({
   /* ------------------------------------------------ 9. Merkinnät */
   const notation = html`
 <ul>
-  <li>Vuosi- ja kuukausimuutokset näytetään yhden desimaalin ja pisteluvut kahden desimaalin tarkkuudella, kuten tilaston tuottaja ne julkaisee.</li>
+  <li>Vuosi- ja kuukausimuutokset näytetään yhden desimaalin ja pisteluvut kahden desimaalin tarkkuudella, kuten tilaston tuottaja ne julkaisee. Laskureissa ja vaikutuksissa käytetään kahta desimaalia; elinkustannusindeksi julkaistaan kokonaislukuina.</li>
   <li>Desimaalierotin on pilkku, ja miinusmerkkinä käytetään merkkiä − (esimerkiksi ${fmt.pct(-0.2)}).</li>
   <li>%-yks. eli prosenttiyksikkö on kahden prosenttiluvun erotus. Kun inflaatio nousee 2,1 prosentista 2,2 prosenttiin, muutos on ${fmt.pp(0.1)}</li>
   <li>Inflaatiovauhdin muutoksen suunta näytetään nuolella ja värillä: ${c.deltaChip({ value: 0.1 })}, ${c.deltaChip({ value: -0.1 })} ja ${c.deltaChip({ value: 0 })}. Punainen ▲ tarkoittaa, että inflaatio kiihtyi, sininen ▼, että se hidastui, ja harmaa, että se pysyi ennallaan. Inflaation tasoa ei värjätä.</li>
@@ -358,7 +359,7 @@ ${srcRows.length ? c.dataTable({
       path,
       html: ctx.layout({
         title: 'Menetelmät: näin luvut lasketaan',
-        description: 'KHI ja YKHI, virallinen vuosiluku ja kuluvan vuoden keskiarvo, kuukausimuutos ja %-yks., keskimääräinen vuosimuutos, perusvuodet ja tietolähteet.',
+        description: 'KHI ja YKHI, virallinen vuosimuutos ja kuluvan vuoden keskiarvo, kuukausimuutos ja %-yks., keskimääräinen vuosimuutos, perusvuodet ja tietolähteet.',
         path,
         page: 'menetelmat',
         breadcrumbs: ctx.crumbs(path, 'Menetelmät'),

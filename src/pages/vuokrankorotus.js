@@ -41,7 +41,7 @@ const T = {
     baseHint: 'Sopimuksessa mainittu perusindeksi tai edellisen tarkistuksen kuukausi.',
     check: 'Tarkistusindeksin kuukausi',
     checkHint: 'Yleensä viimeisin julkaistu kuukausi.',
-    clauses: 'Sopimuksen lisäehdot (valinnaiset)',
+    clauses: 'Sopimuksen lisäehdot',
     min: 'Vähimmäiskorotus',
     minHint: 'Esim. ”kuitenkin vähintään 3 %”.',
     max: 'Enimmäiskorotus',
@@ -73,18 +73,18 @@ const T = {
   en: {
     rent: 'Current rent',
     rentHint: 'Monthly rent in euros, for example 850 or 850.50.',
-    series: 'Index and base',
+    series: 'Index and base year',
     seriesHint: 'Choose the index named in your lease. Most Finnish leases use the cost-of-living index (elinkustannusindeksi, 1951:10=100).',
     base: 'Base index month',
     baseHint: 'The base index in your lease, or the month of the previous rent review.',
     check: 'Review index month',
     checkHint: 'Usually the latest published month.',
-    clauses: 'Other lease terms (optional)',
+    clauses: 'Other lease terms',
     min: 'Minimum increase',
     minHint: 'E.g. “but at least 3%”.',
     max: 'Maximum increase',
     maxHint: 'E.g. “at most 5%”.',
-    extra: 'Added on top of the index',
+    extra: 'Additional increase on top of the index',
     extraHint: 'E.g. “index change + 1 percentage point”.',
     noDecrease: 'The rent does not go down if the index falls',
     noDecreaseDesc: 'Many leases keep the rent unchanged when the index falls.',
@@ -172,8 +172,6 @@ export function rentCalculator(ctx, { lang = 'fi' } = {}) {
   const minYear = Math.min(...list.map((s) => periodYear(s.start)));
   const maxYear = periodYear(check);
   const decimalAttrs = { inputmode: 'decimal', autocomplete: 'off', spellcheck: 'false' };
-  // components.field() adds a Finnish "(valinnainen)"; English labels say it themselves.
-  const opt = (label) => (lang === 'en' ? `${label} (optional)` : label);
 
   const form = html`<form class="calc__form form js-only" id="vuokra-lomake" novalidate${ctx.attrs({ data: { lang, ...messageData(MESSAGES[lang]) } })}>
   ${c.field({ id: 'vuokra', label: t.rent, value: String(DEFAULT_RENT), hint: t.rentHint, suffix: '€', required: true, attrs: decimalAttrs })}
@@ -191,9 +189,9 @@ export function rentCalculator(ctx, { lang = 'fi' } = {}) {
     summary: t.clauses,
     className: 'calc__more',
     body: html`<div class="calc__grid">
-      ${c.field({ id: 'vahintaan', label: opt(t.min), hint: t.minHint, suffix: '%', optional: lang === 'fi', attrs: decimalAttrs })}
-      ${c.field({ id: 'enintaan', label: opt(t.max), hint: t.maxHint, suffix: '%', optional: lang === 'fi', attrs: decimalAttrs })}
-      ${c.field({ id: 'lisa', label: opt(t.extra), hint: t.extraHint, suffix: lang === 'en' ? 'pp' : '%-yks.', optional: lang === 'fi', attrs: decimalAttrs, className: 'calc__field--wide-suffix' })}
+      ${c.field({ id: 'vahintaan', label: t.min, hint: t.minHint, suffix: '%', optional: true, lang, attrs: decimalAttrs })}
+      ${c.field({ id: 'enintaan', label: t.max, hint: t.maxHint, suffix: '%', optional: true, lang, attrs: decimalAttrs })}
+      ${c.field({ id: 'lisa', label: t.extra, hint: t.extraHint, suffix: lang === 'en' ? 'pp' : '%-yks.', optional: true, lang, attrs: decimalAttrs, className: 'calc__field--wide-suffix' })}
       ${c.field({ id: 'pyoristys', label: t.rounding, as: 'select', value: 'cent', options: t.roundingOptions })}
     </div>
     ${c.checkbox({ id: 'eilaske', label: t.noDecrease, desc: t.noDecreaseDesc })}`,
@@ -269,7 +267,7 @@ export function pointTable(ctx, list, lang = 'fi') {
     columns: [{ label: lang === 'en' ? 'Month' : 'Kuukausi' }, ...cols.map((s) => ({ label: label(s), num: true }))],
     rows: months.map((ym) => [F.period(ym), ...cols.map((s) => F.idx(pointAt(s, ym), s.decimals))]),
     visibleRows: 12,
-    toggleLabels: lang === 'en' ? { more: 'Show all 24 months', less: 'Show the latest 12 months' } : { more: 'Näytä kaikki 24 kuukautta', less: 'Näytä vain 12 viimeisintä' },
+    toggleLabels: lang === 'en' ? { more: 'Show all 24 months', less: 'Show the latest 12 months' } : { more: 'Näytä kaikki 24 kuukautta', less: 'Näytä vain 12 viimeisintä kuukautta' },
     compact: true,
   });
 }
@@ -295,7 +293,7 @@ export default async function vuokrankorotus(ctx) {
     <li><strong>Tarkistusindeksi</strong> on sopimuksen mukaisen tarkistuskuukauden pisteluku, yleensä viimeisin julkaistu luku.</li>
   </ul>
   <p><strong>Esimerkki uusimmilla luvuilla.</strong> Vuokra on ${f.eur(r.rent, 0)}. Perusindeksi on elinkustannusindeksin ${f.genitive(base)} pisteluku ${v.basePoint} ja tarkistusindeksi ${f.genitive(check)} pisteluku ${v.checkPoint}. Uusi vuokra on ${f.eur(r.rent)} × ${v.checkPoint} / ${v.basePoint} = <strong>${v.newRent}</strong>. Vuokra nousee ${f.eur(r.increase)} kuukaudessa eli ${f.pct(r.appliedPct, { decimals: 2 })}.</p>
-  <p>Korotus lasketaan pisteluvuista eikä inflaatioprosentista. Kuluttajahintojen vuosimuutos oli ${f.inessive(k.month)} ${f.pct(k.yoy)}, mutta sopimuksen korotus riippuu siitä, mitä indeksiä ja mitä kuukausia sopimus käyttää${khiChange != null ? `: esimerkiksi kuluttajahintaindeksillä (2025=100) samojen kuukausien muutos on ${f.pct(khiChange, { decimals: 2, sign: true })}` : ''}. Kun kuukausien väli ei ole tasan vuosi, ero vuosimuutokseen on vielä suurempi.</p>
+  <p>Korotus lasketaan pisteluvuista eikä inflaatioprosentista. ${f.capitalize(f.inessive(k.month))} kuluttajahintojen vuosimuutos oli ${f.pct(k.yoy)}, mutta sopimuksen korotus riippuu siitä, mitä indeksiä ja mitä kuukausia sopimus käyttää: esimerkiksi elinkustannusindeksillä samojen kuukausien muutos on ${f.pct(r.indexChangePct, { decimals: 2, sign: true })}${khiChange != null ? ` ja kuluttajahintaindeksillä (2025=100) ${f.pct(khiChange, { decimals: 2, sign: true })}` : ''}. Jos tarkistusväli on muu kuin tasan vuosi, korotus voi poiketa vuosimuutoksesta selvästi.</p>
 </div>`;
 
   const clauses = h`<div class="prose">
@@ -350,15 +348,15 @@ ${c.callout({ tone: 'note', title: 'Tarkista sopimuksesi', body: 'Laskelma on su
 
   const sources = c.sourceLine({
     sources: [
-      { name: 'Tilastokeskus', href: 'https://stat.fi/tilasto/khi', detail: 'elinkustannusindeksi, taulukko 11xl; kuluttajahintaindeksi, taulukko 11xs' },
+      { name: 'Tilastokeskus', href: 'https://stat.fi/tilasto/khi', detail: 'elinkustannusindeksi, taulukko 11xl; kuluttajahintaindeksi, taulukot 11xs ja 15b5' },
     ],
     updated,
   });
 
   const main = h`${c.pageHeader({
-    eyebrow: `Laskuri · Elinkustannusindeksi ${f.monthName(eki.month)}`,
+    eyebrow: `Laskuri · elinkustannusindeksi, ${f.monthName(eki.month)}`,
     title: 'Vuokrankorotuslaskuri',
-    lede: `Laske vuokran indeksikorotus Tilastokeskuksen virallisilla pisteluvuilla. Elinkustannusindeksi oli ${f.inessive(eki.month)} ${f.idx(eki.value, 0)} (${eki.base}).`,
+    lede: `Laske vuokran indeksikorotus Tilastokeskuksen virallisilla pisteluvuilla. Elinkustannusindeksin pisteluku oli ${f.idx(eki.value, 0)} ${f.inessive(eki.month)} (${eki.base}).`,
     meta: h`Päivitetty <time datetime="${String(updated).slice(0, 10)}">${f.date(updated)}</time> · Lähde: Tilastokeskus · <a href="${PATH_EN}" hreflang="en" lang="en">In English</a>`,
   })}
 ${c.section({ id: 'laskuri', title: 'Laske uusi vuokra', className: 'section--flush-top', body: calc.calculator })}

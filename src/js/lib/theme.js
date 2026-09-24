@@ -99,13 +99,13 @@ export function initTheme() {
     menu.hidden = false;
     button.setAttribute('aria-expanded', 'true');
     const idx = focusIndex ?? Math.max(0, items.findIndex((i) => i.getAttribute('aria-checked') === 'true'));
-    items[(idx + items.length) % items.length]?.focus();
+    items[(idx + items.length) % items.length]?.focus({ preventScroll: true });
   };
   const close = (returnFocus = true) => {
     if (!isOpen()) return;
     menu.hidden = true;
     button.setAttribute('aria-expanded', 'false');
-    if (returnFocus) button.focus();
+    if (returnFocus) button.focus({ preventScroll: true });
   };
 
   button.addEventListener('click', () => (isOpen() ? close() : open()));
@@ -126,19 +126,19 @@ export function initTheme() {
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        items[(i + 1) % items.length].focus();
+        items[(i + 1) % items.length].focus({ preventScroll: true });
         break;
       case 'ArrowUp':
         e.preventDefault();
-        items[(i - 1 + items.length) % items.length].focus();
+        items[(i - 1 + items.length) % items.length].focus({ preventScroll: true });
         break;
       case 'Home':
         e.preventDefault();
-        items[0].focus();
+        items[0].focus({ preventScroll: true });
         break;
       case 'End':
         e.preventDefault();
-        items[items.length - 1].focus();
+        items[items.length - 1].focus({ preventScroll: true });
         break;
       case 'Escape':
         e.preventDefault();

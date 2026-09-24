@@ -72,7 +72,7 @@ function readableText(doc) {
 const withoutDates = (s) =>
   s
     .replace(/\b\d{1,2}\.\d{1,2}\.\d{4}\b/g, 'PVM')
-    .replace(/klo \d{1,2}\.\d{2}/g, 'KLO')
+    .replace(/klo[ \u00a0]\d{1,2}\.\d{2}/g, 'KLO')
     .replace(/CC BY \d\.\d/g, 'CC BY');
 
 /* ------------------------------------------------------------- built page */
@@ -98,6 +98,9 @@ describe('built page', () => {
     const joined = decode(page.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<[^>]+>/g, ''));
     const spaced = joined.match(/.{0,30}\d [%€].{0,10}/g);
     assert.equal(spaced, null, `normal space before a unit (NBSP expected): ${spaced?.join(' | ')}`);
+    // "elokuussa 2026 2,2 %" reads as one number: the month goes first or after the value.
+    const runOn = text.match(/.{0,30}(?:kuussa|kuun|vuonna) \d{4}[  ][+−-]?\d.{0,10}/g);
+    assert.equal(runOn, null, `a year directly followed by a value: ${runOn?.join(' | ')}`);
   });
 
   test('KPI cards: "Muutos edellisestä kuukaudesta" in %-yks., "Hinnat kuukaudessa" in %', () => {
@@ -107,8 +110,9 @@ describe('built page', () => {
     const mom = byLabel('Hinnat kuukaudessa');
     assert.equal(delta.length, 2, 'KHI and YKHI panels');
     assert.equal(mom.length, 2);
-    for (const c of delta) assert.match(c, /<span class="kpi__unit">%-yks\.<\/span>/);
-    for (const c of mom) assert.match(c, /<span class="kpi__unit">%<\/span>/);
+    // %-yks. may use a non-breaking hyphen (U+2011) and carry its NBSP inside the unit span.
+    for (const c of delta) assert.match(c, /<span class="kpi__unit">(?:\u00a0|&nbsp;)?%[-\u2011]yks\.<\/span>/);
+    for (const c of mom) assert.match(c, /<span class="kpi__unit">(?:\u00a0|&nbsp;)?%<\/span>/);
     // Colour + arrow only on the change card.
     for (const c of cards.filter((x) => !x.includes('>Muutos edellisestä kuukaudesta<'))) assert.doesNotMatch(c, /kpi__value--(up|down|flat)/);
     const expected = stats.deltaClass(latest.khi.delta);
@@ -180,10 +184,50 @@ describe('built page', () => {
         assert.ok(island.text.level[m][k].summary.includes('€'), `${m} ${k}`);
       }
     }
-    for (const k of stats.RANGE_KEYS) assert.ok(island.text.trend[k].summary.startsWith('KHI oli'));
+    for (const k of stats.RANGE_KEYS) {
+      // The summary describes the selected metric (its own extremes, the other metric as context).
+      assert.match(island.text.trend[k].summary.khi, /^[A-ZÄÖ][a-zäö]+ \d{4} KHI oli /, k);
+      assert.match(island.text.trend[k].summary.ykhi, /^[A-ZÄÖ][a-zäö]+ \d{4} YKHI oli /, k);
+      assert.match(island.text.trend[k].summary.ykhi, / YKHI oli korkeimmillaan /);
+    }
+    // Price level: the same official base as the statistics row; "Kaikki" reaches back to the KHI series start.
+    assert.equal(island.text.level.khi['5v'].base, '2025=100');
+    const allBase = island.text.level.khi.kaikki.base;
+    assert.notEqual(allBase, '2025=100');
+    assert.ok(island.lvl.khi[allBase], 'index series of the base is shipped');
+    assert.equal(island.text.level.khi.kaikki.period.split(' – ')[0], island.text.trend.kaikki.period.split(' – ')[0]);
+    assert.ok(island.text.level.khi.kaikki.summary.includes(allBase));
+    assert.equal(island.s.khiIdx, undefined, 'index series travel only in lvl');
     // 6 kk is never annualised.
     assert.equal(island.text.stats.khi['6kk'].at(-1).label, 'Hinnat jaksolla');
     assert.equal(island.text.stats.khi['5v'].at(-1).label, 'Hinnat vuodessa');
+  });
+
+  test('main chart: shared legend, toggles off by default and not printed, one announcement channel', () => {
+    const fig = page.match(/<figure class="chart-figure" id="kehitys-kaavio"[\s\S]*?<\/figure>/)[0];
+    for (const key of ['ea', 'core', 'core-ea', 'events']) assert.match(fig, new RegExp(`<li class="legend__item" hidden data-series="${key}">`), key);
+    assert.match(fig, /<fieldset class="home-toggles js-only no-print">/);
+    assert.match(fig, /id="kehitys-tapahtumat"(?![^>]*checked)[^>]*>/);
+    assert.doesNotMatch(fig, /id="kehitys-(euroalue|pohja)"[^>]*checked/);
+    // The page script announces changes once; the summaries are not live regions.
+    assert.doesNotMatch(page, /chart-figure__summary" aria-live/);
+    // The segmented range control names the month table it updates.
+    assert.match(page, /aria-controls="[^"]*kehitys-taulukko[^"]*"/);
+    assert.match(page, /data-label-less="Näytä vain 12 viimeisintä kuukautta"/);
+    assert.match(page, /id="hintataso-perusta">2025=100</);
+  });
+
+  test('texts: no doubled periods, times keep "klo" with the hour, core inflation defined in full', () => {
+    const text = readableText(page);
+    assert.doesNotMatch(text, /yks\.\./);
+    assert.doesNotMatch(page, /klo \d/, 'NBSP after "klo"');
+    assert.ok(text.includes('Eurostat (ilman energiaa, ruokaa, alkoholia ja tupakkaa)'));
+    assert.doesNotMatch(text, /(?:hillitsi|nostaja oli) (?!pääryhmä)[a-zäö]/, 'group names are introduced with "pääryhmä"');
+    assert.doesNotMatch(text, /haalealla|tasoluokan|Laskee virallisista/);
+    assert.ok(text.includes('Sivusto tarkistaa uudet luvut kahdesti päivässä'));
+    // The sparkline's solid zero line has a legend entry.
+    const spark = page.match(/<figure class="home-hero__spark"[\s\S]*?<\/figure>/)[0];
+    assert.match(spark, /series--muted[\s\S]*?0(?:\u00a0|&nbsp;)%/);
   });
 
   test('old in-page anchors still exist', () => {
@@ -240,12 +284,19 @@ describe('home-model', () => {
     assert.equal(pl.values[0], 100);
     assert.equal(fmt.round(pl.last, 2), fmt.round(((90 + 24) / (90 + 12)) * 100, 2));
     const t = model.priceLevelText(pl, 'khi', '2025=100');
-    assert.ok(t.summary.startsWith(`Ostokset, jotka maksoivat tammikuussa 2021 100${fmt.NBSP}€, maksoivat tammikuussa 2022 `), t.summary);
+    assert.ok(t.summary.startsWith(`Ostokset, jotka maksoivat 100${fmt.NBSP}€ tammikuussa 2021, maksoivat `) && t.summary.includes(`€ tammikuussa 2022. `), t.summary);
     assert.match(t.summary, /Hintataso nousi jaksolla/);
+    // Table: one row a year, newest first (the page script rebuilds it with the same helper).
+    const rows = model.priceLevelRows(pl);
+    assert.equal(rows.length, 2);
+    assert.equal(rows[0][0], 'tammi 2022');
+    assert.equal(rows[1][1], `100,00${fmt.NBSP}€`);
+    assert.equal(model.priceLevelCaption(pl, 'ykhi'), `Hintataso (YKHI), jakson alku tammi 2021 = 100${fmt.NBSP}€`);
   });
 
   test('sign-aware sentences', () => {
-    assert.equal(model.annualChangeSentence('2026-08', 2.2), `Kuluttajahinnat olivat elokuussa 2026 2,2${fmt.NBSP}% korkeammat kuin vuotta aiemmin.`);
+    assert.equal(model.annualChangeSentence('2026-08', 2.2), `Elokuussa 2026 kuluttajahinnat olivat 2,2${fmt.NBSP}% korkeammat kuin vuotta aiemmin.`);
+    assert.equal(model.annualChangeSentence('2026-08', 0), 'Elokuussa 2026 kuluttajahinnat olivat samalla tasolla kuin vuotta aiemmin.');
     assert.ok(model.annualChangeSentence('2026-01', -0.2).includes(`0,2${fmt.NBSP}% alemmat`));
     assert.match(model.annualChangeSentence('2026-01', 0.04), /samalla tasolla/);
     assert.equal(model.momNote('2026-07', '2026-08', -0.2), `Kuluttajahinnat laskivat heinäkuusta elokuuhun 0,2${fmt.NBSP}%.`);
@@ -265,6 +316,39 @@ describe('home-model', () => {
       assert.ok(d.length <= 155, d);
     }
     assert.equal(model.pageTitle('2026-08', 2.2), `Inflaatio Suomessa nyt: 2,2${fmt.NBSP}% (elokuu 2026)`);
+  });
+
+  test('trend summary describes the selected metric, the other one as context', () => {
+    const months = model.monthAxis('2024-01', 6);
+    const yoy = [1.0, 0.5, 0.5, 2.0, 1.5, 1.2];
+    const s = model.trendSummary({
+      metric: 'ykhi',
+      self: { month: '2024-06', yoy: 1.2, provisional: true },
+      other: { month: '2024-05', yoy: 2.4 },
+      months,
+      yoy,
+    });
+    assert.equal(
+      s,
+      `Kesäkuussa 2024 YKHI oli 1,2${fmt.NBSP}% (ennakko) ja KHI 2,4${fmt.NBSP}% (toukokuu 2024). ` +
+        `Jaksolla tammi 2024 – kesä 2024 YKHI oli korkeimmillaan 2,0${fmt.NBSP}% (huhti 2024) ja matalimmillaan 0,5${fmt.NBSP}% (helmi–maalis 2024).`,
+    );
+    const k = model.trendSummary({ metric: 'khi', self: { month: '2024-06', yoy: 2.4 }, other: { month: '2024-06', yoy: 1.2 }, months: [], yoy: [] });
+    assert.equal(k, `Kesäkuussa 2024 KHI oli 2,4${fmt.NBSP}% ja YKHI 1,2${fmt.NBSP}%.`);
+  });
+
+  test('?nayta= round trip for the optional series', () => {
+    assert.equal(model.parseShow(null), null);
+    assert.deepEqual(model.parseShow(''), { ea: false, core: false, events: false });
+    assert.deepEqual(model.parseShow('pohja,ea,xyz'), { ea: true, core: true, events: false });
+    assert.equal(model.formatShow({ ea: true, core: false, events: true }), 'ea tapahtumat');
+    assert.deepEqual(model.parseShow('ea tapahtumat'), { ea: true, core: false, events: true });
+    assert.equal(model.formatShow({}), '');
+    assert.deepEqual(model.parseShow(model.formatShow({ ea: true, core: true, events: true })), { ea: true, core: true, events: true });
+  });
+
+  test('month table toggle labels name the unit', () => {
+    assert.deepEqual(model.trendTableLabels(61), { more: 'Näytä kaikki kuukaudet (61)', less: 'Näytä vain 12 viimeisintä kuukautta' });
   });
 
   test('wrapText keeps lines short', () => {
@@ -302,6 +386,27 @@ describe('FAQ placeholders', () => {
     assert.match(resolvers['khi.negativeMonths']('2000'), /kesäkuusta 2009 tammikuuhun 2010/);
     assert.equal(resolvers['ykhi.rangeIn']('2025-10,2025-11,2026-01'), `1,0–1,5${fmt.NBSP}%`);
     assert.equal(resolvers['eki.value'](), fmt.num(latest.elinkustannusindeksi.value, 0));
+    // Before the official annual changes: computed from the official annual averages.
+    assert.equal(resolvers['khi.annualAvgMaxBefore'](), `17,9${fmt.NBSP}% vuonna 1975`);
+    assert.equal(resolvers['eki.maxRise1914'](), 'yli kolminkertaistuivat vuonna 1918');
+    assert.equal(resolvers['eki.base1914'](), '1914:1–6=100');
+    assert.equal(resolvers['korot.now']() != null, true);
+  });
+
+  test('"Ennen vuotta 1980 inflaatio oli vielä korkeampi" holds for the data', () => {
+    const a = data['khi-annual'];
+    const official = Math.max(...a.yoy.filter(fmt.isNum));
+    const idx = a.index['1972=100'];
+    const changes = a.years.map((y, i) => (i && Number(y) < 1980 && fmt.isNum(idx[i]) && fmt.isNum(idx[i - 1]) ? (idx[i] / idx[i - 1] - 1) * 100 : null));
+    assert.ok(Math.max(...changes.filter(fmt.isNum)) > official);
+    const e = data.elinkustannusindeksi.annual1914;
+    const i1918 = e.years.indexOf('1918');
+    assert.ok(e.values[i1918] / e.values[i1918 - 1] > 3, '1918 yli kolminkertaistui');
+    const faq = faqItems(ctx).find((f) => f.id === 'ukk-korkein-inflaatio');
+    assert.match(faq.a, /Ennen vuotta 1980 inflaatio oli vielä korkeampi/);
+    assert.match(faq.a, /Inflaatio\.fi on laskenut/);
+    const ekp = faqItems(ctx).find((f) => f.id === 'ukk-ekp-tavoite');
+    assert.match(ekp.a, /talletuskorko on \d{1,2}\.\d{1,2}\.\d{4} alkaen \d/);
   });
 
   test('the fixed claims of faq.json still hold for the data', () => {
@@ -391,7 +496,7 @@ describe('edge scenarios', () => {
     assert.equal(x.latest.ykhi.provisional, true);
     const [out] = await home(x);
     const text = readableText(out.html);
-    assert.ok(text.includes(`${fmt.inessive(next)} 2,5${fmt.NBSP}% (ennakko)`), 'hero lede names the flash month');
+    assert.ok(text.includes(`inflaatio oli 2,5${fmt.NBSP}% (${fmt.monthName(next)}, ennakko)`), 'hero lede names the flash month');
     assert.ok(text.includes('Kuukausimuutosta ei ole vielä julkaistu.'));
     assert.match(out.html, /chip--provisional/);
     assert.ok(text.includes(model.pageTitle(latest.khi.month, latest.khi.yoy)), 'title stays on KHI');

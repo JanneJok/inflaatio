@@ -334,3 +334,26 @@
 .calc__label + .calc__big {
   margin-top: 2px;
 }
+
+/* /laskurit/: five calculator cards in three columns (3 + 2) instead of
+   an orphan fifth card under four columns. */
+@media (min-width: 900px) {
+  [data-page='laskurit'] .laskurit-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Neutral hint in a result panel before the user has entered anything
+   (e.g. /oma-inflaatio/ in euro mode); not an error. */
+.calc__hint {
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: var(--fs-small);
+}
+
+.calc__hint[hidden] {
+  display: none;
+}

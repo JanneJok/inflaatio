@@ -4,8 +4,8 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { monthTicks, axisFormatter, valueFormatter, withAlpha, lineDataset, targetLine, SERIES_TOKENS } from '../src/js/charts/setup.js';
-import { ymAdd } from '../src/js/lib/format.js';
+import { monthTicks, axisFormatter, valueFormatter, withAlpha, lineDataset, barDataset, targetLine, legendEntries, layoutLegend, SERIES_TOKENS } from '../src/js/charts/setup.js';
+import { ymAdd, PP_UNIT } from '../src/js/lib/format.js';
 import { SERIES_CLASSES } from '../scripts/lib/svg.js';
 
 const months = (start, n) => Array.from({ length: n }, (_, i) => ymAdd(start, i));
@@ -39,9 +39,9 @@ test('axis and value formatters use fi-FI notation', () => {
   assert.equal(ax(2), '2 %');
   assert.equal(ax(0.5), '0,5 %');
   assert.equal(ax(-2), '−2 %');
-  assert.equal(axisFormatter('pp')(0.25), '0,25 %-yks.');
+  assert.equal(axisFormatter('pp')(0.25), `0,25 ${PP_UNIT}`);
   assert.equal(valueFormatter('%')(2.2), '2,2 %');
-  assert.equal(valueFormatter('pp')(-0.1), '−0,1 %-yks.');
+  assert.equal(valueFormatter('pp')(-0.1), `−0,1 ${PP_UNIT}`);
   assert.equal(valueFormatter('€')(1234.5), '1 234,50 €');
   assert.equal(valueFormatter('index')(125.15), '125,15');
   assert.equal(valueFormatter('%')(null), '–');
@@ -60,4 +60,53 @@ test('dataset helpers and colour utilities', () => {
   assert.equal(t.label.display, true);
   // Same series keys as the server-side SVG charts.
   assert.deepEqual(Object.keys(SERIES_TOKENS).sort(), [...SERIES_CLASSES].sort());
+});
+
+test('locale "en": English ticks, axis and value formats', () => {
+  const m = months('2025-08', 13);
+  const t = monthTicks(m, 900, 'en');
+  assert.equal([...t.values()][0], 'Aug 2025');
+  assert.ok([...t.values()].includes('Jan 2026'));
+  assert.equal(t.get(12), 'Aug');
+  assert.deepEqual([...monthTicks(months('2021-08', 61), 900, 'en').values()], ['2022', '2023', '2024', '2025', '2026']);
+  assert.equal(axisFormatter('%', 'en')(0.5), '0.5%');
+  assert.equal(axisFormatter('€', 'en')(1000), '€1,000');
+  assert.equal(axisFormatter('pp', 'en')(-1), '−1\u00a0pp');
+  assert.equal(valueFormatter('%', undefined, 'en')(2.2), '2.2%');
+  assert.equal(valueFormatter('€', 2, 'en')(162.705), '€162.71');
+  assert.equal(valueFormatter('index', undefined, 'en')(1234.5), '1,234.50');
+  // Finnish stays the default.
+  assert.equal(valueFormatter('€', 2)(162.705), '162,71\u00a0€');
+});
+
+test('per-dataset decimals are kept on the dataset only when given', () => {
+  assert.equal(lineDataset({ series: 'khi', label: 'KHI', data: [], decimals: 1 }).decimals, 1);
+  assert.equal('decimals' in lineDataset({ series: 'khi', label: 'KHI', data: [] }), false);
+});
+
+test('image export legend: visible single-colour series, dashed lines, target line', () => {
+  const tokens = { series: { khi: '#111111', ykhi: '#222222', ea: '#333333' }, target: '#999999' };
+  const datasets = [
+    lineDataset({ series: 'khi', label: 'KHI', data: [1] }),
+    lineDataset({ series: 'ykhi', label: 'YKHI', data: [1], dashed: true }),
+    lineDataset({ series: 'ea', label: 'Euroalue', data: [1], hidden: true }),
+    barDataset({ series: ['low', 'high'], label: 'Vuodet', data: [1, 5] }),
+  ];
+  const chart = (locale, annotations) => ({
+    data: { datasets },
+    isDatasetVisible: (i) => !datasets[i].hidden,
+    config: { type: 'line', options: { locale, plugins: { annotation: { annotations } } } },
+  });
+  const fi = legendEntries(chart('fi-FI', { target: targetLine(2) }), tokens);
+  assert.deepEqual(fi.map((e) => e.label), ['KHI', 'YKHI', 'EKP:n tavoite 2\u00a0%']);
+  assert.deepEqual(fi.map((e) => e.dashed), [false, true, true]);
+  assert.equal(fi[0].color, '#111111');
+  assert.equal(fi[2].color, '#999999');
+  const en = legendEntries(chart('en-GB', { target: targetLine(2) }), tokens);
+  assert.equal(en.at(-1).label, 'ECB target 2%');
+  assert.equal(legendEntries(chart('fi-FI', { target: targetLine(2, 'Tavoite') }), tokens).at(-1).label, 'Tavoite');
+  assert.equal(legendEntries(chart('fi-FI', {}), tokens).length, 2);
+  // Rows wrap at the image width.
+  const rows = layoutLegend([{ label: 'aaaa' }, { label: 'bbbb' }, { label: 'cccc' }], (x) => x.length * 10, 150, { swatch: 16, gap: 6, spacing: 16 });
+  assert.deepEqual(rows.map((r) => [r.x, r.row]), [[0, 0], [78, 0], [0, 1]]);
 });

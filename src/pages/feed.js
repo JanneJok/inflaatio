@@ -6,8 +6,12 @@
  * only when the data does (no build timestamps).
  */
 import * as fmt from '../js/lib/format.js';
+import { xmlEscape } from '../../scripts/lib/html.js';
 import { archive, katsausPath, logHref, logId, logSourceLabel, lowerFirst } from './inflaatio.js';
 import { katsausModel, katsausMonths } from './katsaus.js';
+
+/** XML escaping is shared with the sitemap (scripts/lib/html.js); re-exported for the tests. */
+export { xmlEscape };
 
 /** Maximum number of items in the feed. */
 export const FEED_MAX_ITEMS = 60;
@@ -15,14 +19,7 @@ export const FEED_MAX_ITEMS = 60;
 /** Publication times (Finnish time) of the sources, used for pubDate. */
 const RELEASE_TIME = { khi: '08:00', ykhi: '12:00', ansiot: '08:00', korot: '00:00' };
 
-const XML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' };
-/** Escape text for XML element content and attributes. @param {unknown} s */
-export function xmlEscape(s) {
-  return String(s ?? '').replace(/[&<>"']/g, (ch) => XML_ESCAPES[ch]);
-}
-
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** UTC offset of Europe/Helsinki at an instant, in minutes (+120 / +180). */
 function helsinkiOffset(ms) {
@@ -52,7 +49,7 @@ export function rfc822(date, time = '00:00') {
   const abs = Math.abs(offset);
   const off = `${sign}${String(Math.floor(abs / 60)).padStart(2, '0')}${String(abs % 60).padStart(2, '0')}`;
   const pad = (n) => String(n).padStart(2, '0');
-  return `${weekday}, ${pad(da)} ${MONTHS_EN[mo - 1]} ${y} ${pad(h)}:${pad(mi)}:00 ${off}`;
+  return `${weekday}, ${pad(da)} ${fmt.EN_MONTHS_SHORT[mo - 1]} ${y} ${pad(h)}:${pad(mi)}:00 ${off}`;
 }
 
 /** Sortable key 'YYYY-MM-DD HH:MM'. */
@@ -138,7 +135,8 @@ export function renderFeed(ctx) {
     `<atom:link href="${xmlEscape(`${base}/feed.xml`)}" rel="self" type="application/rss+xml"/>`,
     `<description>${xmlEscape('Tilastokeskuksen kuluttajahintaindeksin ja Eurostatin YKHI:n uudet luvut sekä kuukausittaiset inflaatiokatsaukset.')}</description>`,
     '<language>fi</language>',
-    `<copyright>${xmlEscape(`Luvut: Tilastokeskus ja Eurostat (CC BY 4.0). Tekstit: ${ctx.site.brand}.`)}</copyright>`,
+    // ECB figures (rate changes) are not CC BY; they are credited separately.
+    `<copyright>${xmlEscape(`Luvut: Tilastokeskus ja Eurostat (CC BY 4.0) sekä Euroopan keskuspankki (lähde mainiten). Tekstit: ${ctx.site.brand}.`)}</copyright>`,
     newest ? `<lastBuildDate>${rfc822(newest.date, newest.time)}</lastBuildDate>` : null,
     newest ? `<pubDate>${rfc822(newest.date, newest.time)}</pubDate>` : null,
     '<docs>https://www.rssboard.org/rss-specification</docs>',

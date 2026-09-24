@@ -1,5 +1,5 @@
 /* Page styles: /rahanarvo/ (module rahanarvo, owner CALC) and the English
-   value-of-money page (/en/value-of-money/, data-page="en-value-of-money").
+   value-of-money page (/en/value-of-money/, same data-page).
    Shared calculator blocks (.calc*) live in laskurit.css. Tokens only. */
 
 /* Quick choices for the start month. */
@@ -29,10 +29,11 @@
   display: none;
 }
 
-[data-page='rahanarvo'] #saastot .calc {
+/* Savings calculators (/rahanarvo/#saastot, /en/value-of-money/#savings). */
+.raha-saastot .calc {
   margin-top: var(--space-2);
 }
 
-[data-page='rahanarvo'] #saastot .callout {
+.raha-saastot .callout {
   margin-top: var(--space-6);
 }

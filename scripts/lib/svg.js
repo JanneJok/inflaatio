@@ -89,9 +89,12 @@ const stepDecimals = (step) => (step >= 1 || !isNum(step) ? 0 : Math.min(2, Math
 
 /**
  * X-axis ticks for monthly labels ('YYYY-MM'): months (January shows the year)
- * for short ranges, whole years for long ranges. Anchored so the density fits a
- * ~260 px wide phone plot; every other tick is marked `minor` and hidden on
- * narrow screens by CSS. Non-month labels get every k-th label.
+ * for short ranges, whole years for long ranges. Month ticks sit on a fixed
+ * calendar step (every 1, 2 or 3 months counted from January), so they are
+ * evenly spaced: '2022 · maalis · touko · heinä · syys · marras'. The density
+ * fits a ~260 px wide phone plot; with more than five ticks every other one
+ * (January stays major) is marked `minor` and hidden on narrow screens by CSS.
+ * Non-month labels get every k-th label.
  * @param {string[]} labels
  * @returns {{index: number, text: string, minor: boolean}[]}
  */
@@ -106,23 +109,20 @@ export function monthTicks(labels) {
     return markMinor(out);
   }
   if (n <= 25) {
-    // Every `step` months counted back from the latest month, plus every
-    // January (labelled with the year); ticks next to a January are dropped.
     const step = n <= 7 ? 1 : n <= 13 ? 2 : 3;
-    const picked = new Set();
-    for (let i = n - 1; i >= 0; i -= step) picked.add(i);
-    labels.forEach((ym, i) => {
-      if (parseYm(ym).m !== 1) return;
-      picked.add(i);
-      if (step > 1) for (const j of [i - 1, i + 1]) if (j !== n - 1) picked.delete(j);
+    const out = [];
+    let anchor = -1;
+    labels.forEach((ym, index) => {
+      const { y, m } = parseYm(ym);
+      if ((m - 1) % step !== 0) return;
+      if (m === 1 && anchor < 0) anchor = out.length;
+      out.push({ index, text: m === 1 ? String(y) : MONTHS_SHORT[m - 1], minor: false });
     });
-    const out = [...picked]
-      .sort((a, b) => a - b)
-      .map((i) => {
-        const { y, m } = parseYm(labels[i]);
-        return { index: i, text: m === 1 ? String(y) : MONTHS_SHORT[m - 1], minor: false };
-      });
-    return markMinor(out);
+    // Alternate major/minor counted from a January, so the year label stays
+    // visible on phones and the visible ticks are evenly spaced too.
+    if (out.length <= 5) return out;
+    const a = Math.max(0, anchor);
+    return out.map((t, k) => ({ ...t, minor: Math.abs(k - a) % 2 === 1 }));
   }
   const januaries = [];
   labels.forEach((ym, i) => {

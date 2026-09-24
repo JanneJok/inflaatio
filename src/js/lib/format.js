@@ -7,7 +7,9 @@
  *
  * Conventions:
  * - decimal comma, U+2212 minus sign, NBSP (U+00A0) as thousands separator and
- *   before the units `%`, `%-yks.` and `€`;
+ *   before the units `%`, `%-yks.` and `€`; the hyphen of `%-yks.` is the
+ *   non-breaking hyphen U+2011 (PP_UNIT), so running text never breaks the
+ *   unit into "%-" / "yks.";
  * - rounding is "half away from zero" on the decimal value (2,25 → 2,3), after
  *   removing binary float noise (2.1499999999999995 → 2,15 → 2,2);
  * - a rounded zero never shows a minus sign (−0,04 → "0,0");
@@ -23,6 +25,10 @@ export const DASH = '–';
 export const NBSP = ' ';
 /** Typographic minus sign (U+2212). */
 export const MINUS = '−';
+/** Non-breaking hyphen (U+2011): looks like "-", but a line never breaks after it. */
+export const NB_HYPHEN = '‑';
+/** Unit of percentage points: '%-yks.' with NB_HYPHEN (output of pp()). */
+export const PP_UNIT = `%${NB_HYPHEN}yks.`;
 
 /** Month names, nominative. Index 0 = January. */
 export const MONTHS = Object.freeze([
@@ -117,12 +123,14 @@ export function pct(v, { decimals = 1, sign = false } = {}) {
 /**
  * Percentage points (difference of two rates): pp(0.1) → "+0,1 %-yks.",
  * pp(-0.1) → "−0,1 %-yks.", pp(0) → "±0,0 %-yks.". Signed by default.
+ * The unit is PP_UNIT (non-breaking hyphen), so prose never wraps it as
+ * "%-" / "yks.".
  * @param {number} v
  * @param {{decimals?: number, sign?: boolean}} [opts]
  */
 export function pp(v, { decimals = 1, sign = true } = {}) {
   const s = fmt(v, decimals, sign);
-  return s === DASH ? DASH : `${s}${NBSP}%-yks.`;
+  return s === DASH ? DASH : `${s}${NBSP}${PP_UNIT}`;
 }
 
 /**
@@ -382,4 +390,86 @@ export function isoDate(v = new Date()) {
   const p = helsinkiParts(d);
   const pad = (n, w = 2) => String(n).padStart(w, '0');
   return `${pad(p.year, 4)}-${pad(p.month)}-${pad(p.day)}`;
+}
+
+/* --------------------------------------------------------- English (en-GB) */
+/*
+ * The few English pages (/en/, the English calculators, English chart
+ * tooltips) use these: en-GB digits (decimal point, comma grouping), U+2212
+ * minus, '2.2%', '+0.1 pp', '€1,234.56', 'August 2026', '17 September 2026'.
+ * Same rounding and missing-value rules as the Finnish formatters.
+ */
+
+/** English month names. Index 0 = January. */
+export const EN_MONTHS = Object.freeze([
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]);
+
+/** English month abbreviations. Index 0 = January. */
+export const EN_MONTHS_SHORT = Object.freeze(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']);
+
+const enCache = new Map();
+/** en-GB number body without sign. */
+function enBody(v, decimals) {
+  let f = enCache.get(decimals);
+  if (!f) {
+    f = new Intl.NumberFormat('en-GB', { minimumFractionDigits: decimals, maximumFractionDigits: decimals, useGrouping: true });
+    enCache.set(decimals, f);
+  }
+  return f.format(Math.abs(v));
+}
+
+/**
+ * English number: enNum(1234.5, 1) → '1,234.5'; enNum(-0.2, 1) → '−0.2'.
+ * @param {number} v
+ * @param {number} [decimals=0]
+ * @param {{sign?: boolean}} [opts]
+ */
+export function enNum(v, decimals = 0, { sign = false } = {}) {
+  const r = round(/** @type {number} */ (v), decimals);
+  if (r === null) return DASH;
+  const s = r < 0 ? MINUS : sign ? (r > 0 ? '+' : '±') : '';
+  return s + enBody(r, decimals);
+}
+
+/** enPct(2.2) → '2.2%'. @param {number} v @param {{decimals?: number, sign?: boolean}} [opts] */
+export function enPct(v, { decimals = 1, sign = false } = {}) {
+  const s = enNum(v, decimals, { sign });
+  return s === DASH ? DASH : `${s}%`;
+}
+
+/** enPp(0.1) → '+0.1 pp' (NBSP). Signed by default. @param {number} v @param {{decimals?: number, sign?: boolean}} [opts] */
+export function enPp(v, { decimals = 1, sign = true } = {}) {
+  const s = enNum(v, decimals, { sign });
+  return s === DASH ? DASH : `${s}${NBSP}pp`;
+}
+
+/** enEur(1234.56) → '€1,234.56'. @param {number} v @param {number} [decimals=2] @param {{sign?: boolean}} [opts] */
+export function enEur(v, decimals = 2, { sign = false } = {}) {
+  const r = round(/** @type {number} */ (v), decimals);
+  if (r === null) return DASH;
+  const s = r < 0 ? MINUS : sign ? (r > 0 ? '+' : '±') : '';
+  return `${s}€${enBody(r, decimals)}`;
+}
+
+/** enMonthName('2026-08') → 'August 2026'. @param {string} ym @param {{year?: boolean}} [o] */
+export function enMonthName(ym, { year = true } = {}) {
+  return month(ym, (y, i) => withYear(EN_MONTHS[i], y, year));
+}
+
+/** enMonthShort('2026-08') → 'Aug 2026'. @param {string} ym @param {{year?: boolean}} [o] */
+export function enMonthShort(ym, { year = true } = {}) {
+  return month(ym, (y, i) => withYear(EN_MONTHS_SHORT[i], y, year));
+}
+
+/**
+ * English date '17 September 2026' (same time-zone rules as date()).
+ * @param {string|number|Date} v
+ */
+export function enDate(v) {
+  const iso = missing(v) ? null : isoDate(v);
+  if (!iso) return DASH;
+  const [y, m, d] = iso.split('-').map(Number);
+  return `${d} ${EN_MONTHS[m - 1]} ${y}`;
 }

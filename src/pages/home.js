@@ -19,6 +19,11 @@
  * Named exports (placeholders, richText, …) are used by test/home.test.js.
  */
 import * as model from '../js/charts/home-model.js';
+import * as format from '../js/lib/format.js';
+
+const { NBSP } = format;
+/** "%-yks." with a non-breaking hyphen when format.js provides it (never wraps at the hyphen). */
+const PP = format.PP_UNIT ?? '%-yks.';
 
 const PATH = '/';
 
@@ -45,13 +50,10 @@ export const DATA_FILES = Object.freeze([
 
 /* ================================================================ helpers */
 
-/** First letter to lower case (group names inside a sentence). */
-const lcFirst = (s) => (s ? s.charAt(0).toLowerCase() + s.slice(1) : s);
-
-/** "08:00" → "klo 8.00" (Finnish time notation). */
+/** "08:00" → "klo 8.00" (Finnish time notation, NBSP after "klo"). */
 function clock(time) {
   const m = typeof time === 'string' ? time.match(/^(\d{1,2}):(\d{2})$/) : null;
-  return m ? `klo ${Number(m[1])}.${m[2]}` : '';
+  return m ? `klo${NBSP}${Number(m[1])}.${m[2]}` : '';
 }
 
 /** Release date text: "14.10.2026 klo 8.00". */
@@ -79,6 +81,9 @@ function latestOf(stats, months, arr) {
 }
 
 /* =========================================================== placeholders */
+
+/** "kolmin|kertaistuivat": stems of the multiples used in FAQ texts. */
+const MULTIPLE_WORDS = Object.freeze({ 2: 'kaksin', 3: 'kolmin', 4: 'nelin', 5: 'viisin', 6: 'kuusin', 7: 'seitsen', 8: 'kahdeksan', 9: 'yhdeksän', 10: 'kymmen' });
 
 const PLACEHOLDER_RE = /\{\{\s*([A-Za-z][\w.]*)(?::([^}]*?))?\s*\}\}/g;
 
@@ -166,6 +171,41 @@ export function placeholders(ctx) {
       const top = rows.reduce((best, r) => (r.value > best.value ? r : best));
       return `vuonna ${top.year} (${fmt.pct(top.value)})`;
     },
+    // Largest change of the official annual averages (11xt, oldest base) before
+    // the official annual changes (122q) begin. Computed by us, labelled so in faq.json.
+    'khi.annualAvgMaxBefore': () => {
+      const idx = d['khi-annual']?.index ?? {};
+      const years = d['khi-annual']?.years ?? [];
+      const first = khiRows[0]?.year;
+      if (!first) return null;
+      // The base with the earliest data covers the most years.
+      const base = Object.keys(idx).sort((a, b) => stats.firstIndex(idx[a]) - stats.firstIndex(idx[b]))[0];
+      const arr = idx[base] ?? [];
+      let best = null;
+      years.forEach((y, i) => {
+        if (i === 0 || Number(y) >= first || !fmt.isNum(arr[i]) || !fmt.isNum(arr[i - 1])) return;
+        const change = stats.totalChange(arr[i - 1], arr[i]);
+        if (fmt.isNum(change) && (!best || change > best.change)) best = { year: y, change };
+      });
+      return best ? `${fmt.pct(best.change)} vuonna ${best.year}` : null;
+    },
+    'eki.base1914': () => d.elinkustannusindeksi?.annual1914?.base ?? null,
+    // Largest annual rise of the cost-of-living index 1914:1–6=100 (11xy), as a multiple when ≥ 2×.
+    'eki.maxRise1914': () => {
+      const s = d.elinkustannusindeksi?.annual1914;
+      let best = null;
+      (s?.years ?? []).forEach((y, i) => {
+        const a = s.values?.[i - 1];
+        const b = s.values?.[i];
+        if (i === 0 || !fmt.isNum(a) || !fmt.isNum(b) || a <= 0) return;
+        if (!best || b / a > best.ratio) best = { year: y, ratio: b / a };
+      });
+      if (!best) return null;
+      const times = Math.floor(best.ratio);
+      const word = MULTIPLE_WORDS[times];
+      if (times < 2 || !word) return `nousivat ${fmt.pct((best.ratio - 1) * 100)} vuonna ${best.year}`;
+      return `${best.ratio > times ? 'yli ' : ''}${word}kertaistuivat vuonna ${best.year}`;
+    },
     'khi.lastDeflationYear': () => {
       const r = khiRows.filter((x) => r1(x.value) < 0).at(-1);
       return r ? `vuonna ${r.year} (${fmt.pct(r.value)})` : null;
@@ -178,7 +218,7 @@ export function placeholders(ctx) {
     'khi.recentYears': () => {
       const [a, b] = khiRows.slice(-2);
       if (!a || !b) return null;
-      let text = `Vuonna ${a.year} inflaatio oli ${fmt.pct(a.value)} ja vuonna ${b.year} ${fmt.pct(b.value)}.`;
+      let text = `Inflaatio oli ${fmt.pct(a.value)} vuonna ${a.year} ja ${fmt.pct(b.value)} vuonna ${b.year}.`;
       const cy = L.khi?.currentYear;
       if (cy && !cy.complete && cy.year > b.year) text += ` Vuoden ${cy.year} ${cy.span}kuun keskiarvo on ${fmt.pct(cy.value)}.`;
       return text;
@@ -309,38 +349,46 @@ function prepare(ctx) {
     ykhiIdx: on(y.months, fi.index?.['2025=100']),
   };
 
-  // Official index for average annual changes: the newest base that covers the range start.
+  // Official index for average annual changes and the price level: the newest
+  // base that covers the range start (e.g. 1977=100 for "Kaikki" from 1980).
   const indexSets = { khi: { src: khi.months, index: khi.index ?? {} }, ykhi: { src: y.months, index: fi.index ?? {} } };
-  const indexFor = (metric, fromYm) => {
+  const baseFor = (metric, fromYm) => {
     const { src, index } = indexSets[metric];
-    const base = Object.keys(index).find((b) => fmt.isNum(stats.seriesAt(src, index[b], fromYm)));
-    return base ? on(src, index[base]) : months.map(() => null);
+    return Object.keys(index).find((b) => fmt.isNum(stats.seriesAt(src, index[b], fromYm))) ?? null;
   };
-
-  const latestLine = () => {
-    const k = L.khi;
-    const yk = L.ykhi;
-    const ykMonth = yk.month === k.month ? '' : `${fmt.inessive(yk.month)} `;
-    return `KHI oli ${fmt.inessive(k.month)} ${fmt.pct(k.yoy)} ja YKHI ${ykMonth}${fmt.pct(yk.yoy)}${yk.provisional ? ' (ennakko)' : ''}.`;
-  };
+  const indexOn = (metric, base) => (base ? on(indexSets[metric].src, indexSets[metric].index[base]) : months.map(() => null));
 
   const text = { trend: {}, stats: { khi: {}, ykhi: {} }, level: { khi: {}, ykhi: {} } };
+  /** Index series of the price level per metric and base (only the bases in use; shipped to the browser). */
+  const levelIndex = { khi: {}, ykhi: {} };
   for (const key of stats.RANGE_KEYS) {
     const r = stats.sliceRange(months, [series.khi, series.ykhi], key);
     const period = fmt.monthRange(r.months[0], r.months.at(-1));
-    const s = stats.rangeStats(r.months, r.series[0]);
     text.trend[key] = {
       period,
-      summary:
-        `${latestLine()} Jaksolla ${period} KHI oli korkeimmillaan ${fmt.pct(s.max?.value)} (${model.monthsText(s.max?.months)}) ` +
-        `ja matalimmillaan ${fmt.pct(s.min?.value)} (${model.monthsText(s.min?.months)}).`,
+      summary: {},
       aria: `Vuosi-inflaatio kuukausittain ${period}: KHI ja YKHI, vuosimuutos prosentteina. EKP:n tavoite 2 % katkoviivana.`,
     };
     for (const metric of model.METRICS) {
       const m = stats.sliceRange(months, series[metric], key);
-      const index = indexFor(metric, m.months[0]).slice(m.start, m.end + 1);
-      text.stats[metric][key] = model.rangeStatItems({ months: m.months, yoy: m.series, index });
-      text.level[metric][key] = model.priceLevelText(model.priceLevel(months, series[`${metric}Idx`], key), metric, '2025=100');
+      const base = baseFor(metric, m.months[0]);
+      const index = indexOn(metric, base);
+      text.stats[metric][key] = model.rangeStatItems({ months: m.months, yoy: m.series, index: index.slice(m.start, m.end + 1) });
+      // The summary describes the selected metric (same months as its statistics row).
+      text.trend[key].summary[metric] = model.trendSummary({
+        metric,
+        self: L[metric],
+        other: L[metric === 'khi' ? 'ykhi' : 'khi'],
+        months: m.months,
+        yoy: m.series,
+      });
+      // Price level from the same official base as the statistics row.
+      const levelBase = base ?? model.DEFAULT_BASE;
+      levelIndex[metric][levelBase] ??= base ? index : series[`${metric}Idx`];
+      text.level[metric][key] = {
+        ...model.priceLevelText(model.priceLevel(months, levelIndex[metric][levelBase], key), metric, levelBase),
+        base: levelBase,
+      };
     }
   }
 
@@ -354,17 +402,20 @@ function prepare(ctx) {
       .filter(([, f]) => f === 'p')
       .map(([m]) => m);
 
+  const encodeAll = (obj) => Object.fromEntries(Object.entries(obj).map(([k, a]) => [k, model.encodeSeries(a)]));
   const island = {
     start,
     n: months.length,
-    s: Object.fromEntries(Object.entries(series).map(([k, a]) => [k, model.encodeSeries(a)])),
-    base: { khi: '2025=100', ykhi: '2025=100' },
+    // Annual rates of the main chart (index series travel in `lvl`).
+    s: encodeAll(Object.fromEntries(Object.entries(series).filter(([k]) => !k.endsWith('Idx')))),
+    // Price-level index series per metric and official base (text.level[m][range].base picks one).
+    lvl: { khi: encodeAll(levelIndex.khi), ykhi: encodeAll(levelIndex.ykhi) },
     flags: { ykhi: flagged('FI'), ea: flagged('EA') },
     events,
     text,
   };
 
-  return { L, d, months, series, text, events, island, updated: newest(fmt, [L.khi.updated, L.ykhi.updated]) };
+  return { L, d, months, series, levelIndex, text, events, island, updated: newest(fmt, [L.khi.updated, L.ykhi.updated]) };
 }
 
 /** Newest of ISO timestamps (for "Päivitetty"). */
@@ -403,17 +454,21 @@ function heroSection(ctx, vm) {
 
   const yearDiff = fmt.yearOf(k.prevMonth ?? k.month) !== fmt.yearOf(k.month);
   const chip = fmt.isNum(k.delta) ? c.deltaChip({ value: k.delta, context: fmt.elative(k.prevMonth, { year: yearDiff }) }) : '';
-  const prevText = fmt.isNum(k.prevYoy) ? ` (${fmt.inessive(k.prevMonth, { year: yearDiff })} ${fmt.pct(k.prevYoy)})` : '';
+  // 'heinäkuussa 2,1 %'; across a year 'vuoden 2025 joulukuussa 0,2 %' (the year never runs into the value).
+  const prevWhen = k.prevMonth ? `${yearDiff ? `vuoden ${fmt.yearOf(k.prevMonth)} ` : ''}${fmt.inessive(k.prevMonth, { year: false })}` : '';
+  const prevText = fmt.isNum(k.prevYoy) ? ` (${prevWhen} ${fmt.pct(k.prevYoy)})` : '';
   const first = model.annualChangeSentence(k.month, k.yoy).replace(/\.$/, `${prevText}.`);
-  const ykMonth = yk.month === k.month ? '' : `${fmt.inessive(yk.month)} `;
-  const second = `EU-maiden vertailuun käytettävällä yhdenmukaistetulla kuluttajahintaindeksillä (YKHI) inflaatio oli ${ykMonth}${fmt.pct(yk.yoy)}${yk.provisional ? ' (ennakko)' : ''}.`;
+  const ykNotes = [yk.month === k.month ? null : fmt.monthName(yk.month), yk.provisional ? 'ennakko' : null].filter(Boolean);
+  const second = `EU-maiden vertailuun käytettävällä yhdenmukaistetulla kuluttajahintaindeksillä (YKHI) inflaatio oli ${fmt.pct(yk.yoy)}${ykNotes.length ? ` (${ykNotes.join(', ')})` : ''}.`;
   const [num, unit] = fmt.pct(k.yoy).split(fmt.NBSP);
 
   const facts = c.statsList(
     [
       { label: 'YKHI, Suomi', value: html`${fmt.pct(yk.yoy)}${yk.provisional ? html` ${c.chip({ text: 'ennakko', tone: 'provisional' })}` : ''}`, note: `${fmt.monthName(yk.month)} · Eurostat` },
       ea ? { label: 'Euroalue', value: fmt.pct(ea.yoy), note: `${fmt.monthName(ea.month)} · Eurostat` } : null,
-      fmt.isNum(yk.coreYoy) ? { label: 'Pohjainflaatio', value: fmt.pct(yk.coreYoy), note: 'YKHI ilman energiaa ja ruokaa' } : null,
+      fmt.isNum(yk.coreYoy)
+        ? { label: 'Pohjainflaatio', value: fmt.pct(yk.coreYoy), note: `${fmt.monthName(yk.month)} · Eurostat (ilman energiaa, ruokaa, alkoholia ja tupakkaa)` }
+        : null,
     ].filter(Boolean),
     { className: 'home-hero__facts' },
   );
@@ -437,6 +492,7 @@ function heroSection(ctx, vm) {
           ${c.legend([
             { cls: 'khi', label: 'KHI' },
             { cls: 'target', label: 'Tavoite 2 %', dashed: true },
+            { cls: 'muted', label: '0 %' },
           ])}
         </figcaption>
         ${spark(112, 'home-spark home-spark--wide')}${spark(64, 'home-spark home-spark--narrow')}
@@ -461,7 +517,7 @@ function kpiPanel(ctx, vm, metric) {
     yearCard = c.kpiCard({
       label: `Vuosi ${cy.year} (${cy.span})`,
       value: fmt.pct(cy.value),
-      note: `${fmt.capitalize(cy.span)}kuun keskiarvo. Luku tarkentuu, kun loppuvuoden tiedot julkaistaan.`,
+      note: `${fmt.capitalize(cy.span)}kuun keskiarvo. ${model.PARTIAL_YEAR_NOTE}`,
     });
   } else if (cy && official?.year === cy.year) {
     yearCard = c.kpiCard({ label: `Vuosi ${cy.year}`, value: fmt.pct(official.yoy), note: `${SOURCE_GEN[metric]} virallinen vuosimuutos.` });
@@ -499,7 +555,7 @@ function kpiSection(ctx, vm) {
     label: 'Mittari',
     value: model.DEFAULT_METRIC,
     full: true,
-    controls: 'tunnusluvut-khi tunnusluvut-ykhi vuosittain-khi vuosittain-ykhi kehitys-tilastot hintataso-kaavio-alue',
+    controls: 'tunnusluvut-khi tunnusluvut-ykhi vuosittain-khi vuosittain-ykhi kehitys-tilastot hintataso-kaavio-alue hintataso-taulukko',
     options: [
       { value: 'khi', label: 'KHI', sub: 'Tilastokeskus', series: 'khi' },
       { value: 'ykhi', label: 'YKHI', sub: 'Eurostat', series: 'ykhi' },
@@ -541,11 +597,11 @@ function driversSection(ctx, vm) {
   const yoyWord = (v) => (ctx.stats.deltaClass(v) === 'down' ? `laskivat vuodessa ${fmt.pct(Math.abs(v))}` : ctx.stats.deltaClass(v) === 'up' ? `nousivat vuodessa ${fmt.pct(v)}` : 'pysyivät vuoden takaisella tasolla');
   let summary =
     biggest.contribution > 0
-      ? `Suurin nostaja oli ${lcFirst(name(biggest))}: vaikutus ${fmt.pp(biggest.contribution, { decimals: 2 })}${
+      ? `Suurin nostaja oli pääryhmä ${name(biggest)}: vaikutus ${fmt.pp(biggest.contribution, { decimals: 2 })}${
           share != null ? ` eli noin ${fmt.pct(share, { decimals: 0 })} koko inflaatiosta (${fmt.pct(total.yoy)})` : ''
         }. Ryhmän hinnat ${yoyWord(biggest.yoy)}.`
       : `Kaikkien pääryhmien vaikutus oli ${fmt.inessive(month)} nolla tai negatiivinen.`;
-  if (lowest.contribution < 0) summary += ` Eniten inflaatiota hillitsi ${lcFirst(name(lowest))} (${fmt.pp(lowest.contribution, { decimals: 2 })}).`;
+  if (lowest.contribution < 0) summary += ` Eniten inflaatiota hillitsi pääryhmä ${name(lowest)} (${fmt.pp(lowest.contribution, { decimals: 2 })}).`;
 
   const chart = svg.hBarChart({
     bars: top.map((it) => ({
@@ -555,7 +611,7 @@ function driversSection(ctx, vm) {
     })),
     ariaLabel: `Pääryhmien vaikutus vuosi-inflaatioon ${fmt.inessive(month)}, prosenttiyksikköä: ${top
       .map((it) => `${name(it)} ${fmt.pp(it.contribution, { decimals: 2 })}`)
-      .join(', ')}.`,
+      .join(', ')}`,
   });
   const table = c.dataTable({
     id: 'hinnat-taulukko',
@@ -565,7 +621,7 @@ function driversSection(ctx, vm) {
       { label: 'Vuosimuutos', num: true },
       { label: 'Kuukausimuutos', num: true },
       { label: html`Paino, <abbr title="promillea">‰</abbr>`, num: true },
-      { label: 'Vaikutus, %-yks.', num: true },
+      { label: `Vaikutus, ${PP}`, num: true },
     ],
     rows: sorted.map((it) => [
       name(it),
@@ -578,7 +634,7 @@ function driversSection(ctx, vm) {
       groups.reduce((s, it) => s + it.contribution, 0),
       2,
       { sign: true },
-    )} %-yks.; kokonaisindeksin vuosimuutos ${fmt.pct(total?.yoy)}.`,
+    )} ${PP}; kokonaisindeksin vuosimuutos ${fmt.pct(total?.yoy)}.`,
     compact: true,
   });
 
@@ -590,7 +646,7 @@ function driversSection(ctx, vm) {
     body: c.chartFigure({
       id: 'hinnat-kaavio',
       title: `Suurimmat vaikutukset, ${fmt.monthName(month)}`,
-      subtitle: `%-yksikköä · ${top.length} suurinta ${groups.length} pääryhmästä · kaikki taulukossa`,
+      subtitle: `Prosenttiyksikköä · ${top.length} suurinta ${groups.length} pääryhmästä · kaikki taulukossa`,
       chart,
       summary,
       table,
@@ -600,20 +656,13 @@ function driversSection(ctx, vm) {
   });
 }
 
-/** Legend item with optional data hook and hidden state (JS toggles the optional series). */
-function legendItem(html, attrs, { cls, label, dashed = false, hook, hidden = false }) {
-  return html`<li${attrs({ class: 'legend__item', 'data-legend': hook, hidden })}><span${attrs({
-    class: ['legend__swatch', `series--${cls}`, dashed && 'legend__swatch--dashed'],
-    'aria-hidden': 'true',
-  })}></span><span class="legend__label">${label}</span></li>`;
-}
-
 /** 4 Kehitys – the main chart. */
 function trendSection(ctx, vm) {
-  const { html, attrs, fmt, stats, svg, c } = ctx;
+  const { html, fmt, stats, svg, c } = ctx;
   const key = model.DEFAULT_RANGE;
   const r = stats.sliceRange(vm.months, [vm.series.khi, vm.series.ykhi], key);
   const t = vm.text.trend[key];
+  const summary = t.summary[model.DEFAULT_METRIC];
   const fallback = (height, cls) =>
     svg.lineChart({
       series: [
@@ -624,38 +673,43 @@ function trendSection(ctx, vm) {
       refLines: [{ value: 2, cls: 'target' }],
       height,
       className: cls,
-      ariaLabel: `${t.aria} ${t.summary}`,
+      ariaLabel: `${t.aria} ${summary}`,
     });
 
-  const legend = html`<ul class="legend home-legend" id="kehitys-selite">
-  ${legendItem(html, attrs, { cls: 'khi', label: 'KHI (Tilastokeskus)' })}
-  ${legendItem(html, attrs, { cls: 'ykhi', label: 'YKHI (Eurostat)' })}
-  ${legendItem(html, attrs, { cls: 'ea', label: 'Euroalue (YKHI)', hook: 'ea', hidden: true })}
-  ${legendItem(html, attrs, { cls: 'core', label: 'Pohjainflaatio, Suomi', dashed: true, hook: 'core', hidden: true })}
-  ${legendItem(html, attrs, { cls: 'ea', label: 'Pohjainflaatio, euroalue', dashed: true, hook: 'core-ea', hidden: true })}
-  ${vm.events.length ? html`<li class="legend__item" data-legend="events" hidden><span class="legend__swatch home-legend__event" aria-hidden="true"></span><span class="legend__label">Tapahtuma</span></li>` : ''}
-  ${legendItem(html, attrs, { cls: 'target', label: 'EKP:n tavoite 2 %', dashed: true })}
-</ul>`;
+  // Optional series are rendered hidden; the page script shows them with the toggles (data-series = key).
+  const legend = c.legend(
+    [
+      { cls: 'khi', label: 'KHI (Tilastokeskus)' },
+      { cls: 'ykhi', label: 'YKHI (Eurostat)' },
+      { cls: 'ea', label: 'Euroalue (YKHI)', key: 'ea', hidden: true },
+      { cls: 'core', label: 'Pohjainflaatio, Suomi', dashed: true, key: 'core', hidden: true },
+      { cls: 'ea', label: 'Pohjainflaatio, euroalue', dashed: true, key: 'core-ea', hidden: true },
+      vm.events.length ? { cls: 'muted', label: 'Tapahtuma', key: 'events', hidden: true } : null,
+      { cls: 'target', label: `EKP:n tavoite 2${fmt.NBSP}%`, dashed: true },
+    ].filter(Boolean),
+  );
 
-  const toggles = html`<fieldset class="home-toggles js-only">
+  // Event markers are off by default: a 5-year range has a dozen of them.
+  const toggles = html`<fieldset class="home-toggles js-only no-print">
   <legend class="home-toggles__legend">Näytä myös</legend>
   ${c.checkbox({ id: 'kehitys-euroalue', label: 'Euroalue' })}
   ${c.checkbox({ id: 'kehitys-pohja', label: 'Pohjainflaatio' })}
-  ${vm.events.length ? c.checkbox({ id: 'kehitys-tapahtumat', label: 'Tapahtumat', checked: true }) : ''}
+  ${vm.events.length ? c.checkbox({ id: 'kehitys-tapahtumat', label: 'Tapahtumat' }) : ''}
 </fieldset>`;
 
   const statsRow = c.statsList(
-    vm.text.stats.khi[key].map((it, i) => ({ ...it, id: `kehitys-tilasto-${i}` })),
+    vm.text.stats[model.DEFAULT_METRIC][key].map((it, i) => ({ ...it, id: `kehitys-tilasto-${i}` })),
     { id: 'kehitys-tilastot', className: 'home-stats' },
   );
 
+  // Server default = 5 v; the page script rebuilds the rows for the selected range.
   const table = c.dataTable({
     id: 'kehitys-taulukko',
     caption: `Vuosi-inflaatio kuukausittain, ${t.period}`,
     columns: [{ label: 'Kuukausi' }, { label: 'KHI', num: true }, { label: 'YKHI', num: true }],
     rows: r.months.map((m, i) => [fmt.monthShort(m), fmt.pct(r.series[0][i]), fmt.pct(r.series[1][i])]).reverse(),
-    visibleRows: 12,
-    toggleLabels: { more: `Näytä kaikki kuukaudet (${r.months.length})`, less: 'Näytä vain 12 viimeisintä' },
+    visibleRows: model.TABLE_ROWS,
+    toggleLabels: model.trendTableLabels(r.months.length),
     note: html`Koko aikasarja: <a href="/inflaatio/">inflaatio vuosittain ja kuukausittain</a>.`,
     compact: true,
   });
@@ -670,10 +724,10 @@ function trendSection(ctx, vm) {
   <div class="home-chart__fallback" data-chart-fallback>${fallback(380, 'home-chart__svg home-chart__svg--wide')}${fallback(280, 'home-chart__svg home-chart__svg--narrow')}</div>
   <div class="chart-canvas" data-chart="kehitys" data-label="${t.aria}" hidden></div>
 </div>
-<p class="home-stats__caption" id="kehitys-tilastot-mittari">${model.statsCaption('khi')}</p>
+<p class="home-stats__caption" id="kehitys-tilastot-mittari">${model.statsCaption(model.DEFAULT_METRIC)}</p>
 ${statsRow}`,
-    summary: html`<span id="kehitys-yhteenveto">${t.summary}</span>`,
-    live: true,
+    // Not a live region: the page script announces view changes once (lib/dom.js announce()).
+    summary: html`<span id="kehitys-yhteenveto">${summary}</span>`,
     table,
     source: c.sourceLine({
       sources: [
@@ -699,13 +753,13 @@ ${statsRow}`,
     id: 'kehitys',
     eyebrow: 'Kehitys',
     title: 'Inflaatio kuukausittain',
-    intro: 'KHI ja YKHI samassa kuvassa. Valitse aikaväli; tilastot ja hintataso seuraavat valintaa.',
+    intro: 'KHI ja YKHI samassa kuvassa. Valitse aikaväli; tilastot, taulukko ja hintataso seuraavat valintaa.',
     controls: html`<div class="home-switch js-only">${c.segmented({
       name: 'jakso',
       label: 'Aikaväli',
       value: key,
       full: true,
-      controls: 'kehitys-kaavio-alue kehitys-tilastot hintataso-kaavio-alue',
+      controls: 'kehitys-kaavio-alue kehitys-tilastot kehitys-taulukko hintataso-kaavio-alue hintataso-taulukko',
       options: stats.RANGE_KEYS.map((k) => ({ value: k, label: model.RANGE_LABELS[k] })),
     })}</div>`,
     body: html`<span class="home-anchor" id="analytiikka"></span>${figure}${eventList}`,
@@ -714,10 +768,12 @@ ${statsRow}`,
 
 /** 5 Hintataso – price level rebased to the range start. */
 function levelSection(ctx, vm) {
-  const { html, attrs, fmt, svg, c } = ctx;
+  const { html, fmt, svg, c } = ctx;
   const key = model.DEFAULT_RANGE;
-  const pl = model.priceLevel(vm.months, vm.series.khiIdx, key);
-  const t = vm.text.level.khi[key];
+  const metric = model.DEFAULT_METRIC;
+  const t = vm.text.level[metric][key];
+  const pl = model.priceLevel(vm.months, vm.levelIndex[metric][t.base], key);
+  const eur100 = `100${fmt.NBSP}€`;
   const fallback = (height, cls) =>
     svg.lineChart({
       series: [{ values: pl.values, cls: 'khi', label: 'Hintataso (KHI)' }],
@@ -730,42 +786,41 @@ function levelSection(ctx, vm) {
       ariaLabel: `${t.aria} ${t.summary}`,
     });
 
-  // Text alternative: the level at the same month of each year of the range.
-  const rows = [];
-  for (let i = pl.months.length - 1; i >= 0; i -= 12) rows.push([fmt.monthShort(pl.months[i]), fmt.eur(pl.values[i]), fmt.idx(pl.index[i])]);
+  // Text alternative: the level at the same month of each year of the range
+  // (the page script rebuilds it for the selected metric and range).
   const table = c.dataTable({
     id: 'hintataso-taulukko',
-    caption: `Hintataso (KHI), jakson alku ${fmt.monthShort(pl.start)} = 100 €`,
-    columns: [{ label: 'Kuukausi' }, { label: 'Hintataso', num: true }, { label: 'Pisteluku (2025=100)', num: true }],
-    rows,
+    caption: model.priceLevelCaption(pl, metric),
+    columns: [{ label: 'Kuukausi' }, { label: 'Hintataso', num: true }, { label: `Pisteluku (${t.base})`, num: true }],
+    rows: model.priceLevelRows(pl),
     compact: true,
   });
 
   return c.section({
     id: 'hintataso',
     eyebrow: 'Rahan arvo',
-    title: 'Hintataso: mitä 100 € on nyt?',
-    intro: 'Paljonko jakson alussa 100 € maksaneet ostokset maksavat myöhemmin. Aikaväli ja mittari ovat samat kuin yllä.',
+    title: `Hintataso: mitä ${eur100} on nyt?`,
+    intro: `Mitä jakson alussa ${eur100} maksaneet ostokset maksoivat jakson lopussa. Aikaväli ja mittari ovat samat kuin yllä.`,
     body: c.chartFigure({
       id: 'hintataso-kaavio',
-      title: 'Hintataso, jakson alku = 100 €',
-      subtitle: html`<span id="hintataso-jakso">${t.period}</span> · virallisista pisteluvuista (2025=100)`,
-      legend: html`<ul class="legend home-legend">
-  ${legendItem(html, attrs, { cls: 'khi', label: 'Hintataso, KHI', hook: 'level-khi' })}
-  ${legendItem(html, attrs, { cls: 'ykhi', label: 'Hintataso, YKHI', hook: 'level-ykhi', hidden: true })}
-  ${legendItem(html, attrs, { cls: 'target', label: 'Jakson alku 100 €', dashed: true })}
-</ul>`,
+      title: `Hintataso, jakson alku = ${eur100}`,
+      // The base follows the range: the newest official base that covers its start (as in the statistics row).
+      subtitle: html`<span id="hintataso-jakso">${t.period}</span> · virallisista pisteluvuista (<span id="hintataso-perusta">${t.base}</span>)`,
+      legend: c.legend([
+        { cls: 'khi', label: 'Hintataso, KHI', key: 'level-khi' },
+        { cls: 'ykhi', label: 'Hintataso, YKHI', key: 'level-ykhi', hidden: true },
+        { cls: 'target', label: `Jakson alku ${eur100}`, dashed: true },
+      ]),
       chart: html`<div class="home-chart home-chart--level" id="hintataso-kaavio-alue">
   <div class="home-chart__fallback" data-chart-fallback>${fallback(300, 'home-chart__svg home-chart__svg--wide')}${fallback(240, 'home-chart__svg home-chart__svg--narrow')}</div>
   <div class="chart-canvas" data-chart="hintataso" data-label="${t.aria}" hidden></div>
 </div>`,
       summary: html`<span id="hintataso-yhteenveto">${t.summary}</span>`,
-      live: true,
       table,
       source: c.sourceLine({
         sources: [
-          { ...SRC.khi, detail: 'KHI, pisteluvut 2025=100' },
-          { ...SRC.ykhi, detail: 'YKHI, pisteluvut 2025=100' },
+          { ...SRC.khi, detail: 'KHI, pisteluvut' },
+          { ...SRC.ykhi, detail: 'YKHI, pisteluvut' },
         ],
         updated: vm.updated,
       }),
@@ -817,7 +872,7 @@ function annualSection(ctx, vm) {
     return html`<div class="home-panel" data-metric-panel="${metric}" id="vuosittain-${metric}">${c.chartFigure({
       id: `vuosittain-kaavio-${metric}`,
       title: `${info.short}-inflaatio vuosittain ${span}`,
-      subtitle: `Vuosimuutos, % · ${info.source}${partial ? ` · ${partial.partial.label} haalealla` : ''}`,
+      subtitle: `Vuosimuutos, % · ${info.source}${partial ? ` · ${partial.partial.label} vaaleampana` : ''}`,
       legend: c.legend([
         { cls: 'deflation', label: 'alle 0 %', box: true },
         { cls: 'low', label: '0–2 %', box: true },
@@ -828,7 +883,7 @@ function annualSection(ctx, vm) {
       chart,
       summary: `Korkein vuosi-inflaatio oli ${fmt.pct(hi.value)} vuonna ${hi.year} ja matalin ${fmt.pct(lo.value)} vuonna ${lo.year}.${
         partial ? ` Vuoden ${partial.year} luku (${fmt.pct(partial.value)}) on ${partial.partial.span}kuun keskiarvo.` : ''
-      } Pylvään väri kertoo tasoluokan.`,
+      } Pylvään väri kertoo inflaation tason (alle 0 %, 0–2 %, 2–4 % tai yli 4 %).`,
     })}</div>`;
   };
 
@@ -842,7 +897,7 @@ function annualSection(ctx, vm) {
       { label: 'Vuosi' },
       { label: 'KHI', num: true },
       { label: 'YKHI', num: true },
-      { label: 'KHI:n muutos, %-yks.', num: true },
+      { label: `KHI:n muutos, ${PP}`, num: true },
     ],
     rows: desc.map((r, i) => {
       const prev = desc[i + 1]?.value;
@@ -864,7 +919,7 @@ function annualSection(ctx, vm) {
       less: 'Näytä vain 10 viimeisintä vuotta',
     },
     note: `Lähteet: Tilastokeskus, kuluttajahintaindeksi (taulukko 122q); Eurostat, YKHI (prc_hicp_ainr). ${
-      partialKhi ? `Vuoden ${partialKhi.year} luku on ${partialKhi.partial.span}kuun keskiarvo ja tarkentuu vuoden lopussa.` : ''
+      partialKhi ? `Vuoden ${partialKhi.year} luku on ${partialKhi.partial.span}kuun keskiarvo. ${model.PARTIAL_YEAR_NOTE}` : ''
     }`,
   });
 
@@ -912,7 +967,7 @@ ${c.dataTable({
     title: 'KHI vai YKHI?',
     intro: 'Kaksi virallista mittaria eri tarkoituksiin.',
     className: 'section--tight',
-    body: c.details({ id: 'khi-vai-ykhi-selite', summary: 'Mitä eroa kuluttajahintaindeksillä ja yhdenmukaistetulla indeksillä on?', body }),
+    body: c.details({ id: 'khi-vai-ykhi-selite', summary: 'Mitä eroa on kuluttajahintaindeksillä ja yhdenmukaistetulla kuluttajahintaindeksillä?', body }),
   });
 }
 
@@ -929,7 +984,7 @@ function calculatorsSection(ctx, vm) {
       text: `Uusi vuokra elinkustannusindeksillä tai kuluttajahintaindeksillä.${eki ? ` Elinkustannusindeksi ${fmt.monthName(eki.month)}: ${fmt.num(eki.value, 0)} (Tilastokeskus).` : ''}`,
       meta: 'Laske',
     },
-    { href: '/rahanarvo/', eyebrow: 'Laskuri', title: 'Rahan arvo', text: 'Paljonko jonkin kuukauden 100 € on nykyrahassa? Laskee virallisista pisteluvuista.', meta: 'Laske' },
+    { href: '/rahanarvo/', eyebrow: 'Laskuri', title: 'Rahan arvo', text: 'Paljonko jonkin kuukauden 100 € on nykyrahassa? Laskenta perustuu Tilastokeskuksen virallisiin pistelukuihin.', meta: 'Laske' },
     { href: '/oma-inflaatio/', eyebrow: 'Laskuri', title: 'Oma inflaatio', text: 'Painota hintojen muutokset omalla kulutuksellasi ja vertaa virallisiin lukuihin.', meta: 'Laske' },
     {
       href: '/ostovoima/',
@@ -945,7 +1000,7 @@ function calculatorsSection(ctx, vm) {
     id: 'laskurit',
     eyebrow: 'Laskurit',
     title: 'Laske inflaation vaikutus',
-    intro: html`Vuokra, säästöt ja palkka viralliseen dataan perustuen. <a href="/laskurit/">Kaikki laskurit</a>`,
+    intro: html`Vuokrankorotus, rahan arvo, säästöt ja palkan ostovoima virallisilla luvuilla. <a href="/laskurit/">Kaikki laskurit</a>`,
     body: c.cardGrid(cards),
   });
 }
@@ -1032,7 +1087,8 @@ function sourcesSection(ctx, vm) {
     id: 'lahteet',
     eyebrow: 'Lähteet',
     title: 'Lähteet ja päivitykset',
-    intro: 'Kaikki luvut ovat virallisia tilastoja. Sivusto tarkistaa uudet luvut päivittäin ja päivittyy julkaisupäivänä.',
+    intro:
+      'Luvut perustuvat Tilastokeskuksen, Eurostatin ja EKP:n virallisiin tilastoihin; sivuston itse laskemat luvut, kuten keskiarvot, on merkitty. Sivusto tarkistaa uudet luvut kahdesti päivässä, joten uusi kuukausi näkyy yleensä jo julkaisupäivänä.',
     body: html`<div class="home-sources">
   <div class="home-sources__col">
     <h3 class="home-sources__title">Seuraavat julkaisut</h3>
@@ -1074,8 +1130,8 @@ ${c.sourceLine({
 /** Meta description (≤ 155 characters) with the latest figure. */
 export function pageDescription(fmt, month, yoy, firstYear) {
   const candidates = [
-    `Suomen inflaatio oli ${fmt.inessive(month)} ${fmt.pct(yoy)} (Tilastokeskus). Katso uusin luku, kehitys vuodesta ${firstYear} ja EU-vertailu (YKHI) kuvaajina ja taulukkona.`,
-    `Suomen inflaatio oli ${fmt.inessive(month)} ${fmt.pct(yoy)} (Tilastokeskus). Uusin luku, kehitys vuodesta ${firstYear} ja EU-vertailu kuvaajina.`,
+    `${fmt.capitalize(fmt.inessive(month))} Suomen inflaatio oli ${fmt.pct(yoy)} (Tilastokeskus). Katso uusin luku, kehitys vuodesta ${firstYear} ja EU-vertailu (YKHI) kuvaajina ja taulukkona.`,
+    `${fmt.capitalize(fmt.inessive(month))} Suomen inflaatio oli ${fmt.pct(yoy)} (Tilastokeskus). Uusin luku, kehitys vuodesta ${firstYear} ja EU-vertailu kuvaajina.`,
   ];
   return candidates.find((d) => d.length <= 155) ?? candidates.at(-1);
 }

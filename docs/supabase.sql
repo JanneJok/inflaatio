@@ -17,7 +17,9 @@
 --     "device":     "mobile" | "tablet" | "desktop" }
 --   The time comes from the database (created_at default now()).
 --   Nothing is sent when the browser has Global Privacy Control / Do Not Track
---   on, or outside inflaatio.fi / www.inflaatio.fi. Described to visitors in
+--   on, outside inflaatio.fi / www.inflaatio.fi, or when inflaatio.fi frames
+--   its own page (the widget preview on /upotus/ohje/, URLs with ?esikatselu),
+--   so '/upotus/' rows count only real embeds and direct visits. Described to visitors in
 --   /kayttoehdot/#kavijatilasto (legal basis: legitimate interest; retention
 --   14 months – keep RETENTION_MONTHS in analytics.js and the cron job below
 --   in sync).

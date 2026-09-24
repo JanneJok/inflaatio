@@ -12,15 +12,21 @@
  *    The time comes from the database (created_at default now()). No ids, no
  *    cookies, no storage, no search terms, no clicks, no polling, no timers.
  *    Skipped entirely when Global Privacy Control or Do Not Track is on,
- *    outside inflaatio.fi / www.inflaatio.fi, and while the page is being
- *    prerendered (it is sent when the prerendered page is actually shown).
+ *    outside inflaatio.fi / www.inflaatio.fi, when the page is framed by
+ *    inflaatio.fi itself (the widget preview on /upotus/ohje/, or any URL with
+ *    ?esikatselu), and while the page is being prerendered (it is sent when
+ *    the prerendered page is actually shown).
  *    Table schema, RLS and retention: docs/supabase.sql.
  *
  * 2. Google Analytics 4 – gtag.js is loaded from googletagmanager.com ONLY
- *    after explicit consent (consent.js) and only on the production host.
- *    Product events (calculator used, CSV download, share, widget code copied)
- *    go to GA only, i.e. only with consent:
+ *    after explicit consent (consent.js), only on the production host and
+ *    never in the bare embeddable widget (/upotus/ promises embedders no
+ *    cookies and no GA). Product events (calculator used, CSV download,
+ *    share, widget code copied) go to GA only, i.e. only with consent:
  *      track('calculator_used', { … })  or  <button data-track="csv_download">
+ *    The calculators keep their inputs (rent, salary, spending) in the query
+ *    string, so every hit sends page_location / page_referrer WITHOUT the
+ *    query string and hash (gaPageUrl) – entered amounts never reach Google.
  *
  * The pure helpers are unit-tested in test/trust.test.js.
  */
@@ -142,6 +148,39 @@ export function pageViewPayload({ pathname, canonical, notFound, referrer, hostn
 }
 
 /**
+ * Whether this page load is counted: not with a privacy signal, not outside
+ * the production hosts, and not when inflaatio.fi frames its own page (the
+ * widget preview on /upotus/ohje/) or the URL carries ?esikatselu (preview).
+ * @param {{hostname: string, privacy: boolean, framedBySameOrigin?: boolean, search?: string}} o
+ * @returns {boolean}
+ */
+export function countsPageView({ hostname, privacy, framedBySameOrigin = false, search = '' }) {
+  if (privacy || !isProductionHost(hostname) || framedBySameOrigin) return false;
+  try {
+    return !new URLSearchParams(search).has('esikatselu');
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * URL for Google Analytics' page_location / page_referrer: origin + path
+ * only. The query string (calculator inputs such as rent or salary) and the
+ * hash are dropped; anything that is not an http(s) URL becomes ''.
+ * @param {string|null|undefined} url
+ * @returns {string}
+ */
+export function gaPageUrl(url) {
+  if (!url) return '';
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' || u.protocol === 'http:' ? `${u.origin}${u.pathname}` : '';
+  } catch {
+    return '';
+  }
+}
+
+/**
  * GA4 event names: letters, digits and underscores, starting with a letter,
  * at most 40 characters.
  * @param {string} name
@@ -152,6 +191,18 @@ export function isValidEventName(name) {
 }
 
 /* ------------------------------------------------- page-view counter (1) */
+
+/** True in the bare embeddable widget (layout({ bare: true }) → body.is-bare). */
+const isBarePage = () => Boolean(document.body?.classList.contains('is-bare'));
+
+/** True when this document is framed by a page of the same origin (our own preview). */
+function isOwnFrame() {
+  try {
+    return window.top !== window.self && window.top.location.origin === window.location.origin;
+  } catch {
+    return false; // framed by another site: its location is not readable
+  }
+}
 
 let pageViewSent = false;
 
@@ -196,7 +247,13 @@ function sendPageView() {
 export function pageView() {
   if (pageViewSent) return;
   pageViewSent = true;
-  if (privacySignal() || !isProductionHost(window.location.hostname)) return;
+  const counted = countsPageView({
+    hostname: window.location.hostname,
+    privacy: privacySignal(),
+    framedBySameOrigin: isOwnFrame(),
+    search: window.location.search,
+  });
+  if (!counted) return;
   // A prerendered page may never be shown: count it only when it is activated.
   if (document.prerendering) {
     document.addEventListener('prerenderingchange', () => sendPageView(), { once: true });
@@ -209,13 +266,20 @@ export function pageView() {
 
 let gaLoaded = false;
 
+/** page_location / page_referrer of this page without query string or hash. */
+const gaPageParams = () => ({
+  page_location: gaPageUrl(window.location.href),
+  page_referrer: gaPageUrl(document.referrer),
+});
+
 /**
- * Load gtag.js – only with consent and only on the production host, so
- * development and QA never touch the production property.
+ * Load gtag.js – only with consent, only on the production host (so
+ * development and QA never touch the production property) and never in the
+ * bare embeddable widget.
  * @returns {boolean} true when gtag is available and enabled
  */
 function loadGa() {
-  if (!isProductionHost(window.location.hostname) || !hasAnalyticsConsent()) return false;
+  if (isBarePage() || !isProductionHost(window.location.hostname) || !hasAnalyticsConsent()) return false;
   window[`ga-disable-${GA_ID}`] = false;
   if (gaLoaded) {
     window.gtag('consent', 'update', { analytics_storage: 'granted' });
@@ -235,7 +299,13 @@ function loadGa() {
     ad_personalization: 'denied',
   });
   window.gtag('js', new Date());
+  // The calculators keep their inputs in the query string (history.replaceState):
+  // override the URLs gtag would read from location/document.referrer, for
+  // the automatic page_view and every later hit on this page.
+  const page = gaPageParams();
+  window.gtag('set', page);
   window.gtag('config', GA_ID, {
+    ...page,
     allow_google_signals: false,
     allow_ad_personalization_signals: false,
     cookie_expires: GA_COOKIE_MAX_AGE_DAYS * 24 * 60 * 60,
@@ -263,7 +333,7 @@ function stopGa() {
 export function track(event, params = {}) {
   if (!isValidEventName(event) || !hasAnalyticsConsent() || !loadGa()) return;
   try {
-    window.gtag('event', event, params);
+    window.gtag('event', event, { ...params, ...gaPageParams() });
   } catch {
     /* never break the page */
   }
@@ -271,6 +341,8 @@ export function track(event, params = {}) {
 
 export function initAnalytics() {
   pageView();
+  // The embeddable widget only counts its load: no GA, no product events.
+  if (isBarePage()) return;
   if (hasAnalyticsConsent()) loadGa();
   document.addEventListener('consentchange', (e) => {
     if (e.detail?.analytics) loadGa();

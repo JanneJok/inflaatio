@@ -16,14 +16,15 @@
  * official source gives a new date for the same (source, period).
  */
 import { getText, getJson } from './http.js';
-import { monthName, isoDate } from '../../src/js/lib/format.js';
+import { monthName, isoDate, MONTHS, EN_MONTHS as EN_MONTH_NAMES } from '../../src/js/lib/format.js';
 
 export const STATFI_URL = 'https://stat.fi/fi/tilasto/khi';
 export const EUROSTAT_CAL = 'https://ec.europa.eu/eurostat/o/calendars/eventsJson';
 export const EUROSTAT_CAL_PAGE = 'https://ec.europa.eu/eurostat/news/release-calendar';
 
-const FI_MONTHS = ['tammikuu', 'helmikuu', 'maaliskuu', 'huhtikuu', 'toukokuu', 'kesäkuu', 'heinäkuu', 'elokuu', 'syyskuu', 'lokakuu', 'marraskuu', 'joulukuu'];
-const EN_MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+/** Month names for matching (lower case; the lists live in format.js). */
+const FI_MONTHS = [...MONTHS];
+const EN_MONTHS = EN_MONTH_NAMES.map((m) => m.toLowerCase());
 
 /** Helsinki local date and HH:MM of an ISO timestamp. */
 export function helsinki(iso) {

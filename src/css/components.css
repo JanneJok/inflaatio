@@ -290,6 +290,10 @@ a.chip:hover {
 .series--low { color: var(--infl-low); }
 .series--elevated { color: var(--infl-elevated); }
 .series--high { color: var(--infl-high); }
+/* Same colours as .chart-bar--pos / --neg / --muted (contribution charts). */
+.series--pos { color: var(--series-khi); }
+.series--neg { color: var(--series-6); }
+.series--muted { color: var(--border-strong); }
 
 /* -------------------------------------------------------------- level dot */
 
@@ -451,7 +455,9 @@ a.chip:hover {
   display: flex;
   flex-wrap: nowrap;
   align-items: baseline;
-  gap: 2px 6px;
+  /* No column gap: the NBSP at the end of .kpi__number separates the unit
+     (so copied text reads "2,2 %"); the arrow has its own margin. */
+  gap: 2px 0;
   white-space: nowrap;
   color: var(--text);
   font-size: 2rem;
@@ -471,6 +477,7 @@ a.chip:hover {
 
 .kpi__arrow {
   align-self: center;
+  margin-right: 6px;
   font-size: 0.5em;
 }
 
@@ -497,6 +504,23 @@ a.chip:hover {
   font-size: var(--fs-caption);
 }
 
+/* Values line up across a row even when one label wraps to two lines: each
+   card spans four rows of the grid (label, value, note, foot) and shares
+   their heights through subgrid. A size container cannot be a subgrid, so
+   the narrow-card container query below is for phones only. */
+@supports (grid-template-rows: subgrid) {
+  @media (min-width: 641px) {
+    .kpi-grid > .kpi {
+      container-type: normal;
+      display: grid;
+      grid-row: span 4;
+      grid-template-rows: subgrid;
+      row-gap: var(--space-2);
+      align-content: start;
+    }
+  }
+}
+
 @media (max-width: 480px) {
   .kpi {
     padding: var(--space-4);
@@ -507,12 +531,12 @@ a.chip:hover {
   }
 }
 
-/* Narrow cards (5-up grids, side columns): scale the value to the card. */
+/* Narrow cards (phones, side columns): scale the value to the card. */
 .kpi {
-  container-type: inline-size;
+  container: kpi / inline-size;
 }
 
-@container (max-width: 190px) {
+@container kpi (max-width: 190px) {
   .kpi__value {
     flex-wrap: wrap;
     font-size: 1.5rem;
@@ -695,20 +719,33 @@ a.chip:hover {
   max-width: 100%;
   overflow-x: auto;
   overscroll-behavior-x: contain;
+  /* The caption is sized to the visible width (100cqi), not the table's. */
+  container-type: inline-size;
 }
 
 .table-wrap:focus-visible {
   outline-offset: 4px;
 }
 
+/* Tabular figures only in numeric cells (.num): in text cells Inter's tabular
+   glyphs give hyphens a digit-wide advance ("IP - osoite"). */
 .data-table {
   width: 100%;
   color: var(--text);
   font-size: var(--fs-small);
+}
+
+.data-table .num {
   font-variant-numeric: tabular-nums;
 }
 
+/* A table wider than the phone scrolls inside .table-wrap; the caption stays
+   put and wraps at the visible width instead of scrolling off-screen. */
 .data-table caption {
+  position: sticky;
+  left: 0;
+  max-width: calc(100vw - 2 * var(--gutter));
+  max-width: 100cqi;
   padding-bottom: var(--space-3);
   color: var(--text);
   font-weight: var(--fw-semibold);
@@ -1062,7 +1099,9 @@ a.chip:hover {
 .code-block pre {
   align-self: stretch;
   white-space: pre-wrap;
-  word-break: break-all;
+  /* Break at spaces; inside a word only when one token is wider than the box. */
+  word-break: normal;
+  overflow-wrap: anywhere;
 }
 
 .code-block .button {
@@ -1449,7 +1488,11 @@ a.chip:hover {
   outline-offset: 1px;
 }
 
-.field [aria-invalid='true'] {
+/* :hover too, or `.field input:hover` (more specific) hides the error border. */
+.field [aria-invalid='true'],
+.field [aria-invalid='true']:hover,
+.input[aria-invalid='true'],
+.input[aria-invalid='true']:hover {
   border-color: var(--danger);
 }
 

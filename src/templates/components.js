@@ -141,7 +141,7 @@ export function pageHeader({ title, eyebrow, lede, meta, aside }) {
 
 /* ------------------------------------------------------------------- KPIs */
 
-const UNIT_RE = /^(.*?)\u00A0(%-yks\.|%|€|p)$/;
+const UNIT_RE = /^(.*?)\u00A0(%[-\u2011]yks\.|%|€|p)$/;
 const DELTA_WORDS = {
   pp: { up: 'kiihtyi', down: 'hidastui', flat: 'ennallaan' },
   pct: { up: 'nousi', down: 'laski', flat: 'ennallaan' },
@@ -169,7 +169,9 @@ export function numUnit(text) {
  * @param {object} p
  * @param {string} p.label e.g. 'Muutos edellisestä kuukaudesta'
  * @param {string|number|null} p.value formatted value; a trailing NBSP unit
- *   ('2,2 %', '+0,1 %-yks.') is split into the unit automatically
+ *   ('2,2 %', '+0,1 %-yks.') is split into the unit automatically. The NBSP
+ *   stays in the markup (at the end of .kpi__number), so copied text and
+ *   screen readers get "2,2 %", not "2,2%".
  * @param {string} [p.unit] unit shown smaller after the value
  * @param {string|SafeString} [p.note] context line, e.g. 'Heinäkuussa 2,1 %'
  * @param {'up'|'down'|'flat'|null} [p.delta] change direction (colour + arrow)
@@ -195,7 +197,7 @@ export function kpiCard({ label, value, unit, note, delta = null, deltaWords = '
   const sr = delta ? html`<span class="sr-only"> (${DELTA_WORDS[deltaWords]?.[delta] ?? ''})</span>` : '';
   return html`<article${attrs({ class: 'kpi', id, 'aria-labelledby': labelId, data: { kpi: field } })}>
   ${labelEl}
-  <p${attrs({ class: ['kpi__value', delta && `kpi__value--${delta}`] })}>${arrow}<span class="kpi__number">${v}</span>${u ? html`<span class="kpi__unit">${u}</span>` : ''}${sr}</p>
+  <p${attrs({ class: ['kpi__value', delta && `kpi__value--${delta}`] })}>${arrow}<span class="kpi__number">${v}${u ? fmt.NBSP : ''}</span>${u ? html`<span class="kpi__unit">${u}</span>` : ''}${sr}</p>
   ${note ? html`<p class="kpi__note">${note}</p>` : ''}
   ${foot ? html`<p class="kpi__foot">${foot}</p>` : ''}
 </article>`;
@@ -490,8 +492,6 @@ export function breadcrumb(items, { label = 'Murupolku' } = {}) {
 
 /* ------------------------------------------------------------ source line */
 
-const EN_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
 /**
  * Source attribution line: "Lähde: Tilastokeskus, kuluttajahintaindeksi · Päivitetty 14.9.2026".
  * @param {object} p
@@ -505,13 +505,7 @@ export function sourceLine({ sources, updated, note, lang = 'fi' }) {
   const en = lang === 'en';
   const label = en ? (sources.length > 1 ? 'Sources' : 'Source') : sources.length > 1 ? 'Lähteet' : 'Lähde';
   const updatedLabel = en ? 'Updated' : 'Päivitetty';
-  const updatedText = (v) => {
-    if (!en) return fmt.date(v);
-    const iso = fmt.isoDate(v);
-    if (!iso) return fmt.DASH;
-    const [y, m, d] = iso.split('-').map(Number);
-    return `${d} ${EN_MONTHS[m - 1]} ${y}`;
-  };
+  const updatedText = (v) => (en ? fmt.enDate(v) : fmt.date(v));
   const list = sources.map(
     (s, i) => html`${i ? ', ' : ''}${s.href ? html`<a href="${s.href}">${s.name}</a>` : s.name}${s.detail ? html` (${s.detail})` : ''}`,
   );

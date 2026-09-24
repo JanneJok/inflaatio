@@ -153,7 +153,7 @@ export function initDialogs() {
     dialog.addEventListener('close', () => {
       const opener = openers.get(dialog);
       openers.delete(dialog);
-      if (opener?.isConnected) opener.focus();
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
     });
     // A click on the ::backdrop targets the <dialog> itself (content has padding wrappers).
     dialog.addEventListener('click', (e) => {

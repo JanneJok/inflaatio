@@ -8,7 +8,7 @@
 import * as fmt from '../js/lib/format.js';
 import * as stats from '../js/lib/stats.js';
 import { html } from '../../scripts/lib/html.js';
-import { fitText, metaSource, datasetLd, interactiveChart, downloadButton, signed, DESCRIPTION_MAX } from './hinnat.js';
+import { fitText, metaSource, datasetLd, interactiveChart, downloadButton, rangeLabel, signed, elativeSuffix, DESCRIPTION_MAX } from './hinnat.js';
 
 const RANGES = Object.freeze(['1v', '3v', '5v', '10v', 'kaikki']);
 const ECB_ORG = Object.freeze({ '@type': 'Organization', name: 'Euroopan keskuspankki (EKP)', url: 'https://www.ecb.europa.eu/' });
@@ -79,7 +79,7 @@ export default async function korot(ctx) {
   const ea = ctx.latest.ea;
 
   const lede = [
-    now ? `EKP:n talletuskorko on ${rate(now.rate)} ${fmt.date(now.date)} alkaen${before ? ` (aiemmin ${rate(before.rate)})` : ''}.` : '',
+    now ? `EKP:n talletuskorko on ${fmt.date(now.date)} alkaen ${rate(now.rate)}${before ? ` (aiemmin ${rate(before.rate)})` : ''}.` : '',
     fmt.isNum(euribor) && fmt.isNum(infl)
       ? `12 kuukauden euribor oli ${fmt.inessive(rMonth)} keskimäärin ${rate(euribor)} ja Suomen inflaatio ${fmt.pct(infl)}, joten reaalikorko oli noin ${signed(realNow)}.`
       : '',
@@ -116,7 +116,7 @@ export default async function korot(ctx) {
   const ratesFigure = c.chartFigure({
     id: 'korot-kaavio',
     title: 'Korot ja inflaatio kuukausittain',
-    subtitle: 'Prosenttia · talletuskorko kuukauden lopussa, euribor kuukauden keskiarvo',
+    subtitle: html`Prosenttia · talletuskorko kuukauden lopussa, euribor kuukauden keskiarvo · ${rangeLabel('korot-kaavio', tenPeriod)}`,
     legend: c.legend(lines.map((l) => ({ cls: l.cls, label: l.label }))),
     chart: interactiveChart(ctx, {
       id: 'korot-kaavio',
@@ -127,7 +127,9 @@ export default async function korot(ctx) {
         decimals: 2,
         ranges: RANGES,
         range: '10v',
-        datasets: lines.map((l, i) => ({ type: 'line', series: l.cls, label: l.label, data: aligned.values[i] })),
+        param: 'jakso',
+        // KHI is published with one decimal, the rates with two (QV-33).
+        datasets: lines.map((l, i) => ({ type: 'line', series: l.cls, label: l.label, data: aligned.values[i], ...(l.cls === 'khi' ? { decimals: 1 } : {}) })),
         download: { filename: `korot-ja-inflaatio-${rMonth}.png`, title: 'Korot ja inflaatio (%)', source: 'Lähteet: EKP, Tilastokeskus · inflaatio.fi' },
       },
       fallback: svg.lineChart({
@@ -138,7 +140,7 @@ export default async function korot(ctx) {
         ariaLabel: `EKP:n talletuskorko, 12 kuukauden euribor ja inflaatio ${tenPeriod}. ${fmt.capitalize(fmt.inessive(rMonth))} euribor ${rate(euribor)} ja inflaatio ${fmt.pct(infl)}.`,
       }),
     }),
-    summary: `${fmt.capitalize(fmt.inessive(rMonth))} 12 kuukauden euribor oli ${rate(euribor)} ja inflaatio ${fmt.pct(infl)}. Talletuskorko on kuukauden viimeisen päivän korko; korkopäätösten päivät ovat taulukossa alempana.`,
+    summary: `12 kuukauden euribor oli ${fmt.inessive(rMonth)} keskimäärin ${rate(euribor)} ja inflaatio ${fmt.pct(infl)}. Talletuskorko on kuukauden viimeisen päivän korko; korkopäätösten päivät ovat taulukossa alempana.`,
     table: c.dataTable({
       id: 'korot-taulukko',
       caption: `Korot ja inflaatio kuukausittain, ${fmt.monthRange(aligned.months[0], aligned.months.at(-1))}`,
@@ -146,7 +148,7 @@ export default async function korot(ctx) {
       rows: aligned.months.map((ym, i) => [fmt.monthShort(ym), c.numUnit(rate(aligned.values[0][i])), c.numUnit(rate(aligned.values[1][i], 3)), c.numUnit(fmt.pct(aligned.values[2][i]))]).reverse(),
       visibleRows: 12,
       compact: true,
-      toggleLabels: { more: `Näytä kaikki kuukaudet (${aligned.months.length})`, less: 'Näytä vain 12 viimeisintä' },
+      toggleLabels: { more: `Näytä kaikki kuukaudet (${aligned.months.length})`, less: 'Näytä vain 12 viimeisintä kuukautta' },
     }),
     source: c.sourceLine({ sources: [ecbSrc, khiSrc], updated }),
     actions: downloadButton(ctx, 'korot-kaavio'),
@@ -161,7 +163,7 @@ export default async function korot(ctx) {
   const realFigure = c.chartFigure({
     id: 'reaalikorko',
     title: 'Reaalikorko',
-    subtitle: '12 kuukauden euribor miinus inflaatio (KHI), %',
+    subtitle: html`12 kuukauden euribor miinus inflaatio (KHI), % · ${rangeLabel('reaalikorko', fmt.monthRange(rTen.months[0], rTen.months.at(-1)))}`,
     legend: c.legend([{ cls: 'core', label: 'Reaalikorko' }]),
     chart: interactiveChart(ctx, {
       id: 'reaalikorko',
@@ -172,6 +174,7 @@ export default async function korot(ctx) {
         decimals: 1,
         ranges: RANGES,
         range: '10v',
+        param: 'reaalijakso',
         datasets: [{ type: 'line', series: 'core', label: 'Reaalikorko', data: real.values }],
         download: { filename: `reaalikorko-${rMonth}.png`, title: 'Reaalikorko: 12 kk euribor − inflaatio (%)', source: 'Lähteet: EKP, Tilastokeskus · inflaatio.fi' },
       },
@@ -183,7 +186,7 @@ export default async function korot(ctx) {
         ariaLabel: `Reaalikorko ${fmt.monthRange(rTen.months[0], rTen.months.at(-1))}, viimeisin ${signed(realNow)} (${rMonthTxt}).`,
       }),
     }),
-    summary: `Reaalikorko oli ${fmt.inessive(rMonth)} ${signed(realNow)}. Viimeisen kymmenen vuoden aikana se oli negatiivinen ${negMonths} kuukautena ${rTen.months.length}:stä. Koko jaksolla (${fmt.monthRange(rStats.months[0], rStats.months.at(-1))}) korkein ${signed(rMax?.value)} (${rMax?.months.map((m) => fmt.monthShort(m)).join(', ')}) ja matalin ${signed(rMin?.value)} (${rMin?.months.map((m) => fmt.monthShort(m)).join(', ')}).`,
+    summary: `${fmt.capitalize(fmt.inessive(rMonth))} reaalikorko oli ${signed(realNow)}. Viimeisen kymmenen vuoden aikana se oli negatiivinen ${negMonths} kuukautena ${rTen.months.length}:${elativeSuffix(rTen.months.length)}. Koko jaksolla (${fmt.monthRange(rStats.months[0], rStats.months.at(-1))}) korkein ${signed(rMax?.value)} (${rMax?.months.map((m) => fmt.monthShort(m)).join(', ')}) ja matalin ${signed(rMin?.value)} (${rMin?.months.map((m) => fmt.monthShort(m)).join(', ')}).`,
     table: c.dataTable({
       id: 'reaalikorko-taulukko',
       caption: `Reaalikorko kuukausittain, ${fmt.monthRange(rStats.months[0], rStats.months.at(-1))}`,
@@ -193,7 +196,7 @@ export default async function korot(ctx) {
         .reverse(),
       visibleRows: 12,
       compact: true,
-      toggleLabels: { more: `Näytä kaikki kuukaudet (${rStats.months.length})`, less: 'Näytä vain 12 viimeisintä' },
+      toggleLabels: { more: `Näytä kaikki kuukaudet (${rStats.months.length})`, less: 'Näytä vain 12 viimeisintä kuukautta' },
     }),
     source: c.sourceLine({ sources: [ecbSrc, khiSrc], updated }),
     actions: downloadButton(ctx, 'reaalikorko'),
@@ -207,7 +210,7 @@ export default async function korot(ctx) {
     rows: decisions.map((d) => [html`<time datetime="${d.date}">${fmt.date(d.date)}</time>`, c.numUnit(rate(d.rate)), d.change == null ? 'lähtötaso' : c.numUnit(fmt.pp(d.change, { decimals: 2 }))]),
     visibleRows: 10,
     compact: true,
-    toggleLabels: { more: `Näytä kaikki muutokset (${decisions.length})`, less: 'Näytä vain 10 viimeisintä' },
+    toggleLabels: { more: `Näytä kaikki muutokset (${decisions.length})`, less: 'Näytä vain 10 viimeisintä muutosta' },
     note: 'Päivämäärä on päivä, jona korko tuli voimaan. EKP:n neuvosto päättää koroista yleensä muutamaa päivää aiemmin. Ensimmäinen rivi on euron käyttöönoton lähtötaso.',
   });
   const ups = decisions.filter((d) => d.change > 0);
@@ -218,7 +221,7 @@ export default async function korot(ctx) {
     ? c.callout({
         tone: 'info',
         title: 'EKP:n inflaatiotavoite on 2 %',
-        body: html`<p>EKP tavoittelee euroalueelle 2 %:n inflaatiota keskipitkällä aikavälillä yhdenmukaistetulla kuluttajahintaindeksillä (YKHI) mitattuna. Euroalueen inflaatio oli ${fmt.inessive(ea.month)} ${fmt.pct(ea.yoy)}${ea.provisional ? ' (ennakko)' : ''} (Eurostat), ${fmt.num(Math.abs(stats.ppChange(ea.yoy, 2)), 1)} prosenttiyksikköä tavoitteen ${ea.yoy >= 2 ? 'yläpuolella' : 'alapuolella'}. Katso <a href="/vertailu/">Suomen ja euroalueen vertailu</a>.</p>`,
+        body: html`<p>EKP tavoittelee euroalueelle 2 %:n inflaatiota keskipitkällä aikavälillä yhdenmukaistetulla kuluttajahintaindeksillä (YKHI) mitattuna. ${fmt.capitalize(fmt.inessive(ea.month))} euroalueen inflaatio oli ${fmt.pct(ea.yoy)}${ea.provisional ? ' (ennakko)' : ''} (Eurostat), ${fmt.num(Math.abs(stats.ppChange(ea.yoy, 2)), 1)} prosenttiyksikköä tavoitteen ${ea.yoy >= 2 ? 'yläpuolella' : 'alapuolella'}. Katso <a href="/vertailu/">Suomen ja euroalueen vertailu</a>.</p>`,
       })
     : '';
 
@@ -250,14 +253,14 @@ export default async function korot(ctx) {
   const main = html`${header}
 ${c.section({ id: 'tunnusluvut', title: 'Tunnusluvut', className: 'section--flush-top', body: html`<div class="stack-lg">${kpis}${disclaimer}</div>` })}
 ${c.section({ id: 'kehitys', eyebrow: 'Kehitys', title: 'Korot ja inflaatio', intro: 'Talletuskorko, euribor ja inflaatio samassa kuvassa. Valitse aikaväli kaavion yläpuolelta.', body: html`<div class="stack-lg">${ratesFigure}${target}</div>` })}
-${c.section({ id: 'reaalikorko-osio', eyebrow: 'Reaalikorko', title: 'Kasvaako rahan ostovoima korkoa vastaan?', intro: 'Reaalikorko on positiivinen, kun euribor on inflaatiota korkeampi.', body: realFigure })}
+${c.section({ id: 'reaalikorko-osio', eyebrow: 'Reaalikorko', title: 'Riittääkö korko kattamaan inflaation?', intro: 'Reaalikorko on positiivinen, kun euribor on inflaatiota korkeampi.', body: realFigure })}
 ${c.section({ id: 'korkopaatokset', eyebrow: 'EKP', title: 'Talletuskoron muutokset', intro: decisionsIntro, body: decisionsTable })}
 ${c.section({ id: 'selitykset', title: 'Käsitteet', body: explain })}`;
 
   const description = fitText(
     [
       now && fmt.isNum(euribor)
-        ? `EKP:n talletuskorko ${rate(now.rate)} ${fmt.date(now.date)} alkaen. 12 kk euribor ${fmt.inessive(rMonth)} ${rate(euribor)} ja inflaatio ${fmt.pct(infl)}: reaalikorko ${signed(realNow)}.`
+        ? `EKP:n talletuskorko on ${fmt.date(now.date)} alkaen ${rate(now.rate)}. 12 kk euribor oli ${fmt.inessive(rMonth)} keskimäärin ${rate(euribor)} ja inflaatio ${fmt.pct(infl)}: reaalikorko ${signed(realNow)}.`
         : null,
       `EKP:n talletuskorko, 12 kuukauden euribor, inflaatio ja reaalikorko kuukausittain vuodesta ${fmt.yearOf(k.months[0])} (EKP, Tilastokeskus).`,
     ],

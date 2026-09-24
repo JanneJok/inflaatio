@@ -42,7 +42,7 @@ export default async function tietoa(ctx) {
   const contactButton = (label) => c.button({ label, variant: 'secondary', icon: 'mail', attrs: { data: { openContact: '' } } });
 
   /* -------------------------------------------------- 1. Palvelu */
-  const level = (v) => (v > 0 ? 'korkeammat' : v < 0 ? 'matalammat' : 'samalla tasolla');
+  const level = (v) => (v > 0 ? 'korkeammat' : v < 0 ? 'alemmat' : 'samalla tasolla');
   const headline =
     k && stats.isNum(k.yoy)
       ? html`<p>Uusin luku koskee ${fmt.genitive(k.month)} hintoja: kuluttajahinnat olivat ${
@@ -68,13 +68,13 @@ export default async function tietoa(ctx) {
 <p>${brand} kokoaa Suomen viralliset inflaatioluvut yhteen paikkaan selkeinä kuvaajina ja taulukkoina. Sivustolta näet uusimman inflaatioluvun ja sen kehityksen, inflaation vuosittain ja kuukausittain, mitkä hyödykkeet ovat kallistuneet, Suomen vertailun muihin EU-maihin sekä laskurit esimerkiksi vuokrankorotukselle ja rahan arvolle.</p>
 ${headline}
 ${facts}
-<p><strong>Miksi?</strong> Inflaatioluku kiinnostaa monia: vuokranantajia ja vuokralaisia, palkansaajia, säästäjiä, opiskelijoita ja toimittajia. Viralliset luvut ovat avoimia, mutta ne ovat hajallaan eri tilastotaulukoissa. ${brand} näyttää uusimman luvun heti, kertoo, mitä kuukautta se koskee ja mistä se on peräisin, ja auttaa soveltamaan lukuja omiin laskelmiin.</p>
+<p><strong>Miksi?</strong> Inflaatioluku kiinnostaa monia: vuokranantajia ja vuokralaisia, palkansaajia, säästäjiä, opiskelijoita ja toimittajia. Viralliset luvut ovat avoimia, mutta ne ovat hajallaan eri tilastotaulukoissa. ${brand} näyttää uusimman luvun yleensä jo julkaisupäivänä, kertoo, mitä kuukautta se koskee ja mistä se on peräisin, ja auttaa soveltamaan lukuja omiin laskelmiin.</p>
 <p>Palvelu on maksuton. Luvut saa lainata ja jakaa lähde mainiten (<a href="/kayttoehdot/#lainaaminen">käyttöehdot</a>).</p>`;
 
   /* -------------------------------------------------- 2. Ylläpito */
   const maintainer = html`
 <p>Palvelua ylläpitää ${op.name} (Y-tunnus ${op.businessId}), ${operatorAddress(ctx)}.</p>
-<p>${brand} on itsenäinen palvelu. Se ei ole Tilastokeskuksen, Eurostatin tai Euroopan keskuspankin palvelu eikä edusta niitä. Luvut ovat näiden tilastojen tuottajien julkaisemia, ja sivusto kertoo jokaisen luvun lähteen.</p>`;
+<p>${brand} on itsenäinen palvelu. Se ei ole Tilastokeskuksen, Eurostatin tai Euroopan keskuspankin palvelu eikä edusta niitä. Tilastoluvut ovat näiden tilastojen tuottajien julkaisemia, ja sivusto kertoo jokaisen luvun lähteen.</p>`;
 
   /* -------------------------------------------------- 3. Lähteet */
   const byPublisher = new Map();
@@ -96,7 +96,7 @@ ${facts}
       )}</ul>`
     : '';
   const sources = html`
-<p>Kaikki luvut haetaan suoraan tilastojen tuottajien avoimista rajapinnoista:</p>
+<p>Kaikki tilastoluvut haetaan suoraan tilastojen tuottajien avoimista rajapinnoista:</p>
 ${sourceList}
 <p>Taulukoiden tunnukset, uusimmat jaksot ja lisenssit on koottu <a href="/menetelmat/#lahteet">Menetelmät-sivulle</a>. Aineistot voit ladata myös itse <a href="/data/">Avoin data</a> -sivulta.</p>`;
 
@@ -109,7 +109,7 @@ ${sourceList}
     .map(([key, name]) => [name, L.nextRelease?.[key]])
     .filter(([, e]) => e?.date);
   const updates = html`
-<p>Sivusto tarkistaa lähteet automaattisesti joka päivä, joten uusi kuukausi näkyy yleensä jo julkaisupäivänä. Tilastokeskus julkaisee kuluttajahintaindeksin kerran kuukaudessa, yleensä kuun puolivälissä. Eurostat julkaisee YKHI-ennakon kuun vaihteessa ja lopulliset luvut noin kuukauden puolivälissä.</p>
+<p>Sivusto tarkistaa lähteet automaattisesti kahdesti päivässä, aamulla ja iltapäivällä, joten uusi kuukausi näkyy yleensä jo julkaisupäivänä. Tilastokeskus julkaisee kuluttajahintaindeksin kerran kuukaudessa, yleensä seuraavan kuukauden puolivälissä. Eurostat julkaisee YKHI-ennakon kuukauden vaihteessa ja lopulliset luvut noin kaksi viikkoa myöhemmin.</p>
 ${nextLines.length
     ? html`<ul>${nextLines.map(
         ([name, e]) => html`<li>${name}, ${fmt.monthName(e.period)}: <time datetime="${e.date}">${fmt.date(e.date)}</time>${releaseTime(e.time) ? ` klo ${releaseTime(e.time)}` : ''} (${e.publisher})</li>`,
@@ -118,9 +118,15 @@ ${nextLines.length
 <p>Koko julkaisukalenteri on <a href="/menetelmat/#paivitykset">Menetelmät-sivulla</a>.</p>`;
 
   /* -------------------------------------------------- 5. Tarkistukset */
+  // Hand-entered content: forecasts (src/content/ennusteet.json) and the
+  // chart event notes (tapahtumat.json) are not fetched from an API.
+  const hasForecasts = Array.isArray(ctx.content?.ennusteet) && ctx.content.ennusteet.length > 0;
+  const handEntered = hasForecasts
+    ? 'Poikkeuksia ovat inflaatioennusteet, jotka kirjataan käsin julkaisijan omalta sivulta (ennustetaulukossa näkyy jokaisen ennusteen julkaisupäivä ja linkki alkuperäiseen julkaisuun), sekä kaavioiden tapahtumamerkinnät, jotka ylläpito kirjoittaa itse.'
+    : 'Poikkeus ovat kaavioiden tapahtumamerkinnät, jotka ylläpito kirjoittaa itse.';
   const checks = html`
 <ul>
-  <li>Luvut haetaan suoraan tilastojen tuottajilta, ei välikäsien kautta eikä käsin kopioiden.</li>
+  <li>Tilastoluvut haetaan suoraan tilastojen tuottajilta, ei välikäsien kautta eikä käsin kopioiden. ${handEntered}</li>
   <li>Jokainen haku tarkistetaan automaattisesti ennen julkaisua: aikasarjojen on oltava yhtenäisiä, arvojen järkevissä rajoissa ja vuosimuutosten täsmättävä pistelukuihin. Lisäksi tarkistetaan, ettei uusin kuukausi ole vanhentunut.</li>
   <li>Jos lähde ei läpäise tarkistuksia, sivusto näyttää edelliset tarkistetut luvut, ja ylläpito saa tiedon epäonnistuneesta päivityksestä.</li>
   <li>Luvut näytetään sellaisina kuin tuottaja ne julkaisee. Itse laskemme vain selvästi merkityt johdetut luvut, kuten kuluvan vuoden keskiarvon ja keskimääräisen vuosimuutoksen (<a href="/menetelmat/">Menetelmät</a>).</li>
@@ -136,7 +142,7 @@ ${nextLines.length
   /* -------------------------------------------------- 7. Muutosloki */
   const loki = (Array.isArray(ctx.data.muutosloki) ? ctx.data.muutosloki : []).slice(0, CHANGELOG_ROWS);
   const changelog = html`
-<p>Sivusto kirjaa muutoslokiin jokaisen uuden tilastojulkaisun, jonka se on päivittänyt.</p>
+<p>Sivusto kirjaa muutoslokiin kuluttajahintaindeksin, YKHI:n ja ansiotasoindeksin uudet julkaisut sekä EKP:n talletuskoron muutokset.</p>
 ${loki.length
     ? html`<ul class="changelog">${loki.map(
         (e) => html`<li><time datetime="${e.date}">${fmt.date(e.date)}</time> <span>${e.text}</span></li>`,
@@ -147,7 +153,7 @@ ${loki.length
   /* -------------------------------------------------- 8. Lisää */
   const more = c.cardGrid(
     [
-      { href: '/menetelmat/', eyebrow: 'Menetelmät', title: 'Näin luvut lasketaan', text: 'KHI ja YKHI, vuosiluvut, kuukausimuutos, perusvuodet ja tietolähteet.' },
+      { href: '/menetelmat/', eyebrow: 'Menetelmät', title: 'Näin luvut lasketaan', text: 'KHI ja YKHI, vuosimuutokset, kuukausimuutos, perusvuodet ja tietolähteet.' },
       { href: '/data/', eyebrow: 'Avoin data', title: 'Lataa aineistot', text: 'Sivuston luvut CSV- ja JSON-tiedostoina.' },
       { href: '/kayttoehdot/', eyebrow: 'Käyttöehdot', title: 'Käyttöehdot ja tietosuoja', text: 'Lukujen lainaaminen, tietosuojaseloste ja evästeet.' },
       { href: '/upotus/ohje/', eyebrow: 'Upotus', title: 'Upota sivullesi', text: 'Uusin inflaatioluku omalle verkkosivullesi.' },

@@ -3,7 +3,12 @@
  * Local static server that behaves like production nginx (deploy/nginx.conf):
  * - security headers parsed from deploy/security-headers.conf (the single
  *   source), and deploy/security-headers-embed.conf for the widget /upotus/;
- * - the same cache rules, MIME types, redirects and 404 handling.
+ * - the old-site redirects ($inflaatio_redirect) and the 410 Gone list
+ *   ($inflaatio_gone) parsed from the map blocks of deploy/nginx.conf itself,
+ *   so the two servers cannot drift apart;
+ * - the same cache rules, MIME types and 404 handling: /healthz answers "ok",
+ *   a direct /404.html and any dotfile path are 404, 404/410 send the site's
+ *   404 page.
  *
  *   node scripts/serve.js [--dir dist] [--port 8080] [--host 127.0.0.1]
  *                         [--build] [--watch] [--only a,b] [--no-minify] [--strict-csp] [--quiet]
@@ -23,11 +28,134 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-/** Permanent redirects (same as nginx). */
+/** Permanent redirects (same as nginx; the full old-site list comes from nginx.conf, see nginxRules()). */
 export const REDIRECTS = Object.freeze({
   '/index.html': '/',
   '/terms-of-use.html': '/kayttoehdot/',
 });
+
+/** The production nginx configuration (map blocks are read from it). */
+export const NGINX_CONF = path.join(ROOT, 'deploy', 'nginx.conf');
+
+/* ------------------------------------------------ nginx map blocks */
+
+/** nginx unescapes \\ \" \' \n \t \r and keeps every other backslash. */
+const NGINX_ESCAPES = { '\\': '\\', '"': '"', "'": "'", n: '\n', t: '\t', r: '\r' };
+
+/**
+ * Tokens of nginx configuration text: words (quoted or bare, escapes
+ * resolved like nginx does) and the punctuation `{`, `}`, `;`. Comments are
+ * dropped. Enough for map blocks.
+ * @param {string} text
+ * @returns {({word: string}|{punct: string})[]}
+ */
+export function nginxTokens(text) {
+  const out = [];
+  let i = 0;
+  const readEscape = () => {
+    const next = text[i + 1];
+    i += 2;
+    return NGINX_ESCAPES[next] ?? `\\${next}`;
+  };
+  while (i < text.length) {
+    const ch = text[i];
+    if (/\s/.test(ch)) {
+      i += 1;
+    } else if (ch === '#') {
+      while (i < text.length && text[i] !== '\n') i += 1;
+    } else if (ch === '{' || ch === '}' || ch === ';') {
+      out.push({ punct: ch });
+      i += 1;
+    } else if (ch === '"' || ch === "'") {
+      let word = '';
+      i += 1;
+      while (i < text.length && text[i] !== ch) word += text[i] === '\\' && i + 1 < text.length ? readEscape() : text[i++];
+      i += 1;
+      out.push({ word });
+    } else {
+      let word = '';
+      while (i < text.length && !/[\s{};]/.test(text[i])) word += text[i] === '\\' && i + 1 < text.length ? readEscape() : text[i++];
+      out.push({ word });
+    }
+  }
+  return out;
+}
+
+/**
+ * Entries of `map <source> <variable> { … }` as arrays of words
+ * (['default', ''], ['/a', '/b'], ['~^/x/(.*)$', '/y/$1'], ['volatile']).
+ * @param {string} text nginx.conf
+ * @param {string} variable e.g. '$inflaatio_redirect'
+ * @returns {string[][]|null} null when the map does not exist
+ */
+export function nginxMapEntries(text, variable) {
+  const t = nginxTokens(text);
+  for (let i = 0; i + 3 < t.length; i++) {
+    if (t[i].word !== 'map' || t[i + 2].word !== variable || t[i + 3].punct !== '{') continue;
+    const entries = [];
+    let cur = [];
+    for (let j = i + 4; j < t.length; j++) {
+      if (t[j].punct === '}') return entries;
+      if (t[j].punct === ';') {
+        if (cur.length) entries.push(cur);
+        cur = [];
+      } else if (t[j].punct) {
+        throw new Error(`nginx map ${variable}: unexpected "${t[j].punct}"`);
+      } else cur.push(t[j].word);
+    }
+    throw new Error(`nginx map ${variable}: missing "}"`);
+  }
+  return null;
+}
+
+/**
+ * Lookup function with nginx map semantics: exact keys first, then regular
+ * expressions (`~`, `~*` case-insensitive) in order, `$1`… captures in the
+ * value, else the default. Flags (volatile, hostnames) are ignored.
+ * @param {string[][]} entries output of nginxMapEntries()
+ * @returns {(input: string) => string}
+ */
+export function nginxMap(entries) {
+  let fallback = '';
+  const exact = new Map();
+  const regexes = [];
+  for (const [key, value] of entries) {
+    if (value === undefined || key === 'include') continue;
+    if (key === 'default') fallback = value;
+    else if (key.startsWith('~')) {
+      const insensitive = key.startsWith('~*');
+      regexes.push({ re: new RegExp(key.slice(insensitive ? 2 : 1), insensitive ? 'i' : ''), value });
+    } else exact.set(key.startsWith('\\') ? key.slice(1) : key, value);
+  }
+  return (input) => {
+    if (exact.has(input)) return exact.get(input);
+    for (const { re, value } of regexes) {
+      const m = input.match(re);
+      if (m) return value.replace(/\$(\d)/g, (_, n) => m[Number(n)] ?? '');
+    }
+    return fallback;
+  };
+}
+
+/**
+ * The old-site redirect and 410 rules of deploy/nginx.conf:
+ * redirect(path) → target or '' and gone(path) → true for 410 Gone.
+ * @param {string} [text] nginx.conf contents (default: read NGINX_CONF)
+ * @returns {{redirect: (p: string) => string, gone: (p: string) => boolean}}
+ */
+export function nginxRules(text) {
+  let conf = text;
+  if (conf == null) {
+    try {
+      conf = fs.readFileSync(NGINX_CONF, 'utf8');
+    } catch {
+      conf = '';
+    }
+  }
+  const redirect = nginxMap(nginxMapEntries(conf, '$inflaatio_redirect') ?? []);
+  const gone = nginxMap(nginxMapEntries(conf, '$inflaatio_gone') ?? []);
+  return { redirect, gone: (p) => !['', '0'].includes(gone(p)) };
+}
 
 /** Routes served with the embeddable-widget header set. */
 export const EMBED_PATHS = Object.freeze(['/upotus/', '/upotus/index.html']);
@@ -122,9 +250,10 @@ export async function loadHeaderSets({ strictCsp = false } = {}) {
  * @param {string} o.dir absolute directory to serve
  * @param {{main: {name: string, value: string}[], embed: {name: string, value: string}[]}} o.headers
  * @param {boolean} [o.quiet=false]
+ * @param {ReturnType<typeof nginxRules>} [o.rules] old-site redirects / 410 list (default: from deploy/nginx.conf)
  * @returns {http.Server}
  */
-export function createServer({ dir, headers, quiet = false }) {
+export function createServer({ dir, headers, quiet = false, rules = nginxRules() }) {
   const root = path.resolve(dir);
   return http.createServer(async (req, res) => {
     const t0 = Date.now();
@@ -159,31 +288,46 @@ export function createServer({ dir, headers, quiet = false }) {
       res.writeHead(status, { Location: to + url.search, 'Cache-Control': 'no-cache' }).end();
       done(status);
     };
+    // Same order as the server level of nginx.conf: …/index.html, old-site
+    // redirects, 410 Gone; then the locations (/healthz, dotfiles, /404.html).
     if (REDIRECTS[pathname]) return redirect(REDIRECTS[pathname]);
     if (pathname.endsWith('/index.html')) return redirect(pathname.slice(0, -'index.html'.length));
+    const oldUrl = rules.redirect(pathname);
+    if (oldUrl) return redirect(oldUrl);
 
-    const full = path.join(root, ...pathname.split('/').filter(Boolean));
-    const rel = path.relative(root, full);
-    if (rel.startsWith('..') || path.isAbsolute(rel)) {
-      res.writeHead(403).end('Forbidden');
-      return done(403);
-    }
-
-    let file = full;
-    let stat = await fsp.stat(file).catch(() => null);
-    if (stat?.isDirectory()) {
-      if (!pathname.endsWith('/')) return redirect(`${pathname}/`);
-      file = path.join(full, 'index.html');
-      stat = await fsp.stat(file).catch(() => null);
-    }
+    let file;
+    let stat;
     let status = 200;
-    if (!stat?.isFile()) {
+    if (rules.gone(pathname)) status = 410;
+    else if (pathname === '/healthz') {
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }).end(req.method === 'HEAD' ? undefined : 'ok\n');
+      return done(200);
+    } else if (pathname.includes('/.') || pathname === '/404.html') {
+      // Dotfiles are never served; the 404 page only through error handling.
       status = 404;
+    } else {
+      const full = path.join(root, ...pathname.split('/').filter(Boolean));
+      const rel = path.relative(root, full);
+      if (rel.startsWith('..') || path.isAbsolute(rel)) {
+        res.writeHead(403).end('Forbidden');
+        return done(403);
+      }
+      file = full;
+      stat = await fsp.stat(file).catch(() => null);
+      if (stat?.isDirectory()) {
+        if (!pathname.endsWith('/')) return redirect(`${pathname}/`);
+        file = path.join(full, 'index.html');
+        stat = await fsp.stat(file).catch(() => null);
+      }
+      if (!stat?.isFile()) status = 404;
+    }
+    if (status !== 200) {
+      // 404 and 410 send the site's 404 page (nginx: error_page 404 410 /404.html).
       file = path.join(root, '404.html');
       stat = await fsp.stat(file).catch(() => null);
       if (!stat?.isFile()) {
-        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' }).end('404 Not Found');
-        return done(404);
+        res.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' }).end(status === 410 ? '410 Gone' : '404 Not Found');
+        return done(status);
       }
     }
 
@@ -191,7 +335,7 @@ export function createServer({ dir, headers, quiet = false }) {
     const isHtml = type.startsWith('text/html');
     const etag = `W/"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
     res.setHeader('Content-Type', type);
-    res.setHeader('Cache-Control', status === 404 ? 'no-cache' : cacheControl(pathname, isHtml));
+    res.setHeader('Cache-Control', status !== 200 ? 'no-cache' : cacheControl(pathname, isHtml));
     if (status === 200) {
       res.setHeader('ETag', etag);
       if (req.headers['if-none-match'] === etag) {

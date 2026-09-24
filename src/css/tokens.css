@@ -212,7 +212,7 @@
     --delta-flat-soft: #1C2732;
     --danger: #F97066;
     --overlay: rgb(0 0 0 / 0.62);
-    --shadow-sm: none;
+    --shadow-sm: 0 0 #0000;
     --shadow-md: 0 0 0 1px #22303C;
     --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.55);
   }
@@ -256,7 +256,7 @@
   --delta-flat-soft: #1C2732;
   --danger: #F97066;
   --overlay: rgb(0 0 0 / 0.62);
-  --shadow-sm: none;
+  --shadow-sm: 0 0 #0000;
   --shadow-md: 0 0 0 1px #22303C;
   --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.55);
 }

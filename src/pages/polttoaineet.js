@@ -7,13 +7,15 @@
 import * as fmt from '../js/lib/format.js';
 import * as stats from '../js/lib/stats.js';
 import { html } from '../../scripts/lib/html.js';
-import { fitText, metaSource, datasetLd, interactiveChart, downloadButton, signed, DESCRIPTION_MAX } from './hinnat.js';
+import { fitText, metaSource, datasetLd, interactiveChart, downloadButton, rangeLabel, signed, DESCRIPTION_MAX } from './hinnat.js';
 
 /** Colour per fuel (series classes; khi/ykhi stay reserved for the indices). */
 const FUEL_COLOURS = Object.freeze({ bensiini95: 's5', bensiini98: 's3', diesel: 's4', polttooljy: 'core' });
 const SPARE_COLOURS = ['s6', 'ea'];
 /** Genitive of the fuels named in the lede. */
 const GENITIVE = Object.freeze({ bensiini95: 'bensiinin', diesel: 'dieselin' });
+/** Lower-case the first letter of a fuel label inside a sentence ('Diesel' → 'diesel'). */
+const lcFirst = (s) => (s ? s.charAt(0).toLocaleLowerCase('fi-FI') + s.slice(1) : s);
 
 /** '2,09 €/l' */
 export const perLitre = (v) => (fmt.isNum(v) ? `${fmt.num(v, 2)}${fmt.NBSP}€/l` : fmt.DASH);
@@ -47,6 +49,28 @@ export function fuelRows(p, month) {
   });
 }
 
+/** 'nousi' / 'laski' / 'pysyi ennallaan' for a change rounded to cents. */
+const verb = (x) => {
+  const v = fmt.isNum(x) ? fmt.round(x, 2) : 0;
+  return v > 0 ? 'nousi' : v < 0 ? 'laski' : 'pysyi ennallaan';
+};
+
+/**
+ * Lede sentence on the change from a year earlier of petrol (`b`) and diesel
+ * (`d`), rows of fuelRows(). When both moved the same way the verb is said once:
+ * 'Vuodessa bensiinin litrahinta nousi 0,40 € (+23,7 %) ja dieselin 0,64 € (+39,8 %).'
+ */
+export function yearChangeSentence(b, d) {
+  const flat = verb(0);
+  const amount = (r) => `${fmt.eur(Math.abs(r.diffYear), 2)} (${signed(r.pctYear)})`;
+  const vb = verb(b.diffYear);
+  const vd = verb(d.diffYear);
+  if (vb === flat && vd === flat) return `Vuodessa ${GENITIVE.bensiini95} ja ${GENITIVE.diesel} litrahinnat pysyivät ennallaan.`;
+  const bPart = vb === flat ? vb : `${vb} ${amount(b)}`;
+  const dPart = vd === flat ? vd : vd === vb ? amount(d) : `${vd} ${amount(d)}`;
+  return `Vuodessa ${GENITIVE.bensiini95} litrahinta ${bPart} ja ${GENITIVE.diesel} ${dPart}.`;
+}
+
 /** @param {any} ctx */
 export default async function polttoaineet(ctx) {
   const { c, svg } = ctx;
@@ -66,11 +90,9 @@ export default async function polttoaineet(ctx) {
   // Lede: petrol and diesel (when present), otherwise every fuel.
   const b = byKey.bensiini95;
   const d = byKey.diesel;
-  const verb = (x) => (x > 0 ? 'nousi' : x < 0 ? 'laski' : 'pysyi ennallaan');
-  const change = (r) => (fmt.isNum(r.diffYear) && r.diffYear !== 0 ? `${verb(r.diffYear)} ${fmt.eur(Math.abs(r.diffYear), 2)} (${signed(r.pctYear)})` : verb(0));
   let lede;
   if (b && d && fmt.isNum(b.value) && fmt.isNum(d.value)) {
-    lede = `${b.label} maksoi ${fmt.inessive(month)} keskimäärin ${perLitre(b.value)} ja diesel ${perLitre(d.value)}. Vuodessa ${GENITIVE.bensiini95} litrahinta ${change(b)} ja ${GENITIVE.diesel} ${change(d)}.`;
+    lede = `${b.label} maksoi ${fmt.inessive(month)} keskimäärin ${perLitre(b.value)} ja diesel ${perLitre(d.value)}. ${yearChangeSentence(b, d)}`;
   } else {
     lede = `Polttonesteiden keskihinnat ${fmt.inessive(month)}: ${rows.filter((r) => fmt.isNum(r.value)).map((r) => `${r.label} ${perLitre(r.value)}`).join(', ')}.`;
   }
@@ -135,6 +157,7 @@ export default async function polttoaineet(ctx) {
     decimals: 2,
     ranges: ['1v', '3v', '5v', '10v', 'kaikki'],
     range: 'kaikki',
+    param: 'jakso',
     datasets: keys.map((k, i) => ({ type: 'line', series: colour(k, i), label: byKey[k].label, data: p.series[k] })),
     download: { filename: `polttoaineiden-hinnat-${month}.png`, title: 'Polttonesteiden keskihinnat (€/l)', source: 'Lähde: Tilastokeskus · inflaatio.fi' },
   };
@@ -144,10 +167,10 @@ export default async function polttoaineet(ctx) {
   const chart = c.chartFigure({
     id: 'hintahistoria',
     title: 'Keskihinnat kuukausittain',
-    subtitle: `Euroa litralta · ${period}`,
+    subtitle: html`Euroa litralta · ${rangeLabel('hintahistoria', period)}`,
     legend: c.legend(keys.map((k, i) => ({ cls: colour(k, i), label: byKey[k].label }))),
     chart: interactiveChart(ctx, { id: 'hintahistoria', spec, fallback }),
-    summary: `${dz.r.label} oli kalleimmillaan ${perLitre(dz.max?.value)} (${monthsList(dz.max)}) ja halvimmillaan ${perLitre(dz.min?.value)} (${monthsList(dz.min)}). ${fmt.capitalize(fmt.inessive(month))} se maksoi ${perLitre(dz.r.value)}.`,
+    summary: `Koko aikasarjassa (${period}) ${lcFirst(dz.r.label)} oli kalleimmillaan ${perLitre(dz.max?.value)} (${monthsList(dz.max)}) ja halvimmillaan ${perLitre(dz.min?.value)} (${monthsList(dz.min)}). ${fmt.capitalize(fmt.inessive(month))} se maksoi ${perLitre(dz.r.value)}.`,
     table: c.dataTable({
       id: 'hintahistoria-taulukko',
       caption: `Polttonesteiden keskihinnat kuukausittain, €/l, ${period}`,
@@ -155,7 +178,7 @@ export default async function polttoaineet(ctx) {
       rows: all.months.map((ym, i) => [fmt.monthShort(ym), ...keys.map((_, j) => fmt.num(all.series[j][i], 2))]).reverse(),
       visibleRows: 12,
       compact: true,
-      toggleLabels: { more: `Näytä kaikki kuukaudet (${all.months.length})`, less: 'Näytä vain 12 viimeisintä' },
+      toggleLabels: { more: `Näytä kaikki kuukaudet (${all.months.length})`, less: 'Näytä vain 12 viimeisintä kuukautta' },
     }),
     source: c.sourceLine({ sources: [src], updated }),
     actions: downloadButton(ctx, 'hintahistoria'),
@@ -185,7 +208,7 @@ export default async function polttoaineet(ctx) {
   const note = c.callout({
     tone: 'info',
     title: 'Kuukauden keskihinta, ei päivän pumppuhinta',
-    body: html`<p>Luvut ovat Tilastokeskuksen kuluttajahintatilastoa varten laskemia kuukauden keskihintoja. Ne eivät kerro, mitä polttoaine maksaa tänään tietyllä asemalla: pumppuhinnat vaihtelevat asemittain, alueittain ja päivittäin. Tilastokeskus julkaisee kuukauden keskihinnat yleensä kuun lopussa, joten luku päivittyy kerran kuukaudessa.</p>`,
+    body: html`<p>Luvut ovat Tilastokeskuksen kuluttajahintatilastoa varten laskemia kuukauden keskihintoja. Ne eivät kerro, mitä polttoaine maksaa tänään tietyllä asemalla: pumppuhinnat vaihtelevat asemittain, alueittain ja päivittäin. Tilastokeskus julkaisee kuukauden keskihinnat yleensä kuukauden lopussa, joten luku päivittyy kerran kuukaudessa.</p>`,
   });
 
   const links = html`<ul class="topic-links">
@@ -194,12 +217,12 @@ export default async function polttoaineet(ctx) {
 </ul>`;
 
   const main = html`${header}
-${c.section({ id: 'hinnat-nyt', title: 'Keskihinnat nyt', className: 'section--flush-top', body: html`<div class="stack-lg">${kpis}${table}${note}</div>` })}
+${c.section({ id: 'hinnat-nyt', title: `Uusimmat keskihinnat (${monthTxt})`, className: 'section--flush-top', body: html`<div class="stack-lg">${kpis}${table}${note}</div>` })}
 ${c.section({ id: 'kehitys', eyebrow: 'Kehitys', title: 'Hinnat vuodesta ' + fmt.yearOf(all.months[0]), intro: 'Kuukauden keskihinnat euroina litralta. Valitse aikaväli kaavion yläpuolelta.', body: chart })}
 ${c.section({ id: 'vertailu', eyebrow: 'Vertailu', title: 'Ennätykset ja vuosivertailu', intro: `Kalleimmat ja halvimmat kuukaudet sekä ${monthGen} keskihinnat vuosittain.`, body: html`<div class="stack-lg">${extremesTable}${yearTable}</div>` })}
 ${c.section({ id: 'lisaa', title: 'Lisää aiheesta', body: links })}`;
 
-  const bTxt = b && fmt.isNum(b.value) ? `${b.label} maksoi ${fmt.inessive(month)} ${perLitre(b.value)} (${signed(b.pctYear)} vuodessa)` : null;
+  const bTxt = b && fmt.isNum(b.value) ? `${b.label} maksoi ${fmt.inessive(month)} keskimäärin ${perLitre(b.value)} (${signed(b.pctYear)} vuodessa)` : null;
   const dTxt = d && fmt.isNum(d.value) ? `diesel ${perLitre(d.value)} (${signed(d.pctYear)})` : null;
   const description = fitText(
     [

@@ -45,6 +45,18 @@ export function escapeHtml(value) {
   return String(value).replace(ESCAPE_RE, (ch) => ESCAPES[ch]);
 }
 
+const XML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' };
+
+/**
+ * Escape text for XML element content and attributes (sitemap, RSS);
+ * null/undefined → ''.
+ * @param {unknown} value
+ * @returns {string}
+ */
+export function xmlEscape(value) {
+  return String(value ?? '').replace(ESCAPE_RE, (ch) => XML_ESCAPES[ch]);
+}
+
 /**
  * Render one interpolated value to an HTML string.
  * @param {unknown} value

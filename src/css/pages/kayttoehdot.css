@@ -88,6 +88,13 @@
   vertical-align: top;
 }
 
+/* Text cells use proportional glyphs: with tabular figures Inter gives the
+   hyphen a digit-wide advance ("IP - osoite", "YKHI - ennakko"). Numeric
+   cells (.num) and <time> keep tabular figures. */
+:is([data-page='kayttoehdot'], [data-page='tietoa'], [data-page='menetelmat']) .data-table :is(caption, th, td):not(.num) {
+  font-variant-numeric: normal;
+}
+
 [data-page='kayttoehdot'] .data-table code {
   font-family: var(--font-mono);
   font-size: 0.875em;

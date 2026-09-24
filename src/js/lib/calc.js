@@ -93,9 +93,12 @@ const FAMILY_NAMES = {
 /** Statistics Finland tables of each family (for source lines). */
 const FAMILY_TABLES = { 'eki-1951': '11xl, 11xm', 'eki-1939': '11xn', 'eki-1914': '11xy' };
 
+/** True for the Eurostat HICP (YKHI) families ('ykhi-2025'). @param {string} idOrFamily */
+export const isYkhi = (idOrFamily) => /^ykhi-\d{4}$/.test(familyOf(idOrFamily));
+
 /**
  * Display name of an index family or series.
- * @param {string} idOrFamily e.g. 'eki-1951', 'khi-2025', 'khi-1972-v'
+ * @param {string} idOrFamily e.g. 'eki-1951', 'khi-2025', 'khi-1972-v', 'ykhi-2025'
  * @param {'fi'|'en'} [lang='fi']
  * @param {{short?: boolean}} [o] short = without the base
  * @returns {string}
@@ -104,10 +107,12 @@ export function seriesName(idOrFamily, lang = 'fi', { short = false } = {}) {
   const family = familyOf(idOrFamily);
   const known = FAMILY_NAMES[family];
   if (known) return short ? known.short[lang] : known[lang];
-  const m = family.match(/^khi-(\d{4})$/);
+  const m = family.match(/^(y?khi)-(\d{4})$/);
   if (m) {
-    const name = lang === 'en' ? 'Consumer price index' : 'Kuluttajahintaindeksi';
-    return short ? name : `${name} (${m[1]}=100)`;
+    const name = m[1] === 'ykhi'
+      ? lang === 'en' ? 'Harmonised index of consumer prices' : 'Yhdenmukaistettu kuluttajahintaindeksi'
+      : lang === 'en' ? 'Consumer price index' : 'Kuluttajahintaindeksi';
+    return short ? name : `${name} (${m[2]}=100)`;
   }
   return idOrFamily;
 }
@@ -123,6 +128,7 @@ export function familyOf(id) {
  */
 export function seriesTables(idOrFamily) {
   const family = familyOf(idOrFamily);
+  if (isYkhi(family)) return 'prc_hicp_minr';
   return FAMILY_TABLES[family] ?? (family === 'khi-2025' ? '11xs, 15b5' : '11xs, 11xt');
 }
 
@@ -132,7 +138,7 @@ export function seriesTables(idOrFamily) {
  */
 export function seriesBase(idOrFamily) {
   const family = familyOf(idOrFamily);
-  const m = family.match(/^khi-(\d{4})$/);
+  const m = family.match(/^y?khi-(\d{4})$/);
   if (m) return `${m[1]}=100`;
   return { 'eki-1951': '1951:10=100', 'eki-1939': '1938:8–1939:7=100', 'eki-1914': '1914:1–6=100' }[family] ?? '';
 }
@@ -156,17 +162,19 @@ export function compactSeries(periods, values) {
 /**
  * All official index series found in the data (ctx.data), compacted.
  * Monthly: elinkustannusindeksi 1951:10=100 (11xl) and 1938:8–1939:7=100
- * (11xn), KHI with every base of khi.json (11xs). Annual: elinkustannusindeksi
- * 1951:10=100 (11xm) and 1914:1–6=100 (11xy), KHI annual averages (11xt).
- * @param {{khi?: any, 'khi-annual'?: any, elinkustannusindeksi?: any}} data
+ * (11xn), KHI with every base of khi.json (11xs), and Finland's HICP (YKHI,
+ * Eurostat) with the newest base of ykhi.json (`provisional` lists its months
+ * flagged as estimates). Annual: elinkustannusindeksi 1951:10=100 (11xm) and
+ * 1914:1–6=100 (11xy), KHI annual averages (11xt).
+ * @param {{khi?: any, 'khi-annual'?: any, elinkustannusindeksi?: any, ykhi?: any}} data
  * @param {{ids?: string[]}} [o] keep only these series ids (in this order)
- * @returns {{id: string, family: string, kind: 'month'|'year', base: string, decimals: number, start: string, values: (number|null)[]}[]}
+ * @returns {{id: string, family: string, kind: 'month'|'year', base: string, decimals: number, start: string, values: (number|null)[], provisional?: string[]}[]}
  */
 export function buildSeries(data, { ids } = {}) {
   const out = [];
-  const add = (id, kind, periods, values, decimals) => {
+  const add = (id, kind, periods, values, decimals, extra = {}) => {
     const c = compactSeries(periods, values);
-    if (c) out.push({ id, family: familyOf(id), kind, base: seriesBase(id), decimals, ...c });
+    if (c) out.push({ id, family: familyOf(id), kind, base: seriesBase(id), decimals, ...c, ...extra });
   };
   const e = data?.elinkustannusindeksi;
   if (e?.monthly) add('eki-1951', 'month', e.monthly.months, e.monthly.values, 0);
@@ -181,6 +189,12 @@ export function buildSeries(data, { ids } = {}) {
   const ka = data?.['khi-annual'];
   if (ka?.years && ka.index) {
     for (const b of Object.keys(ka.index)) add(`khi-${b.slice(0, 4)}-v`, 'year', ka.years, ka.index[b], 2);
+  }
+  const fi = data?.ykhi?.geo?.FI;
+  if (data?.ykhi?.months && fi?.index) {
+    const newest = Object.keys(fi.index).sort((a, b) => Number(b.slice(0, 4)) - Number(a.slice(0, 4)))[0];
+    const flags = data.ykhi.flags?.FI ?? {};
+    if (newest) add(`ykhi-${newest.slice(0, 4)}`, 'month', data.ykhi.months, fi.index[newest], 2, { provisional: Object.keys(flags).filter((m) => flags[m]).sort() });
   }
   if (!ids) return out;
   return ids.map((id) => out.find((s) => s.id === id)).filter(Boolean);
@@ -254,9 +268,11 @@ export function roundMoney(v, mode = 'cent') {
  * @param {number|null} [p.extraPct] %-points added to the index change
  * @param {boolean} [p.noDecrease=false] the rent never goes down
  * @returns {{rent: number, baseIndex: number, checkIndex: number, ratio: number,
- *   indexChangePct: number, appliedPct: number, rule: 'index'|'extra'|'minimum'|'maximum'|'noDecrease',
+ *   indexChangePct: number, appliedPct: number, extraPct: number|null, rule: 'index'|'extra'|'minimum'|'maximum'|'noDecrease',
  *   newRentExact: number, newRent: number, increase: number, increaseYear: number, rounding: string}
  *   | {error: 'rent'|'baseIndex'|'checkIndex'|'minMax'}}
+ *   The 'extra' rule is rent × (check / base + extra / 100); the other
+ *   clauses are rent × (1 + appliedPct / 100).
  */
 export function rentIncrease({ rent, baseIndex, checkIndex, rounding = 'cent', minPct = null, maxPct = null, extraPct = null, noDecrease = false }) {
   if (!isNum(rent) || rent <= 0) return { error: 'rent' };
@@ -284,8 +300,9 @@ export function rentIncrease({ rent, baseIndex, checkIndex, rounding = 'cent', m
     rule = 'noDecrease';
   }
   const mode = ROUNDING.includes(rounding) ? rounding : 'cent';
-  // The plain index rule uses the ratio directly (no percentage round trip).
-  const newRentExact = rule === 'index' ? rent * ratio : rent * (1 + pct / 100);
+  // The index and extra rules use the ratio directly (no percentage round
+  // trip), so the displayed formula reproduces the result exactly.
+  const newRentExact = rule === 'index' ? rent * ratio : rule === 'extra' ? rent * (ratio + extraPct / 100) : rent * (1 + pct / 100);
   const newRent = roundMoney(newRentExact, mode);
   const increase = round(newRent - rent, 2);
   return {
@@ -295,6 +312,7 @@ export function rentIncrease({ rent, baseIndex, checkIndex, rounding = 'cent', m
     ratio,
     indexChangePct,
     appliedPct: pct,
+    extraPct: isNum(extraPct) && extraPct !== 0 ? extraPct : null,
     rule,
     newRentExact,
     newRent,
@@ -368,36 +386,45 @@ export const MONEY_SERIES_IDS = Object.freeze(['khi-1972', 'khi-1972-v', 'eki-19
 /**
  * Choose the official series for a value-of-money calculation between two
  * periods ('YYYY-MM' or 'YYYY' = annual average). The first family in
- * MONEY_FAMILIES that has a published point for both periods wins. If none
- * has (a period before 8/1939), the annual 1914:1–6=100 series is used with
- * the years of both periods; a year after its last published year is capped
- * to that year (`capped`).
+ * `families` (default MONEY_FAMILIES) that has a published point for both
+ * periods wins. If none has (a period before 8/1939, or an annual average
+ * 1939–1951), the annual 1914:1–6=100 series is used with the years of both
+ * periods; a year after its last published year is capped to that year
+ * (`capped`). The fallback applies only when `families` includes 'eki-1914'.
+ * `provisional` is true when a point used is a flagged estimate (YKHI).
  * @param {object[]} list output of buildSeries()
  * @param {string} from
  * @param {string} to
+ * @param {{families?: readonly string[]}} [o] e.g. ['ykhi-2025'] for the HICP only
  * @returns {{family: string, fromSeries: object, toSeries: object, from: string, to: string,
- *   fromIdx: number, toIdx: number, annualFallback: boolean, capped: boolean}
- *   | {error: 'invalid'|'future'|'before'}}
+ *   fromIdx: number, toIdx: number, annualFallback: boolean, capped: boolean, provisional: boolean}
+ *   | {error: 'invalid'|'future'|'before'|'annual'}}
  */
-export function pickMoneySeries(list, from, to) {
+export function pickMoneySeries(list, from, to, { families = MONEY_FAMILIES } = {}) {
   if (!periodKind(from) || !periodKind(to)) return { error: 'invalid' };
-  const byId = new Map((list ?? []).map((s) => [s.id, s]));
+  const own = (list ?? []).filter((s) => families.includes(s.family));
+  const byId = new Map(own.map((s) => [s.id, s]));
   const series = (family, kind) => byId.get(kind === 'year' ? `${family}-v` : family) ?? null;
-  // Newest published month / complete year over all series: later periods
-  // (or the annual average of the current, incomplete year) are not published yet.
-  const newest = (kind) => (list ?? []).filter((s) => s.kind === kind).map(latestPeriod).filter(Boolean).sort().at(-1) ?? null;
+  // Newest published month / complete year of the chosen families: later
+  // periods (or the annual average of the current, incomplete year) are not
+  // published yet. Other families (e.g. an HICP month published before the
+  // KHI) do not count.
+  const newest = (kind) => own.filter((s) => s.kind === kind).map(latestPeriod).filter(Boolean).sort().at(-1) ?? null;
   const newestMonth = newest('month');
   const newestYear = newest('year');
   const future = (p) => (isMonth(p) ? newestMonth != null && p > newestMonth : newestYear != null && p > newestYear);
   if (future(from) || future(to)) return { error: 'future' };
+  // A family without annual averages (the HICP) cannot compare whole years.
+  if ((isYear(from) || isYear(to)) && !own.some((s) => s.kind === 'year')) return { error: 'annual' };
 
-  for (const family of MONEY_FAMILIES) {
+  for (const family of families) {
     const fs = series(family, periodKind(from));
     const ts = series(family, periodKind(to));
     const fromIdx = pointAt(fs, from);
     const toIdx = pointAt(ts, to);
     if (fromIdx != null && toIdx != null) {
-      return { family, fromSeries: fs, toSeries: ts, from, to, fromIdx, toIdx, annualFallback: false, capped: false };
+      const flagged = (s, p) => Boolean(s.provisional?.includes(p));
+      return { family, fromSeries: fs, toSeries: ts, from, to, fromIdx, toIdx, annualFallback: false, capped: false, provisional: flagged(fs, from) || flagged(ts, to) };
     }
   }
   // Annual fallback (periods before the monthly series).
@@ -419,7 +446,7 @@ export function pickMoneySeries(list, from, to) {
   const fromIdx = pointAt(annual, fy);
   const toIdx = pointAt(annual, ty);
   if (fromIdx == null || toIdx == null) return { error: 'before' };
-  return { family: 'eki-1914', fromSeries: annual, toSeries: annual, from: fy, to: ty, fromIdx, toIdx, annualFallback: true, capped };
+  return { family: 'eki-1914', fromSeries: annual, toSeries: annual, from: fy, to: ty, fromIdx, toIdx, annualFallback: true, capped, provisional: false };
 }
 
 /**
@@ -560,6 +587,23 @@ export function inflationDifference({ weights, baseWeights, rates }) {
   return { personal: a.rate, base: b.rate, difference: a.rate - b.rate, drivers };
 }
 
+/**
+ * Personal inflation month by month from the history of the group rates,
+ * with the same weights for every month (an approximation: the official
+ * index uses each year's own weights). A month without any group rate is null.
+ * Example: weights { a: 1, b: 3 }, rates a [4, 2], b [0, 2] → [1, 2].
+ * @param {{weights: Record<string, number>, series: Record<string, (number|null)[]>, length: number}} p
+ *   series = group rates aligned with a month axis of `length` months
+ * @returns {(number|null)[]}
+ */
+export function personalHistory({ weights, series, length }) {
+  const keys = Object.keys(weights ?? {});
+  return Array.from({ length: Math.max(0, length | 0) }, (_, i) => {
+    const rates = Object.fromEntries(keys.map((k) => [k, series?.[k]?.[i] ?? null]));
+    return personalInflation({ weights, rates })?.rate ?? null;
+  });
+}
+
 /* ============================================================ real wages */
 
 /**
@@ -603,10 +647,17 @@ export function annualRate(factor, months) {
 
 /* ============================================================ input parsing */
 
+/** Integer part grouped in thousands with a dot / a comma ('1.234', '12,345,678'). */
+const GROUPED = { '.': /^[+-]?\d{1,3}(\.\d{3})+$/, ',': /^[+-]?\d{1,3}(,\d{3})+$/ };
+
 /**
  * Parse a number typed by a user: '1 234,56', '1234.56', '850 €', '−2,5 %'.
  * Finnish (default): a comma or a single dot is the decimal separator.
- * English: the dot is the decimal separator and commas group thousands.
+ * English: the dot is the decimal separator; commas group thousands only in
+ * a well-formed grouping ('1,250', '12,345.50'), and a single comma followed
+ * by one or two digits is a decimal comma ('850,50'). Anything else with a
+ * comma ('12,,5', '1,23,4') is invalid, so a typo never becomes a silently
+ * different number.
  * @param {unknown} input
  * @param {'fi'|'en'} [lang='fi']
  * @returns {number|null} null for empty or invalid input
@@ -623,14 +674,17 @@ export function parseDecimal(input, lang = 'fi') {
   const comma = s.lastIndexOf(',');
   const dot = s.lastIndexOf('.');
   if (comma >= 0 && dot >= 0) {
-    // Both present: the last one is the decimal separator.
+    // Both present: the last one is the decimal separator and the other one
+    // must group the integer part in thousands.
     const dec = comma > dot ? ',' : '.';
     const group = dec === ',' ? '.' : ',';
-    s = s.split(group).join('').replace(dec, '.');
+    const [int, frac, ...rest] = s.split(dec);
+    s = rest.length === 0 && GROUPED[group].test(int) ? `${int.split(group).join('')}.${frac}` : '';
   } else if (comma >= 0) {
-    s = lang === 'en' ? s.split(',').join('') : s.split(',').length === 2 ? s.replace(',', '.') : '';
+    if (lang === 'en') s = GROUPED[','].test(s) ? s.split(',').join('') : /^[+-]?\d+,\d{1,2}$/.test(s) ? s.replace(',', '.') : '';
+    else s = s.split(',').length === 2 ? s.replace(',', '.') : '';
   } else if (dot >= 0 && s.split('.').length > 2) {
-    s = s.split('.').join(''); // 1.234.567 → thousands
+    s = GROUPED['.'].test(s) ? s.split('.').join('') : ''; // 1.234.567 → thousands
   }
   if (!/^[+-]?(\d+\.?\d*|\.\d+)$/.test(s)) return null;
   const v = Number(s);
@@ -639,27 +693,8 @@ export function parseDecimal(input, lang = 'fi') {
 
 /* ========================================================== locale formats */
 
-const EN_MONTHS = Object.freeze(['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']);
-const EN_MONTHS_SHORT = Object.freeze(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']);
-
-const enCache = new Map();
-/** en-GB number body without sign. */
-function enBody(v, decimals) {
-  let f = enCache.get(decimals);
-  if (!f) {
-    f = new Intl.NumberFormat('en-GB', { minimumFractionDigits: decimals, maximumFractionDigits: decimals, useGrouping: true });
-    enCache.set(decimals, f);
-  }
-  return f.format(Math.abs(v));
-}
-
-/** Signed en-GB number (U+2212 minus, '+'/'±' with `sign`). */
-function enNum(v, decimals = 0, { sign = false } = {}) {
-  const r = round(v, decimals);
-  if (r === null) return DASH;
-  const s = r < 0 ? MINUS : sign ? (r > 0 ? '+' : '±') : '';
-  return s + enBody(r, decimals);
-}
+/** English month names and number formats come from format.js (the single source). */
+const { EN_MONTHS, EN_MONTHS_SHORT, enNum } = fmt;
 
 const monthPart = (ym, names) => {
   const { y, m } = parseYm(ym);
@@ -690,20 +725,9 @@ const FI = Object.freeze({
 const EN = Object.freeze({
   lang: 'en',
   num: enNum,
-  pct: (v, { decimals = 1, sign = false } = {}) => {
-    const s = enNum(v, decimals, { sign });
-    return s === DASH ? DASH : `${s}%`;
-  },
-  pp: (v, { decimals = 1, sign = true } = {}) => {
-    const s = enNum(v, decimals, { sign });
-    return s === DASH ? DASH : `${s}${NBSP}pp`;
-  },
-  eur: (v, decimals = 2, { sign = false } = {}) => {
-    const r = round(v, decimals);
-    if (r === null) return DASH;
-    const s = r < 0 ? MINUS : sign ? (r > 0 ? '+' : '±') : '';
-    return `${s}€${enBody(r, decimals)}`;
-  },
+  pct: fmt.enPct,
+  pp: fmt.enPp,
+  eur: fmt.enEur,
   idx: (v, decimals = 2) => enNum(v, decimals),
   monthNames: EN_MONTHS,
   period: (p) => (isMonth(p) ? monthPart(p, EN_MONTHS) : isYear(p) ? p : DASH),
@@ -735,8 +759,18 @@ const point = (F, v, decimals) => F.idx(v, decimals);
 /** Euro amount without decimals when it is whole ('100 €'), else with cents. */
 const money = (F, v) => (isNum(v) && Math.abs(round(v, 2) - Math.round(v)) < 1e-9 ? F.eur(v, 0) : F.eur(v));
 
+/** Decimals a user-entered number needs (0–4): 3 → 0, 2.5 → 1, 2.555 → 3. */
+function ownDecimals(v) {
+  for (let d = 0; d < 4; d++) if (Math.abs(round(v, d) - v) < 1e-9) return d;
+  return 4;
+}
+
 /**
- * Result texts of the rent calculator.
+ * Result texts of the rent calculator. The formula and the notice text use
+ * the same numbers as the calculation (point figures, and a contract
+ * percentage with the decimals the user entered), so re-evaluating the shown
+ * formula gives the new rent to the cent (before a euro rounding, which is
+ * then named).
  * @param {ReturnType<typeof rentIncrease>} r a successful result
  * @param {{series: {id: string, decimals: number}, base: string, check: string, lang?: 'fi'|'en'}} o
  * @returns {Record<string, string>}
@@ -748,36 +782,44 @@ export function rentView(r, { series, base, check, lang = 'fi' }) {
   const b = point(F, r.baseIndex, d);
   const c = point(F, r.checkIndex, d);
   const perMonth = lang === 'en' ? '/month' : '/kk';
-  const formula = r.rule === 'index'
-    ? `${F.eur(r.rent)} × ${c} / ${b} = ${F.eur(r.newRent)}`
-    : `${F.eur(r.rent)} × (1 ${r.appliedPct < 0 ? MINUS : '+'} ${F.num(Math.abs(r.appliedPct), 2)} / 100) = ${F.eur(r.newRent)}`;
+  const signed = (v) => `${v < 0 ? MINUS : '+'} ${F.num(Math.abs(v), ownDecimals(Math.abs(v)))}`;
+  /** Right-hand side of "new rent = …" without the result. */
+  const expr = {
+    index: `${F.eur(r.rent)} × ${c} / ${b}`,
+    extra: `${F.eur(r.rent)} × (${c} / ${b} ${signed(r.extraPct ?? 0)} / 100)`,
+  }[r.rule] ?? `${F.eur(r.rent)} × (1 ${signed(r.appliedPct)} / 100)`;
+  const formula = `${expr} = ${F.eur(r.newRent)}`;
   const idxPct = F.pct(r.indexChangePct, { sign: true, decimals: 2 });
   const appliedPct = F.pct(r.appliedPct, { sign: true, decimals: 2 });
   const roundingNote = {
     fi: { cent: '', euro: ' Pyöristetty lähimpään euroon.', 'euro-up': ' Pyöristetty ylöspäin täyteen euroon.' },
     en: { cent: '', euro: ' Rounded to the nearest euro.', 'euro-up': ' Rounded up to the next whole euro.' },
   }[lang][r.rounding] ?? '';
+  const roundingShort = {
+    fi: { cent: '', euro: ' (pyöristetty lähimpään euroon)', 'euro-up': ' (pyöristetty ylöspäin täyteen euroon)' },
+    en: { cent: '', euro: ' (rounded to the nearest euro)', 'euro-up': ' (rounded up to the next whole euro)' },
+  }[lang][r.rounding] ?? '';
   let rule;
   if (lang === 'en') {
     rule = {
       index: '',
       extra: `The contract adds ${F.pp(r.appliedPct - r.indexChangePct, { decimals: 2 })} to the index change (${idxPct}).`,
-      minimum: `The index change (${idxPct}) is below the contract's minimum increase, so the increase is ${F.pct(r.appliedPct, { decimals: 2 })}.`,
-      maximum: `The index change (${idxPct}) exceeds the contract's maximum increase, so the increase is capped at ${F.pct(r.appliedPct, { decimals: 2 })}.`,
+      minimum: `The index change (${idxPct}) is below the contract's minimum increase, so the increase is ${F.pct(r.appliedPct, { decimals: Math.max(2, ownDecimals(r.appliedPct)) })}.`,
+      maximum: `The index change (${idxPct}) exceeds the contract's maximum increase, so the increase is capped at ${F.pct(r.appliedPct, { decimals: Math.max(2, ownDecimals(r.appliedPct)) })}.`,
       noDecrease: `The index fell (${idxPct}), but under the contract the rent does not decrease.`,
     }[r.rule];
   } else {
     rule = {
       index: '',
       extra: `Sopimuksen lisäkorotus ${F.pp(r.appliedPct - r.indexChangePct, { decimals: 2 })} on lisätty indeksin muutokseen (${idxPct}).`,
-      minimum: `Indeksin muutos (${idxPct}) jää alle sopimuksen vähimmäiskorotuksen, joten korotus on ${F.pct(r.appliedPct, { decimals: 2 })}.`,
-      maximum: `Indeksin muutos (${idxPct}) ylittää sopimuksen enimmäiskorotuksen, joten korotus rajataan ${F.pct(r.appliedPct, { decimals: 2 })}:iin.`,
+      minimum: `Indeksin muutos (${idxPct}) jää alle sopimuksen vähimmäiskorotuksen, joten korotus on ${F.pct(r.appliedPct, { decimals: Math.max(2, ownDecimals(r.appliedPct)) })}.`,
+      maximum: `Indeksin muutos (${idxPct}) ylittää sopimuksen enimmäiskorotuksen, joten korotus rajataan ${F.pct(r.appliedPct, { decimals: Math.max(2, ownDecimals(r.appliedPct)) })}:iin.`,
       noDecrease: `Indeksi laski (${idxPct}), mutta sopimuksen mukaan vuokra ei laske.`,
     }[r.rule];
   }
   const notice = lang === 'en'
-    ? `Under the index clause of the lease, the rent is revised. The ${name.charAt(0).toLowerCase()}${name.slice(1)} was ${b} in the base month (${F.period(base)}) and ${c} in the review month (${F.period(check)}). The new rent is ${r.rule === 'index' ? `${F.eur(r.rent)} × ${c} / ${b}` : `${F.eur(r.rent)} + ${F.pct(r.appliedPct, { decimals: 2 })}`} = ${F.eur(r.newRent)} per month. Source: Statistics Finland.`
-    : `Vuokrasopimuksen indeksiehdon mukaisesti vuokra tarkistetaan. ${name.replace(/ \(/, 'n (')} pisteluku oli perusajankohtana (${F.period(base)}) ${b} ja tarkistusajankohtana (${F.period(check)}) ${c}. Uusi vuokra on ${r.rule === 'index' ? `${F.eur(r.rent)} × ${c} / ${b}` : `${F.eur(r.rent)} + ${F.pct(r.appliedPct, { decimals: 2 })}`} = ${F.eur(r.newRent)}/kk. Lähde: Tilastokeskus.`;
+    ? `Under the index clause of the lease, the rent is revised as follows. The ${name.charAt(0).toLowerCase()}${name.slice(1)} was ${b} in the base month (${F.period(base)}) and ${c} in the review month (${F.period(check)}). The new rent is ${expr} = ${F.eur(r.newRent)} per month${roundingShort}. The new rent applies from [date]. Source: Statistics Finland.`
+    : `Vuokrasopimuksen indeksiehdon mukaisesti vuokraa tarkistetaan seuraavasti. ${name.replace(/ \(/, 'n (')} pisteluku oli perusajankohtana (${F.period(base)}) ${b} ja tarkistusajankohtana (${F.period(check)}) ${c}. Uusi vuokra on ${expr} = ${F.eur(r.newRent)}/kk${roundingShort}. Uusi vuokra on voimassa [päivämäärä] alkaen. Lähde: Tilastokeskus.`;
   return {
     newRent: F.eur(r.newRent),
     perMonth,
@@ -806,45 +848,70 @@ export function moneyView({ amount, currency, pick, value, factor }, lang = 'fi'
   const F = formatter(lang);
   const inAmount = currency === 'mk' ? F.markka(amount, Number.isInteger(amount) ? 0 : 2) : money(F, amount);
   const oldMarkka = currency === 'mk' && periodYear(pick.from) < CURRENCY_REFORM_YEAR;
-  const inAmountLabel = oldMarkka ? (lang === 'en' ? `${inAmount} (old markka)` : `${inAmount} (vanhaa markkaa)`) : inAmount;
-  const months = monthsBetween(pick.from, pick.to);
+  const inAmountLabel = oldMarkka ? (lang === 'en' ? `${inAmount} (old markka)` : `${inAmount} (vanhaa markkaa)`) : inAmount;  const months = monthsBetween(pick.from, pick.to);
   const annual = annualRate(factor, months);
   const changePct = (factor - 1) * 100;
   const later = months >= 0;
+  const en = lang === 'en';
+  /** Markka amount of a period: '59,09 mk' or, before 1963, '641,43 vanhaa markkaa'. */
+  const markkaOf = (v, old) => (old ? `${F.num(v, 2)} ${en ? 'old markka' : 'vanhaa markkaa'}` : F.markka(v));
   const toMarkka = periodYear(pick.to) < EURO_CASH_YEAR ? fromEuros(value, 'mk', pick.to) : null;
-  const toOld = periodYear(pick.to) < CURRENCY_REFORM_YEAR;
-  const markkaText = toMarkka == null ? '' : lang === 'en' ? ` (${F.markka(toMarkka)}${toOld ? ', old markka' : ''})` : ` (${F.markka(toMarkka)}${toOld ? ' vanhaa markkaa' : ''})`;
+  const markkaText = toMarkka == null ? '' : ` (${markkaOf(toMarkka, periodYear(pick.to) < CURRENCY_REFORM_YEAR)})`;
   const src = seriesName(pick.family, lang);
   const pts = `${F.idx(pick.fromIdx, pick.fromSeries.decimals)} → ${F.idx(pick.toIdx, pick.toSeries.decimals)}`;
   const amountEur = toEuros(amount, currency, pick.from);
-  const reverse = factor > 0 ? amountEur / factor : null;
+  // The reverse sentence ("100 € now had the purchasing power of … then")
+  // needs a euro amount in the later period. Before euro cash the earlier
+  // amount is given in markka: for a markka input based on 100 € (the
+  // euro value of an old markka sum is not a meaningful "now" amount), for
+  // a euro input with the markka equivalent next to the euros.
+  const fromYear = periodYear(pick.from);
+  const reverseBase = currency === 'mk' ? 100 : amountEur;
+  const reverseEur = factor > 0 ? reverseBase / factor : null;
+  let reverseText = '';
+  if (reverseEur != null) {
+    const fromMarkka = fromEuros(reverseEur, 'mk', pick.from);
+    const old = fromYear < CURRENCY_REFORM_YEAR;
+    if (currency === 'mk') reverseText = markkaOf(fromMarkka, old);
+    else if (fromYear < EURO_CASH_YEAR) reverseText = `${F.eur(reverseEur)} (${markkaOf(fromMarkka, old)})`;
+    else reverseText = F.eur(reverseEur);
+  }
+  const showReverse = reverseEur != null && periodYear(pick.to) >= EURO_CASH_YEAR;
   let sentence;
   let change;
   let buys;
-  if (lang === 'en') {
+  if (en) {
     sentence = `${inAmountLabel} ${F.periodIn(pick.from)} is equivalent to ${F.eur(value)}${markkaText} ${F.periodIn(pick.to)}.`;
     change = later
       ? `Prices ${changePct >= 0 ? 'rose' : 'fell'} by ${F.pct(Math.abs(changePct))}${annual != null ? ` (on average ${F.pct(annual, { sign: true, decimals: 2 })} a year)` : ''}.`
       : `Prices were ${F.pct(Math.abs(changePct))} ${changePct <= 0 ? 'lower' : 'higher'} ${F.periodIn(pick.to)}.`;
-    buys = reverse != null && periodYear(pick.to) >= EURO_CASH_YEAR
-      ? `Conversely, ${money(F, amountEur)} ${F.periodIn(pick.to)} bought as much as ${F.eur(reverse)} ${F.periodIn(pick.from)}.`
+    buys = showReverse
+      ? `Conversely, ${money(F, reverseBase)} ${F.periodIn(pick.to)} has the same purchasing power as ${reverseText} had ${F.periodIn(pick.from)}.`
       : '';
   } else {
     sentence = `${inAmountLabel} ${F.periodIn(pick.from)} vastaa ostovoimaltaan ${F.eur(value)}${markkaText} ${F.periodIn(pick.to)}.`;
     change = later
       ? `Hinnat ${changePct >= 0 ? 'nousivat' : 'laskivat'} ${F.pct(Math.abs(changePct))}${annual != null ? ` (keskimäärin ${F.pct(annual, { sign: true, decimals: 2 })} vuodessa)` : ''}.`
-      : `Hinnat olivat ${F.periodIn(pick.to)} ${F.pct(Math.abs(changePct))} ${changePct <= 0 ? 'alemmat' : 'korkeammat'}.`;
-    buys = reverse != null && periodYear(pick.to) >= EURO_CASH_YEAR
-      ? `Toisin päin: ${money(F, amountEur)} ${F.periodIn(pick.to)} vastaa ostovoimaltaan ${F.eur(reverse)} ${F.periodIn(pick.from)}.`
+      : `Hinnat olivat ${F.pct(Math.abs(changePct))} ${changePct <= 0 ? 'alemmat' : 'korkeammat'} ${F.periodIn(pick.to)}.`;
+    buys = showReverse
+      ? `Toisinpäin: ${money(F, reverseBase)} ${F.periodIn(pick.to)} vastaa ostovoimaltaan ${reverseText} ${F.periodIn(pick.from)}.`
       : '';
   }
   const basis = `${money(F, amountEur)} × ${F.idx(pick.toIdx, pick.toSeries.decimals)} / ${F.idx(pick.fromIdx, pick.fromSeries.decimals)} = ${F.eur(value)}`;
-  let note = '';
+  const notes = [];
   if (pick.annualFallback) {
-    note = lang === 'en'
-      ? `Before August 1939 the calculation uses annual figures of the ${seriesName('eki-1914', 'en')}.${pick.capped ? ` Its latest year is ${pick.to}, so the calculation ends there.` : ''}`
-      : `Ennen elokuuta 1939 laskelma tehdään vuositasolla: ${seriesName('eki-1914', 'fi').replace('Elinkustannusindeksi', 'elinkustannusindeksi')}.${pick.capped ? ` Sarjan viimeisin vuosi on ${pick.to}, joten laskelma päättyy siihen.` : ''}`;
+    // True for every fallback: a period before 8/1939, or an annual average
+    // 1939–1951 (11xn has no annual averages and 11xm starts in 1952).
+    notes.push(en
+      ? `The calculation uses annual figures of the cost-of-living index (1914:1–6=100), because the monthly series start in August 1939 and other annual averages in 1952.${pick.capped ? ` The series' latest year is ${pick.to}, so the calculation ends there.` : ''}`
+      : `Laskelma tehdään vuositasolla elinkustannusindeksillä (1914:1–6=100), koska kuukausisarjat alkavat elokuusta 1939 ja muut vuosikeskiarvot vuodesta 1952.${pick.capped ? ` Sarjan viimeisin vuosi on ${pick.to}, joten laskelma päättyy siihen.` : ''}`);
   }
+  if (pick.provisional) {
+    notes.push(en
+      ? 'The calculation includes a provisional Eurostat figure (flash estimate), which may still be revised.'
+      : 'Laskelmassa on mukana Eurostatin ennakkotieto, joka voi vielä tarkentua.');
+  }
+  const note = notes.join(' ');
   return {
     value: F.eur(value),
     sentence,
@@ -875,7 +942,7 @@ export function savingsView(r, { kind, from, to, lang = 'fi' }) {
       const priceChange = (r.priceFactor - 1) * 100;
       return {
         real: F.eur(r.realValue),
-        realLabel: `Purchasing power in money of ${F.period(from)}`,
+        realLabel: `Purchasing power in ${F.period(from)} money`,
         lead: `Nominally ${money(F, r.nominalValue)}, but prices ${priceChange >= 0 ? 'rose' : 'fell'} by ${F.pct(Math.abs(priceChange))} from ${F.period(from)} to ${F.period(to)}.`,
         realReturn: realAnnual ? `Real return ${realAnnual} a year (${F.pct(totalRealPct, { sign: true })} in total).` : `Real return ${F.pct(totalRealPct, { sign: true, decimals: 2 })} over the period.`,
         nominal: money(F, r.nominalValue),

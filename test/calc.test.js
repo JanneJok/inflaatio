@@ -1,10 +1,14 @@
-import { test } from 'node:test';
+import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import * as c from '../src/js/lib/calc.js';
+import { build } from '../scripts/build.js';
 
-/** NBSP → space for readable expectations. */
-const sp = (s) => String(s).replace(/\u00A0/g, ' ');
+/** NBSP / narrow NBSP → space and the non-breaking hyphen → '-' for readable expectations. */
+const sp = (s) => String(s).replace(/[\u00A0\u202F]/g, ' ').replace(/\u2011/g, '-');
 const approx = (actual, expected, eps = 1e-6, msg) =>
   assert.ok(Math.abs(actual - expected) < eps, msg ?? `${actual} ≈ ${expected}`);
 
@@ -16,6 +20,8 @@ const data = {
   khi: readData('khi'),
   'khi-annual': readData('khi-annual'),
   elinkustannusindeksi: readData('elinkustannusindeksi'),
+  ykhi: readData('ykhi'),
+  hyodykkeet: readData('hyodykkeet'),
 };
 const hasData = Boolean(data.khi && data.elinkustannusindeksi && data['khi-annual']);
 
@@ -220,7 +226,7 @@ test('real data: 1/2000 → 8/2026 money factor 1,6271 from the official 1972=10
   const view = c.moneyView({ amount: 100, currency: 'eur', pick, value: v.value, factor: v.factor });
   assert.equal(sp(view.sentence), '100 € tammikuussa 2000 vastaa ostovoimaltaan 162,71 € elokuussa 2026.');
   assert.match(sp(view.change), /^Hinnat nousivat 62,7 % \(keskimäärin \+1,85 % vuodessa\)\.$/);
-  assert.equal(sp(view.buys), 'Toisin päin: 100 € elokuussa 2026 vastaa ostovoimaltaan 61,46 € tammikuussa 2000.');
+  assert.equal(sp(view.buys), 'Toisinpäin: 100 € elokuussa 2026 vastaa ostovoimaltaan 61,46 € (365,42 mk) tammikuussa 2000.');
   assert.equal(sp(view.basis), '100 € × 927,11 / 569,80 = 162,71 €');
   assert.equal(view.seriesName, 'Kuluttajahintaindeksi (1972=100)');
   const mk = c.moneyView({ amount: 1000, currency: 'mk', pick, value: c.toEuros(1000, 'mk', '2000-01') * v.factor, factor: v.factor });
@@ -366,7 +372,7 @@ test('moneyView: backwards period, English texts and the annual note', { skip: !
   const v = c.valueOfMoney({ amount: 100, fromIdx: back.fromIdx, toIdx: back.toIdx });
   const fi = c.moneyView({ amount: 100, currency: 'eur', pick: back, value: v.value, factor: v.factor });
   assert.equal(sp(fi.sentence), '100 € elokuussa 2026 vastaa ostovoimaltaan 61,46 € (365,42 mk) tammikuussa 2000.');
-  assert.match(sp(fi.change), /^Hinnat olivat tammikuussa 2000 38,5 % alemmat\.$/);
+  assert.match(sp(fi.change), /^Hinnat olivat 38,5 % alemmat tammikuussa 2000\.$/);
   assert.equal(fi.buys, '', 'no reverse sentence before euro cash');
   assert.equal(fi.note, '');
   const en = c.moneyView({ amount: 100, currency: 'eur', pick: c.pickMoneySeries(list, '2000-01', '2026-08'), value: 162.71, factor: 1.6271 }, 'en');
@@ -374,7 +380,7 @@ test('moneyView: backwards period, English texts and the annual note', { skip: !
   const old = c.pickMoneySeries(list, '1900', '2026-08');
   const ov = c.valueOfMoney({ amount: c.toEuros(100, 'mk', '1900'), fromIdx: old.fromIdx, toIdx: old.toIdx });
   const note = c.moneyView({ amount: 100, currency: 'mk', pick: old, value: ov.value, factor: ov.factor });
-  assert.match(note.note, /^Ennen elokuuta 1939 laskelma tehdään vuositasolla/);
+  assert.match(note.note, /^Laskelma tehdään vuositasolla elinkustannusindeksillä \(1914:1–6=100\), koska kuukausisarjat alkavat elokuusta 1939 ja muut vuosikeskiarvot vuodesta 1952\./);
   assert.match(sp(note.sentence), /^100 mk \(vanhaa markkaa\) vuonna 1900 vastaa ostovoimaltaan [0-9 ,]+ € vuonna 2025\.$/);
 });
 
@@ -402,4 +408,318 @@ test('savingsView and wageView texts', () => {
   assert.equal(down.verdict, 'Ostovoimasi heikkeni.');
   const flat = c.wageView(c.realWageChange({ before: 3000, after: 3060, cpiFrom: 100, cpiTo: 102 }), { before: 3000, after: 3060, from: '2025-08', to: '2026-08', lang: 'en' });
   assert.equal(flat.verdict, 'Your purchasing power stayed about the same.');
+});
+
+/* ------------------------------------------------- review fixes (QA round) */
+
+test('parseDecimal (en): a comma is a thousands separator only in a well-formed grouping', () => {
+  assert.equal(c.parseDecimal('850,50', 'en'), 850.5, 'European decimal comma');
+  assert.equal(c.parseDecimal('850,5', 'en'), 850.5);
+  assert.equal(c.parseDecimal('1,250', 'en'), 1250);
+  assert.equal(c.parseDecimal('12,345,678', 'en'), 12345678);
+  assert.equal(c.parseDecimal('12,345.50', 'en'), 12345.5);
+  assert.equal(c.parseDecimal('12,,5', 'en'), null);
+  assert.equal(c.parseDecimal('1,23,4', 'en'), null);
+  assert.equal(c.parseDecimal('1,2345', 'en'), null);
+  assert.equal(c.parseDecimal('12,,5'), null, 'fi as well');
+  assert.equal(c.parseDecimal('12,,5.3'), null, 'broken grouping with both separators');
+  assert.equal(c.parseDecimal('1.2.3'), null, 'dots that are not thousands groups');
+  assert.equal(c.parseDecimal('−1,234.5', 'en'), -1234.5);
+});
+
+/** Evaluate a displayed Finnish formula ("900,00 € × (2 385 / 2 334 + 1 / 100)"). */
+function evalFormula(text) {
+  const expr = sp(text).split('=')[0].replace(/€/g, '').replace(/−/g, '-').replace(/(\d) (?=\d{3}\b)/g, '$1').replace(/,/g, '.').replace(/×/g, '*');
+  // Only numbers, spaces, parentheses and + - * / are left: parse them without string evaluation.
+  const tokens = expr.match(/\d+(?:\.\d+)?|[()+\-*/]/g);
+  let i = 0;
+  const factor = () => {
+    const t = tokens[i++];
+    if (t === '(') {
+      const v = sum();
+      i++; // ')'
+      return v;
+    }
+    if (t === '-') return -factor();
+    return Number(t);
+  };
+  const product = () => {
+    let v = factor();
+    while (tokens[i] === '*' || tokens[i] === '/') v = tokens[i++] === '*' ? v * factor() : v / factor();
+    return v;
+  };
+  const sum = () => {
+    let v = product();
+    while (tokens[i] === '+' || tokens[i] === '-') v = tokens[i++] === '+' ? v + product() : v - product();
+    return v;
+  };
+  return sum();
+}
+
+test('rentView: the shown formula and notice reproduce the new rent to the cent (QA-CODE-05)', () => {
+  const S = { series: { id: 'eki-1951', decimals: 0 }, base: '2025-08', check: '2026-08' };
+  const cases = [{}, { extraPct: 1 }, { extraPct: 0.75 }, { minPct: 3 }, { minPct: 2.555 }, { maxPct: 2 }, { maxPct: 1.2345 }];
+  for (const p of cases) {
+    const r = c.rentIncrease({ rent: 900, baseIndex: 2334, checkIndex: 2385, ...p });
+    const v = c.rentView(r, S);
+    assert.equal(Math.round(evalFormula(v.formula) * 100) / 100, r.newRent, `${JSON.stringify(p)}: ${sp(v.formula)}`);
+    const inNotice = sp(v.notice).match(/Uusi vuokra on (.+?) = /)[1];
+    assert.equal(Math.round(evalFormula(inNotice) * 100) / 100, r.newRent, `notice ${JSON.stringify(p)}`);
+  }
+  const extra = c.rentView(c.rentIncrease({ rent: 900, baseIndex: 2334, checkIndex: 2385, extraPct: 1 }), S);
+  assert.equal(sp(extra.formula), '900,00 € × (2 385 / 2 334 + 1 / 100) = 928,67 €');
+  assert.doesNotMatch(sp(extra.notice), /\+ 3,19 %/, 'no rounded percentage in the notice');
+  const min = c.rentView(c.rentIncrease({ rent: 900, baseIndex: 2334, checkIndex: 2385, minPct: 2.555 }), S);
+  assert.match(sp(min.formula), /2,555 \/ 100/, 'the user’s own decimals');
+  const euro = c.rentView(c.rentIncrease({ rent: 900, baseIndex: 2334, checkIndex: 2385, rounding: 'euro' }), S);
+  assert.match(sp(euro.notice), /= 920,00 €\/kk \(pyöristetty lähimpään euroon\)\./);
+});
+
+test('rentView: the notice template says the review follows and when the new rent applies (CALC-06)', () => {
+  const r = c.rentIncrease({ rent: 900, baseIndex: 2334, checkIndex: 2385 });
+  const fi = c.rentView(r, { series: { id: 'eki-1951', decimals: 0 }, base: '2025-08', check: '2026-08' });
+  assert.match(fi.notice, /^Vuokrasopimuksen indeksiehdon mukaisesti vuokraa tarkistetaan seuraavasti\. /);
+  assert.match(fi.notice, /Uusi vuokra on voimassa \[päivämäärä\] alkaen\. Lähde: Tilastokeskus\.$/);
+  const en = c.rentView(r, { series: { id: 'eki-1951', decimals: 0 }, base: '2025-08', check: '2026-08', lang: 'en' });
+  assert.match(en.notice, /^Under the index clause of the lease, the rent is revised as follows\. /);
+  assert.match(en.notice, /The new rent applies from \[date\]\. Source: Statistics Finland\.$/);
+});
+
+test('moneyView: markka inputs get the reverse sentence in markka, based on 100 € (QN-02, CALC-01)', { skip: !hasData && 'data/*.json missing' }, () => {
+  const list = c.buildSeries(data, { ids: c.MONEY_SERIES_IDS });
+  const view = (amount, currency, from, to, lang = 'fi') => {
+    const pick = c.pickMoneySeries(list, from, to);
+    const v = c.valueOfMoney({ amount: c.toEuros(amount, currency, pick.from), fromIdx: pick.fromIdx, toIdx: pick.toIdx });
+    return c.moneyView({ amount, currency, pick, value: v.value, factor: v.factor }, lang);
+  };
+  // 1971: 100 € in 8/2026 ↔ 59,08 mk (factor 2385 / annual 1971 of 1951:10=100).
+  const mk1971 = view(100, 'mk', '1971', '2026-08');
+  assert.match(sp(mk1971.buys), /^Toisinpäin: 100 € elokuussa 2026 vastaa ostovoimaltaan 59,0\d mk vuonna 1971\.$/);
+  assert.doesNotMatch(mk1971.buys, /€ vuonna 1971/, 'no euros for a markka year');
+  // Old markka (before 1963): no "0,00 €", the amount in old markka.
+  const mk1945 = view(100, 'mk', '1945', '2026-08');
+  assert.match(sp(mk1945.buys), /^Toisinpäin: 100 € vuonna 2025 vastaa ostovoimaltaan [\d ]+,\d\d vanhaa markkaa vuonna 1945\.$/);
+  assert.doesNotMatch(sp(mk1945.buys), /0,00 €/);
+  // Euro input before euro cash: euros with the markka equivalent.
+  const eur1950 = view(100, 'eur', '1950-06', '2026-08');
+  assert.match(sp(eur1950.buys), /^Toisinpäin: 100 € elokuussa 2026 vastaa ostovoimaltaan [\d ]+,\d\d € \([\d ]+,\d\d vanhaa markkaa\) kesäkuussa 1950\.$/);
+  const en = view(100, 'mk', '1971', '2026-08', 'en');
+  assert.match(sp(en.buys), /^Conversely, €100 in August 2026 has the same purchasing power as 59\.0\d mk had in 1971\.$/);
+});
+
+test('moneyView: the annual-fallback note is true for 1939–1951 years too (QN-01)', { skip: !hasData && 'data/*.json missing' }, () => {
+  const list = c.buildSeries(data, { ids: c.MONEY_SERIES_IDS });
+  for (const from of ['1945', '1920', '1935-05']) {
+    const pick = c.pickMoneySeries(list, from, '2026-08');
+    assert.equal(pick.annualFallback, true, from);
+    const v = c.valueOfMoney({ amount: 1, fromIdx: pick.fromIdx, toIdx: pick.toIdx });
+    const fi = c.moneyView({ amount: 100, currency: 'mk', pick, value: v.value, factor: v.factor });
+    assert.doesNotMatch(fi.note, /Ennen elokuuta 1939/, from);
+    assert.match(fi.note, /koska kuukausisarjat alkavat elokuusta 1939 ja muut vuosikeskiarvot vuodesta 1952\./);
+    const en = c.moneyView({ amount: 100, currency: 'mk', pick, value: v.value, factor: v.factor }, 'en');
+    assert.match(en.note, /^The calculation uses annual figures of the cost-of-living index \(1914:1–6=100\), because the monthly series start in August 1939 and other annual averages in 1952\./);
+  }
+});
+
+test('YKHI option: HICP series, months only, provisional flag (value of money)', () => {
+  const ykhi = {
+    months: ['1996-01', '1996-02', '1996-03'],
+    geo: { FI: { index: { '2015=100': [71.2, 71.5, 71.6], '2025=100': [56.9, 57.1, null] } } },
+    flags: { FI: { '1996-02': 'p' } },
+  };
+  const list = [...c.buildSeries(SAMPLE, { ids: c.MONEY_SERIES_IDS }), ...c.buildSeries({ ykhi })];
+  const s = list.find((x) => x.id === 'ykhi-2025');
+  assert.ok(s, 'newest base only');
+  assert.equal(list.filter((x) => c.isYkhi(x.id)).length, 1);
+  assert.equal(s.start, '1996-01');
+  assert.deepEqual(s.values, [56.9, 57.1], 'trailing null removed');
+  assert.deepEqual(s.provisional, ['1996-02']);
+  assert.equal(c.seriesName('ykhi-2025'), 'Yhdenmukaistettu kuluttajahintaindeksi (2025=100)');
+  assert.equal(c.seriesName('ykhi-2025', 'en'), 'Harmonised index of consumer prices (2025=100)');
+  assert.equal(c.seriesBase('ykhi-2025'), '2025=100');
+  const fam = { families: ['ykhi-2025'] };
+  const pick = c.pickMoneySeries(list, '1996-01', '1996-02', fam);
+  assert.equal(pick.family, 'ykhi-2025');
+  assert.equal(pick.provisional, true);
+  assert.deepEqual(c.pickMoneySeries(list, '1996', '1996-02', fam), { error: 'annual' }, 'no annual HICP averages');
+  assert.deepEqual(c.pickMoneySeries(list, '1995-12', '1996-02', fam), { error: 'before' }, 'no fallback to other indices');
+  assert.deepEqual(c.pickMoneySeries(list, '1996-01', '1996-03', fam), { error: 'future' });
+  const v = c.valueOfMoney({ amount: 100, fromIdx: pick.fromIdx, toIdx: pick.toIdx });
+  const view = c.moneyView({ amount: 100, currency: 'eur', pick, value: v.value, factor: v.factor });
+  assert.equal(view.seriesName, 'Yhdenmukaistettu kuluttajahintaindeksi (2025=100)');
+  assert.match(view.note, /Eurostatin ennakkotieto/);
+  // The HICP never changes what the default (KHI chain) calculation picks.
+  assert.equal(c.pickMoneySeries(list, '2025-07', '2025-09').family, 'khi-1972');
+  // A HICP month published before the KHI is not "published" for the KHI chain.
+  const ahead = { months: ['2025-09', '2025-10'], geo: { FI: { index: { '2025=100': [100, 100.2] } } } };
+  const list2 = [...c.buildSeries(SAMPLE, { ids: c.MONEY_SERIES_IDS }), ...c.buildSeries({ ykhi: ahead })];
+  assert.deepEqual(c.pickMoneySeries(list2, '2025-07', '2025-10'), { error: 'future' });
+});
+
+test('YKHI option with real data: 1/2000 → latest month', { skip: !(hasData && data.ykhi) && 'data/ykhi.json missing' }, () => {
+  const list = [...c.buildSeries(data, { ids: c.MONEY_SERIES_IDS }), ...c.buildSeries({ ykhi: data.ykhi })];
+  const s = list.find((x) => c.isYkhi(x.id));
+  const last = c.latestPeriod(s);
+  const pick = c.pickMoneySeries(list, '2000-01', last, { families: [s.family] });
+  assert.equal(pick.family, s.family);
+  assert.equal(pick.fromIdx, c.pointAt(s, '2000-01'));
+  assert.equal(pick.toIdx, c.pointAt(s, last));
+  const path = c.moneyPath(list, pick, 100);
+  assert.equal(path.kind, 'month');
+  assert.equal(path.labels[0], '2000-01');
+  assert.equal(path.labels.at(-1), last);
+});
+
+test('personalHistory: the same weights for every month', () => {
+  assert.deepEqual(c.personalHistory({ weights: { a: 1, b: 3 }, series: { a: [4, 2, null], b: [0, 2, null] }, length: 3 }), [1, 2, null]);
+  const one = c.personalHistory({ weights: { a: 1, b: 1 }, series: { a: [2], b: [null] }, length: 1 });
+  approx(one[0], 2, 1e-12, 'a missing group is left out of both sums');
+  assert.deepEqual(c.personalHistory({ weights: {}, series: {}, length: 2 }), [null, null]);
+});
+
+test('personalHistory with real data: official weights track the official KHI', { skip: !data.hyodykkeet && 'data/hyodykkeet.json missing' }, () => {
+  const h = data.hyodykkeet;
+  const groups = h.items.filter((it) => it.level === 1);
+  const weights = Object.fromEntries(groups.map((g) => [g.code, g.weight]));
+  const series = Object.fromEntries(groups.map((g) => [g.code, h.groups.series[g.code].yoy]));
+  const own = c.personalHistory({ weights, series, length: h.groups.months.length });
+  assert.equal(own.length, h.groups.months.length);
+  const official = h.groups.series.SSS.yoy;
+  // Latest month: the same weights as the index → within rounding of the official rate.
+  assert.ok(Math.abs(own.at(-1) - official.at(-1)) < 0.1, `${own.at(-1)} vs ${official.at(-1)}`);
+});
+
+/* ------------------------------------------------------ built calculator pages */
+
+describe('calculator pages (built)', { skip: !(hasData && data.hyodykkeet) && 'data/*.json missing' }, () => {
+  const MODULES = ['laskurit', 'vuokrankorotus', 'rahanarvo', 'oma-inflaatio', 'ostovoima', 'en-calculators'];
+  let tmp;
+  const pages = {};
+  /** Visible text of a page (tags removed, entities and NBSPs normalised). */
+  const text = (h) =>
+    sp(
+      h
+        .replace(/<script[\s\S]*?<\/script>/g, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&'),
+    ).replace(/\s+/g, ' ');
+  const island = (h, id) => JSON.parse(h.match(new RegExp(`<script type="application/json" id="${id}">([\\s\\S]*?)</script>`))[1]);
+
+  before(async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'inflaatio-calc-'));
+    const out = path.join(tmp, 'dist');
+    await build({ out, only: MODULES, quiet: true });
+    for (const p of ['laskurit', 'vuokrankorotus', 'rahanarvo', 'oma-inflaatio', 'ostovoima', 'en/rent-increase-calculator', 'en/value-of-money']) {
+      pages[p] = await fs.readFile(path.join(out, p, 'index.html'), 'utf8');
+    }
+  });
+  after(async () => {
+    if (tmp) await fs.rm(tmp, { recursive: true, force: true });
+  });
+
+  test('/laskurit/: five cards in the 3-column grid, grammatical description (QV-25, CALC-08)', () => {
+    const h = pages.laskurit;
+    assert.match(h, /class="card-grid laskurit-grid"/);
+    assert.equal((h.match(/class="card__link"/g) ?? []).length >= 5, true);
+    assert.match(h, /<meta name="description" content="Laskurit vuokrankorotukselle, rahan arvolle, säästöille, omalle inflaatiolle ja ostovoimalle\./);
+    const t = text(h);
+    assert.doesNotMatch(t, /, eli hinnat/);
+    assert.match(t, /Ansiot (nousivat|laskivat) vuodessa [\d,]+ % (ja|, mutta) reaaliansiot/);
+  });
+
+  test('/vuokrankorotus/: sources, clauses, example wording (QN-15, CALC-05, CALC-08)', () => {
+    const t = text(pages.vuokrankorotus);
+    assert.match(t, /kuluttajahintaindeksi, taulukot 11xs ja 15b5/);
+    assert.match(t, /Laskuri · elinkustannusindeksi, [a-zäö]+ \d{4}/);
+    assert.match(t, /Sopimuksen lisäehdot Vähimmäiskorotus \(valinnainen\)/);
+    assert.doesNotMatch(t, /\(valinnaiset\)/);
+    assert.match(t, /esimerkiksi elinkustannusindeksillä samojen kuukausien muutos on \+[\d,]+ %/);
+    assert.match(t, /Jos tarkistusväli on muu kuin tasan vuosi, korotus voi poiketa vuosimuutoksesta selvästi\./);
+    assert.doesNotMatch(t, /ero vuosimuutokseen on vielä suurempi/);
+    assert.match(t, /vuokraa tarkistetaan seuraavasti\./);
+  });
+
+  test('/en/rent-increase-calculator/: component language options instead of local workarounds', () => {
+    const h = pages['en/rent-increase-calculator'];
+    assert.match(h, /<span class="field__optional">\(optional\)<\/span>/);
+    assert.doesNotMatch(h, /\(valinnainen\)/);
+    const t = text(h);
+    assert.match(t, /Source: Statistics Finland \(cost-of-living index, table 11xl; consumer price index, tables 11xs and 15b5\) · Updated \d{1,2} [A-Z][a-z]+ \d{4}/);
+    assert.match(t, /Index and base year/);
+    assert.match(t, /Additional increase on top of the index/);
+    assert.match(t, /Calculator · Cost-of-living index, [A-Z][a-z]+ \d{4}/);
+  });
+
+  test('/rahanarvo/: YKHI option, one live region, texts (gap, QA-CODE-10, CALC-02/03)', () => {
+    const h = pages.rahanarvo;
+    assert.match(h, /<select[^>]*id="indeksi"/);
+    assert.match(h, /<option value="ykhi">Yhdenmukaistettu kuluttajahintaindeksi, YKHI \(Eurostat, vuodesta 1996\)<\/option>/);
+    const d = island(h, 'raha-data');
+    assert.deepEqual(d.families.khi, [...c.MONEY_FAMILIES]);
+    assert.equal(d.families.ykhi.length, 1);
+    assert.ok(d.series.some((s) => c.isYkhi(s.id)));
+    assert.equal(d.params.index, 'indeksi');
+    // The chart summary is not a second live region (the result panel announces).
+    const figure = h.slice(h.indexOf('id="raha-kaavio"'));
+    assert.doesNotMatch(figure.slice(0, figure.indexOf('</figure>')), /aria-live/);
+    const t = text(h);
+    assert.match(t, /Samaa ostovoimaa vastaava summa, €/);
+    assert.match(t, /Eurokäteinen käyttöön \(1\/2002\)/);
+    assert.match(t, /Laskuri kattaa ajan vuodesta 1860 lähtien\./);
+    assert.match(t, /Toisinpäin: 100 € /);
+    assert.match(t, /Vuosikeskiarvot ennen vuotta 1952: elinkustannusindeksi 1914:1–6=100 \(11xy\)/);
+    assert.match(t, /samojen tavaroiden ja palvelujen ostamiseen/);
+    assert.match(t, /Ne eivät ota huomioon veroja, kuluja tai korkojen muutoksia, eivätkä ne ole/);
+    assert.match(h, /data-msg-inflation="Anna oletettu inflaatio prosentteina \(−10 ja 30 väliltä\), esimerkiksi 2\."/);
+    assert.match(h, /data-msg-before="Laskuri kattaa ajan vuodesta \{alku\} lähtien\."/);
+  });
+
+  test('/en/value-of-money/: savings section in English, English idiom (gap, CALC-09)', () => {
+    const h = pages['en/value-of-money'];
+    assert.match(h, /<section class="section raha-saastot" id="savings"/);
+    const s = island(h, 'saasto-data');
+    assert.equal(s.lang, 'en');
+    assert.equal(s.params.hAmount, 'hamount');
+    const t = text(h);
+    for (const phrase of ['What has happened to savings?', 'What will happen to savings?', 'Not investment advice', 'Purchasing power in', 'The result shows how much money is needed to buy the same basket', 'Markka amounts are converted at 5.94573 markka per euro.', 'The calculator goes back to 1860.']) {
+      assert.ok(t.includes(phrase), phrase);
+    }
+    assert.doesNotMatch(t, /Säästösumma|Toteutunut tuotto|Nimellinen arvo/);
+    assert.match(t, /Calculator · Consumer price index, [A-Z][a-z]+ \d{4}/);
+    assert.match(t, /Conversely, €100 in [A-Z][a-z]+ \d{4} has the same purchasing power as/);
+  });
+
+  test('/oma-inflaatio/: 5-year chart, hint state, labelled contribution (gap, QV-26, QN-09, CALC-04)', () => {
+    const h = pages['oma-inflaatio'];
+    assert.match(h, /<figure class="chart-figure" id="oi-kehitys"/);
+    assert.match(h, /data-chart="oi-kehitys"/);
+    assert.equal((h.match(/<tr[^>]*>/g) ?? []).length > 60, true, '60 months in the table');
+    assert.match(h, /<p class="calc__hint" data-result-hint hidden>/);
+    const d = island(h, 'oma-data');
+    assert.equal(d.history.months.length, data.hyodykkeet.groups.months.length);
+    const t = text(h);
+    assert.match(t, /Suurin tekijä omassa inflaatiossasi: [a-zäö ,-]+ \(osuus × hintamuutos [+−][\d,]+ %-yks\.\)/);
+    assert.match(t, /voi poiketa hieman virallisesta luvusta/);
+    assert.match(t, /Arvio osuuksillasi oli [−\d,]+ % [a-zäö]+ \d{4}; virallinen KHI oli/);
+    assert.match(t, /Laskuri · hyödykeryhmät, [a-zäö]+ \d{4}/);
+  });
+
+  test('/ostovoima/: second person, wording and labels (CALC-02, CALC-07)', () => {
+    const h = pages.ostovoima;
+    const t = text(h);
+    assert.match(t, /Riittääkö palkankorotuksesi\?/);
+    assert.doesNotMatch(t, /palkankorotukseni/);
+    assert.doesNotMatch(t, / vs\. /);
+    assert.match(t, /Reaaliansiot vuoteen 2015 verrattuna/);
+    assert.match(h, /data-label-more="Näytä kaikki neljännekset \(\d+\)"/);
+    assert.match(h, /data-msg-before="Laskurin varhaisin kuukausi on \{alku\}\."/);
+    assert.match(t, /Nimelliset ansiot ovat (nousseet|laskeneet) [\d,]+ % vuoden 2015 tasosta/);
+    assert.match(t, /Esimerkiksi 3 200 € → 3 300 € on \+[\d,]+ %, ja hinnat (nousivat|laskivat) [\d,]+ % [a-zäö]+ \d{4} [a-zäö]+ \d{4}, joten ostovoima (kasvoi|heikkeni|pysyi)/);
+    assert.doesNotMatch(t, /Ansiotaso nousi/, 'no repeated verb form of the old lede');
+  });
 });

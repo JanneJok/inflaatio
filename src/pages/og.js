@@ -22,6 +22,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { inflateSync } from 'node:zlib';
+import { xmlEscape } from '../../scripts/lib/html.js';
 
 export const OG_WIDTH = 1200;
 export const OG_HEIGHT = 630;
@@ -48,10 +49,8 @@ const C = {
   flat: '#5F6B78',
 };
 
-/** XML-escape text for the SVG template. @param {unknown} s */
-export function xmlEscape(s) {
-  return String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[ch]);
-}
+/** XML escaping for the SVG template is the shared one (scripts/lib/html.js); re-exported for the tests. */
+export { xmlEscape };
 
 /**
  * Unpack a WOFF 1.0 font into a plain sfnt (TrueType/OpenType) font.

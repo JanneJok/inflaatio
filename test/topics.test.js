@@ -23,13 +23,19 @@ import {
   longRunChange,
   stackedBarsSvg,
   signed,
+  joinFi,
+  countWord,
+  elativeSuffix,
+  positivesSentence,
+  commoditySubject,
   TITLE_PHRASES,
   MIN_WEIGHT,
 } from '../src/pages/hinnat.js';
 import { realRate, realRateSeries, decisionRows } from '../src/pages/korot.js';
-import { fuelRows, perLitre } from '../src/pages/polttoaineet.js';
-import { latestByGeo, euRank, annualGaps } from '../src/pages/vertailu.js';
-import { datasetsOf, slice } from '../src/js/pages/hinnat.js';
+import { fuelRows, perLitre, yearChangeSentence } from '../src/pages/polttoaineet.js';
+import { latestByGeo, euRank, annualGaps, extremesWithTies, ordinalTranslative, rankSentence, latestSummary, areaInText, AGGREGATES } from '../src/pages/vertailu.js';
+import { datasetsOf, slice, rangeKey, periodOf } from '../src/js/pages/hinnat.js';
+import { valueFormatter } from '../src/js/charts/setup.js';
 
 const readJson = (rel) => JSON.parse(readFileSync(path.join(ROOT, rel), 'utf8'));
 const has = (rel) => existsSync(path.join(ROOT, rel));
@@ -79,6 +85,28 @@ describe('helpers', () => {
     assert.equal(signed(0), `0,0${NBSP}%`);
     assert.equal(signed(0.04), `0,0${NBSP}%`);
     assert.equal(signed(null), '–');
+  });
+
+  test('joinFi, countWord and elativeSuffix build Finnish list and count phrases', () => {
+    assert.equal(joinFi([]), '');
+    assert.equal(joinFi(['Norja']), 'Norja');
+    assert.equal(joinFi(['a', 'b']), 'a ja b');
+    assert.equal(joinFi(['euroalue', 'EU', 'Norja']), 'euroalue, EU ja Norja');
+    assert.equal(countWord(10), 'kymmenen');
+    assert.equal(countWord(13), 'kolmetoista');
+    assert.equal(countWord(25), '25');
+    assert.equal(elativeSuffix(13), 'sta'); // kolmestatoista
+    assert.equal(elativeSuffix(12), 'sta'); // kahdestatoista
+    assert.equal(elativeSuffix(10), 'stä'); // kymmenestä
+    assert.equal(elativeSuffix(11), 'stä'); // yhdestätoista
+    assert.equal(elativeSuffix(121), 'stä');
+    assert.equal(elativeSuffix(14), 'stä'); // neljästätoista
+  });
+
+  test('positivesSentence: number word, partitive and the right elative ending (13:sta)', () => {
+    assert.equal(positivesSentence(10, 13, 'elokuussa 2026'), 'Kymmenen pääryhmää 13:sta nosti inflaatiota elokuussa 2026.');
+    assert.equal(positivesSentence(1, 13, 'elokuussa 2026'), 'Yksi pääryhmä 13:sta nosti inflaatiota elokuussa 2026.');
+    assert.equal(positivesSentence(0, 13, 'elokuussa 2026'), 'Mikään pääryhmä ei nostanut inflaatiota elokuussa 2026.');
   });
 
   test('every commodity slug has a title phrase', () => {
@@ -178,16 +206,28 @@ describe('commodity pages', () => {
   test('commodityText: rise, fall, zero and plural subjects read correctly', () => {
     const base = { slug: 'x', month: '2026-08', khiYoy: 2.2 };
     const up = commodityText({ ...base, yoy: 30.7, diff: 28.5 }, null);
-    assert.match(up[0], /^Hinnat olivat elokuussa 2026 30,7 % korkeammat kuin vuotta aiemmin\.$/);
+    // Month first so the year and the value are never side by side ("2026 30,7 %").
+    assert.match(up[0], /^Elokuussa 2026 hinnat olivat 30,7 % korkeammat kuin vuotta aiemmin\.$/);
     assert.match(up[1], /28,5 prosenttiyksikköä keskimääräistä nopeampaa\.$/);
     const down = commodityText({ ...base, yoy: -0.2, diff: -2.4 }, null);
-    assert.match(down[0], /0,2 % matalammat/);
+    assert.match(down[0], /0,2 % alemmat/);
+    assert.ok(!down[0].includes('matalammat'));
     assert.match(down[1], /hitaampaa\.$/);
     assert.match(commodityText({ ...base, yoy: 0, diff: -2.2 }, null)[0], /samalla tasolla/);
     assert.match(commodityText({ ...base, yoy: 2.4, diff: 0.2 }, null)[1], /lähellä keskimääräistä/);
-    assert.match(commodityText({ ...base, slug: 'vuokra', yoy: -0.2, diff: -2.4 }, null)[0], /^Vuokrat olivat/);
+    assert.match(commodityText({ ...base, slug: 'vuokra', yoy: -0.2, diff: -2.4 }, null)[0], /^Elokuussa 2026 vuokrat olivat/);
+    assert.equal(commodityText({ ...base, slug: 'kahvi', yoy: -3.5, diff: -5.7 }, null)[0], `Elokuussa 2026 kahvin hinnat olivat 3,5${NBSP}% alemmat kuin vuotta aiemmin.`);
     const long = { start: '2016-08', end: '2026-08', years: 10, item: 45.2, khi: 24.7 };
     assert.match(commodityText({ ...base, yoy: 1, diff: -1.2 }, long)[2], /^Kymmenessä vuodessa \(elokuusta 2016 elokuuhun 2026\) hinnat ovat nousseet 45,2 %, kun kaikki kuluttajahinnat ovat nousseet 24,7 %\.$/);
+  });
+
+  test('commoditySubject derives the plural subject from the title phrase', () => {
+    assert.deepEqual(commoditySubject({ slug: 'kahvi' }), { text: 'kahvin hinnat', prices: true });
+    assert.deepEqual(commoditySubject({ slug: 'hedelmat' }), { text: 'hedelmien hinnat', prices: true });
+    assert.deepEqual(commoditySubject({ slug: 'ravintolat' }), { text: 'ravintolahinnat', prices: true });
+    assert.deepEqual(commoditySubject({ slug: 'asuntolainojen-korot' }), { text: 'asuntolainojen korkomenot', prices: false });
+    assert.deepEqual(commoditySubject({ slug: 'elokuvat-ja-teatteri' }), { text: 'hinnat', prices: true });
+    assert.deepEqual(commoditySubject({ slug: 'x' }), { text: 'hinnat', prices: true });
   });
 
   test('longRunChange compares the item index and the KHI over the same months', () => {
@@ -218,6 +258,7 @@ describe('commodity pages', () => {
     assert.match(svgOut, /aria-label="Testi"/);
     assert.equal((svgOut.match(/<rect /g) ?? []).length, 4);
     assert.equal((svgOut.match(/chart-dot--khi/g) ?? []).length, 2);
+    assert.match(svgOut, /<path class="chart-line chart-line--khi" d="M5 [\d.]+L15 [\d.]+"/, 'the total is drawn as a line, as in the interactive chart');
     assert.deepEqual(cspProblems(svgOut), []);
     assert.throws(() => stackedBarsSvg({ months: [], stacks: [] }), /ariaLabel/);
   });
@@ -277,6 +318,54 @@ describe('polttoaineet and vertailu calculations', () => {
     assert.equal(Math.round(d.pctYear * 10) / 10, 39.8);
     assert.equal(perLitre(2.09), `2,09${NBSP}€/l`);
     assert.equal(perLitre(null), '–');
+  });
+
+  test('yearChangeSentence says the shared verb once and handles opposite and flat changes', () => {
+    const row = (diffYear, pctYear) => ({ diffYear, pctYear });
+    assert.equal(yearChangeSentence(row(0.4, 23.7), row(0.64, 39.8)), `Vuodessa bensiinin litrahinta nousi 0,40${NBSP}€ (+23,7${NBSP}%) ja dieselin 0,64${NBSP}€ (+39,8${NBSP}%).`);
+    assert.equal(yearChangeSentence(row(0.1, 5), row(-0.05, -2)), `Vuodessa bensiinin litrahinta nousi 0,10${NBSP}€ (+5,0${NBSP}%) ja dieselin laski 0,05${NBSP}€ (−2,0${NBSP}%).`);
+    assert.equal(yearChangeSentence(row(0, 0), row(0.1, 5)), `Vuodessa bensiinin litrahinta pysyi ennallaan ja dieselin nousi 0,10${NBSP}€ (+5,0${NBSP}%).`);
+    assert.equal(yearChangeSentence(row(0.001, 0), row(0, 0)), 'Vuodessa bensiinin ja dieselin litrahinnat pysyivät ennallaan.');
+  });
+
+  test('extremesWithTies lists every tie (on the shown 1-decimal value); aggregates are EA and EU', () => {
+    const rows = [
+      { geo: 'FI', label: 'Suomi', value: 2.4 },
+      { geo: 'EA', label: 'Euroalue', value: 3.2 },
+      { geo: 'EU', label: 'EU', value: 3.2 },
+      { geo: 'SE', label: 'Ruotsi', value: 0.3 },
+      { geo: 'NO', label: 'Norja', value: 3.2 },
+      { geo: 'DK', label: 'Tanska', value: 3.24 },
+      { geo: 'XX', label: 'Tyhjä', value: null },
+    ];
+    const all = extremesWithTies(rows);
+    assert.deepEqual(all.max.rows.map((r) => r.geo), ['EA', 'EU', 'NO', 'DK']);
+    assert.equal(all.min.value, 0.3);
+    const countries = extremesWithTies(rows.filter((r) => !AGGREGATES.includes(r.geo)));
+    assert.deepEqual(countries.max.rows.map((r) => r.geo), ['NO', 'DK']);
+    assert.equal(extremesWithTies([]), null);
+  });
+
+  test('ordinalTranslative and rankSentence: "seitsemänneksi matalin", rank 1 "matalin", big ranks as numbers', () => {
+    assert.equal(ordinalTranslative(1), '');
+    assert.equal(ordinalTranslative(2), 'toiseksi');
+    assert.equal(ordinalTranslative(7), 'seitsemänneksi');
+    assert.equal(ordinalTranslative(10), 'kymmenenneksi');
+    assert.equal(ordinalTranslative(13), 'kolmanneksitoista');
+    assert.equal(ordinalTranslative(20), null);
+    const r = { rank: 7, total: 27, value: 2.4, month: '2026-08' };
+    assert.equal(rankSentence(r), `Suomen inflaatio 2,4${NBSP}% oli elokuussa 2026 seitsemänneksi matalin EU:n 27 jäsenmaan joukossa.`);
+    assert.match(rankSentence({ ...r, rank: 1 }), /elokuussa 2026 matalin EU:n/);
+    assert.match(rankSentence({ ...r, rank: 23 }), /sijalla 23 EU:n 27 jäsenmaan joukossa, kun maat järjestetään matalimmasta/);
+    assert.ok(!/\d+\. matalin/.test(rankSentence(r)));
+  });
+
+  test('latestSummary: one month → month first; different months → each with its own month', () => {
+    const fi = { label: 'Suomi', value: 2.4, month: '2026-08' };
+    const ea = { label: 'Euroalue', value: 3.2, month: '2026-08' };
+    assert.equal(latestSummary([fi, ea]), `Elokuussa 2026: Suomi 2,4${NBSP}% ja euroalue 3,2${NBSP}%.`);
+    assert.equal(latestSummary([fi, { ...ea, month: '2026-07' }]), `Viimeisimmät luvut: Suomi 2,4${NBSP}% (elo 2026) ja euroalue 3,2${NBSP}% (heinä 2026).`);
+    assert.equal(areaInText('Ruotsi'), 'Ruotsi');
   });
 
   test('latestByGeo keeps each area’s own latest month and flags provisional values', () => {
@@ -340,6 +429,23 @@ describe('interactive chart spec (src/js/pages/hinnat.js)', () => {
     assert.equal(slice(spec, '5v').months.length, 13, 'a range not offered falls back to the default');
     const noRanges = { ...spec, ranges: undefined };
     assert.equal(slice(noRanges, '1v').months.length, 30);
+  });
+
+  test('rangeKey() accepts only offered ranges; periodOf() gives the subtitle period', () => {
+    assert.equal(rangeKey(spec, 'kaikki'), 'kaikki');
+    assert.equal(rangeKey(spec, '5v'), '1v');
+    assert.equal(rangeKey(spec, 'bogus'), '1v');
+    assert.equal(rangeKey(spec, null), '1v');
+    assert.equal(periodOf(slice(spec, '1v').months), 'elo 2025 – elo 2026');
+    assert.equal(periodOf([]), '');
+  });
+
+  test('datasetsOf(): a dataset’s own decimals are kept (KHI 1 decimal next to rates with 2)', () => {
+    assert.equal(valueFormatter('%', 1)(2.2), `2,2${NBSP}%`);
+    assert.equal(valueFormatter('%', 2)(2.2), `2,20${NBSP}%`);
+    const [khiDs, rateDs] = datasetsOf({ datasets: [{ type: 'line', series: 'khi', label: 'KHI', data: [2.2], decimals: 1 }, { type: 'line', series: 's5', label: 'Euribor', data: [2.954] }] }, [[2.2], [2.954]]);
+    assert.equal(khiDs.decimals, 1);
+    assert.equal(rateDs.decimals, undefined);
   });
 
   test('datasetsOf(): line/bar datasets keep series, stacks and draw the total on top', () => {
@@ -453,6 +559,50 @@ describe('build of the TOPICS modules', { skip: !has('data/hyodykkeet.json') }, 
       }
       assert.match(doc, /<script type="module" src="\/assets\/pages\/hinnat-[A-Z0-9]+\.js"><\/script>/);
     }
+  });
+
+  test('range charts: subtitle period label, URL parameter, KHI with 1 decimal on /korot/', async () => {
+    const params = new Set();
+    for (const p of ['/hinnat/', '/polttoaineet/', '/korot/']) {
+      const doc = await read(p);
+      for (const [, id, json] of doc.matchAll(/<script type="application\/json" id="([^"]+)-data">([\s\S]*?)<\/script>/g)) {
+        const spec = JSON.parse(json);
+        if (!spec.ranges) continue;
+        assert.ok(doc.includes(`data-range-label="${id}"`), `${p} ${id}: subtitle has no range label`);
+        assert.match(spec.param ?? '', /^[a-z]+$/, `${p} ${id}: range is not kept in the URL`);
+        assert.ok(!params.has(`${p}${spec.param}`), `${p}: two charts share ?${spec.param}`);
+        params.add(`${p}${spec.param}`);
+        if (id === 'korot-kaavio') assert.equal(spec.datasets.find((d) => d.series === 'khi').decimals, 1);
+      }
+    }
+  });
+
+  test('texts: month before the value, "alemmat", no "vs.", group names as "pääryhmä X"', async () => {
+    for (const p of result.pages) {
+      const doc = await read(p);
+      const main = doc.slice(doc.indexOf('<main'), doc.indexOf('</main>')).replace(/<[^>]+>/g, ' ');
+      assert.ok(!main.includes('matalammat'), `${p}: "matalammat"`);
+      assert.ok(!/ vs\. /.test(main), `${p}: "vs."`);
+      assert.ok(!/(?:kuussa|kuun) \d{4} [+\u2212-]?\d+,\d/.test(main), `${p}: a year directly followed by a value`);
+      assert.ok(!/yks\.\./.test(doc), `${p}: doubled period after %-yks.`);
+    }
+    const hinnat = await read('/hinnat/');
+    assert.match(hinnat, /pääryhmää 13:sta nosti inflaatiota/);
+    assert.match(hinnat, /Eniten inflaatiota nosti pääryhmä /);
+    assert.ok(!hinnat.includes('kallistujat ja halventujat'));
+    const vertailu = await read('/vertailu/');
+    assert.match(vertailu, /Korkein \d+,\d\u00a0% \(/);
+    assert.ok(!/Korkein: Euroalue/.test(vertailu), 'aggregates are not the highest "country"');
+    assert.ok(!/\d+\. matalin/.test(vertailu), 'ordinal written as a word');
+  });
+
+  test('/hinnat/ top lists: rank next to the name, contribution also under the name for phones', async () => {
+    const doc = await read('/hinnat/');
+    const start = doc.indexOf('id="kallistujat-taulukko"');
+    const table = doc.slice(start, doc.indexOf('</table>', start));
+    assert.equal((table.match(/class="hinnat-mover__name"/g) ?? []).length, 10);
+    assert.equal((table.match(/class="hinnat-mover__contrib"/g) ?? []).length, 10);
+    assert.match(table, /<th scope="col" class="num hinnat-col-contrib">/);
   });
 
   test('/hinnat/ lists both top 10 tables and links every commodity page', async () => {

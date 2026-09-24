@@ -11,6 +11,7 @@ import { readDataIsland } from '../lib/dom.js';
 import { getParam, setParams } from '../lib/url-state.js';
 import { track } from '../lib/analytics.js';
 import { rentIncrease, rentView, pointAt, latestPeriod, parseDecimal, formatter, isMonth, ROUNDING } from '../lib/calc.js';
+import { byId as $, messages, setError, readPeriod, setPeriod, render, showResult, wireRecalc } from '../lib/calc-form.js';
 
 const data = readDataIsland('vuokra-data');
 const form = /** @type {HTMLFormElement|null} */ (document.getElementById('vuokra-lomake'));
@@ -25,32 +26,10 @@ function init(data, form) {
   const lang = data.lang === 'en' ? 'en' : 'fi';
   const F = formatter(lang);
   const P = data.params;
-  const msg = (key, vars = {}) => Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(v), form.dataset[`msg${key.charAt(0).toUpperCase()}${key.slice(1)}`] ?? '');
-  const $ = (id) => /** @type {any} */ (document.getElementById(id));
+  const msg = messages(form);
   const panel = document.getElementById('vuokra-tulos');
-  const ok = panel?.querySelector('[data-result-ok]');
-  const errBox = panel?.querySelector('[data-result-error]');
   const seriesById = new Map(data.series.map((s) => [s.id, { ...s, kind: 'month' }]));
   let tracked = false;
-  let timer = 0;
-
-  const readMonth = (id) => `${$(`${id}-v`).value}-${$(`${id}-kk`).value}`;
-  const setMonth = (id, ym) => {
-    if (!isMonth(ym)) return;
-    const [y, m] = ym.split('-');
-    const ySel = $(`${id}-v`);
-    if (Array.from(ySel.options).some((o) => o.value === y)) {
-      ySel.value = y;
-      $(`${id}-kk`).value = m;
-    }
-  };
-
-  /** Show or clear a field error. `ids` = controls that get aria-invalid. */
-  const setError = (errorId, text, ids) => {
-    const p = $(`${errorId}-virhe`);
-    if (p) p.textContent = text ?? '';
-    for (const id of ids) $(id)?.setAttribute('aria-invalid', text ? 'true' : 'false');
-  };
 
   const optionalPct = (id) => {
     const raw = $(id).value.trim();
@@ -67,10 +46,10 @@ function init(data, form) {
   };
 
   function updateSeriesInfo(s) {
-    const el = form.querySelector('[data-out="seriesInfo"]');
+    const node = form.querySelector('[data-out="seriesInfo"]');
     const last = latestPeriod(s);
-    if (el) {
-      el.textContent = msg('seriesInfo', {
+    if (node) {
+      node.textContent = msg('seriesInfo', {
         alku: F.periodNumeric(s.start),
         loppu: F.periodNumeric(last),
         arvo: F.idx(pointAt(s, last), s.decimals),
@@ -83,8 +62,8 @@ function init(data, form) {
     const s = seriesById.get($('sarja').value) ?? seriesById.get(data.defaults.series);
     const rentRaw = $('vuokra').value;
     const rent = parseDecimal(rentRaw, lang);
-    const base = readMonth('perus');
-    const check = readMonth('tarkistus');
+    const base = readPeriod('perus');
+    const check = readPeriod('tarkistus');
     const min = optionalPct('vahintaan');
     const max = optionalPct('enintaan');
     const extra = optionalPct('lisa');
@@ -107,18 +86,17 @@ function init(data, form) {
     if (f.extra.error) errors.lisa = f.extra.error;
     if (!errors.vahintaan && !errors.enintaan && f.min.value != null && f.max.value != null && f.min.value > f.max.value) errors.enintaan = msg('minMax');
 
-    setError('vuokra', errors.vuokra, ['vuokra']);
+    setError('vuokra', errors.vuokra);
     setError('perus', errors.perus, ['perus-kk', 'perus-v']);
     setError('tarkistus', errors.tarkistus, ['tarkistus-kk', 'tarkistus-v']);
-    setError('vahintaan', errors.vahintaan, ['vahintaan']);
-    setError('enintaan', errors.enintaan, ['enintaan']);
-    setError('lisa', errors.lisa, ['lisa']);
+    setError('vahintaan', errors.vahintaan);
+    setError('enintaan', errors.enintaan);
+    setError('lisa', errors.lisa);
     // Open the terms section when one of its fields has an error.
     if (errors.vahintaan || errors.enintaan || errors.lisa) form.querySelector('.calc__more')?.setAttribute('open', '');
 
     const failed = Object.keys(errors).length > 0;
-    if (ok) ok.hidden = failed;
-    if (errBox) errBox.hidden = !failed;
+    showResult(panel, !failed);
     if (failed) return;
 
     const r = rentIncrease({
@@ -132,18 +110,10 @@ function init(data, form) {
       noDecrease: f.noDecrease,
     });
     if ('error' in r) {
-      if (ok) ok.hidden = true;
-      if (errBox) errBox.hidden = false;
+      showResult(panel, false);
       return;
     }
-    const view = rentView(r, { series: f.s, base: f.base, check: f.check, lang });
-    for (const el of panel?.querySelectorAll('[data-out]') ?? []) {
-      const key = el.getAttribute('data-out');
-      if (key && key in view) {
-        el.textContent = view[key];
-        if (key === 'rule') el.hidden = !view.rule;
-      }
-    }
+    render(panel, rentView(r, { series: f.s, base: f.base, check: f.check, lang }), ['rule']);
 
     setParams(
       {
@@ -177,13 +147,14 @@ function init(data, form) {
   const p = (name) => getParam(name);
   if (p(P.rent) != null && parseDecimal(p(P.rent), lang) != null) $('vuokra').value = p(P.rent);
   if (seriesById.has(p(P.series))) $('sarja').value = p(P.series);
-  setMonth('perus', p(P.base));
-  setMonth('tarkistus', p(P.check));
+  if (isMonth(p(P.base))) setPeriod('perus', p(P.base));
+  if (isMonth(p(P.check))) setPeriod('tarkistus', p(P.check));
   for (const [param, id] of [[P.min, 'vahintaan'], [P.max, 'enintaan'], [P.extra, 'lisa']]) {
+    // The URL holds plain numbers ('2.555'); show them in the page's format
+    // with the decimals they have (up to 4), as the calculation uses them.
     const n = parseDecimal(p(param) ?? '');
     if (n != null) {
-      // Show the number in the page's format with the decimals it has (max 2).
-      const decimals = Number.isInteger(n) ? 0 : Math.min(2, String(n).split('.')[1]?.length ?? 2);
+      const decimals = Number.isInteger(n) ? 0 : Math.min(4, String(n).split('.')[1]?.length ?? 2);
       $(id).value = F.num(n, decimals);
       form.querySelector('.calc__more')?.setAttribute('open', '');
     }
@@ -192,17 +163,6 @@ function init(data, form) {
   if (ROUNDING.includes(p(P.rounding) ?? '')) $('pyoristys').value = p(P.rounding);
   calculate();
 
-  const schedule = () => {
-    window.clearTimeout(timer);
-    timer = window.setTimeout(() => calculate({ user: true }), 250);
-  };
-  form.addEventListener('input', schedule);
-  form.addEventListener('change', schedule);
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    window.clearTimeout(timer);
-    calculate({ user: true });
-    document.getElementById('vuokra-tulos-otsikko')?.scrollIntoView({ block: 'nearest' });
-  });
+  wireRecalc(form, calculate, { onSubmit: () => document.getElementById('vuokra-tulos-otsikko')?.scrollIntoView({ block: 'nearest' }) });
   document.querySelector('[data-print]')?.addEventListener('click', () => window.print());
 }

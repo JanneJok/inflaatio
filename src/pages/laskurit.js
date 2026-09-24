@@ -31,17 +31,18 @@ export function quarterName(q, lang = 'fi') {
 }
 
 /**
- * English source line (components.sourceLine() is Finnish):
- * "Source: Statistics Finland (detail) · Updated 14 September 2026".
- * @param {{name: string, href?: string, detail?: string}[]} sources
- * @param {string} [updated] ISO date/time
+ * Annual change of earnings as a clause without a capital:
+ * 'ansiot nousivat vuodessa 3,4 % ja reaaliansiot 1,6 %' (the verb is not
+ * repeated when both move the same way), or '…, mutta reaaliansiot laskivat 0,4 %'.
+ * @param {number} nominalYoy
+ * @param {number} realYoy
  */
-export function sourceLineEn(sources, updated) {
-  const F = formatter('en');
-  const m = String((updated && fmt.isoDate(updated)) ?? '').match(/^(\d{4})-(\d{2})-(\d{2})/);
-  const date = m ? `${Number(m[3])} ${F.period(`${m[1]}-${m[2]}`)}` : '';
-  const list = sources.map((s, i) => html`${i ? ', ' : ''}${s.href ? html`<a href="${s.href}">${s.name}</a>` : s.name}${s.detail ? html` (${s.detail})` : ''}`);
-  return html`<p class="source-line">${sources.length > 1 ? 'Sources' : 'Source'}: ${list}${date ? html` · Updated <time datetime="${m[0]}">${date}</time>` : ''}</p>`;
+export function earningsClause(nominalYoy, realYoy) {
+  const verb = (v) => (v >= 0 ? 'nousivat' : 'laskivat');
+  const first = `ansiot ${verb(nominalYoy)} vuodessa ${fmt.pct(Math.abs(nominalYoy))}`;
+  return (nominalYoy >= 0) === (realYoy >= 0)
+    ? `${first} ja reaaliansiot ${fmt.pct(Math.abs(realYoy))}`
+    : `${first}, mutta reaaliansiot ${verb(realYoy)} ${fmt.pct(Math.abs(realYoy))}`;
 }
 
 /**
@@ -50,6 +51,17 @@ export function sourceLineEn(sources, updated) {
  */
 export function quarterIn(q) {
   return quarterName(q).replace('neljännes', 'neljänneksellä');
+}
+
+/**
+ * Quarter in words for the start of a sentence: '2026-Q2' → 'vuoden 2026
+ * toisella neljänneksellä' (no numeral at the start of a sentence).
+ * @param {string} q
+ */
+export function quarterInWords(q) {
+  const m = String(q ?? '').match(/^(\d{4})-Q([1-4])$/);
+  if (!m) return fmt.DASH;
+  return `vuoden ${m[1]} ${['ensimmäisellä', 'toisella', 'kolmannella', 'neljännellä'][Number(m[2]) - 1]} neljänneksellä`;
 }
 
 /**
@@ -236,7 +248,7 @@ export function calculatorCards(ctx, { exclude } = {}) {
       eyebrow: 'Palkka',
       title: 'Ostovoima ja palkka',
       text: an
-        ? `Riittääkö palkankorotuksesi? Ansiotaso ${an.nominalYoy >= 0 ? 'nousi' : 'laski'} ${f.pct(Math.abs(an.nominalYoy))} ja reaaliansiot ${an.realYoy >= 0 ? 'nousivat' : 'laskivat'} ${f.pct(Math.abs(an.realYoy))} vuodessa (${quarterName(an.period)}${an.preliminary ? ', ennakko' : ''}).`
+        ? `Riittääkö palkankorotuksesi? ${f.capitalize(earningsClause(an.nominalYoy, an.realYoy))} (${quarterName(an.period)}${an.preliminary ? ', ennakko' : ''}).`
         : 'Riittääkö palkankorotuksesi? Vertaa palkkaa ja hintoja.',
       meta: 'Laske ostovoima',
     },
@@ -260,7 +272,7 @@ export default async function laskurit(ctx) {
   const intro = h`<div class="prose laskurit-prose">
   <p>Laskurit käyttävät Tilastokeskuksen virallisia pistelukuja ja päivittyvät automaattisesti, kun uudet luvut julkaistaan. Uusimmat luvut ovat ${ablative(k.month)}: kuluttajahinnat nousivat vuodessa ${f.pct(k.yoy)} ja elinkustannusindeksi oli ${f.idx(eki.value, 0)} (${eki.base}).</p>
   <p>Indeksikorotukset ja rahan arvo lasketaan <strong>pisteluvuista</strong>, ei vuosimuutosprosenteista: uusi summa = vanha summa × uusi pisteluku / vanha pisteluku.${
-    prevPoint ? ` Esimerkiksi elinkustannusindeksillä ${f.monthName(prevYear)} → ${f.monthName(eki.month)}: ${f.idx(eki.value, 0)} / ${f.idx(prevPoint, 0)} = ${f.num(eki.value / prevPoint, 4)}, eli hinnat nousivat ${f.pct((eki.value / prevPoint - 1) * 100, { decimals: 2 })}.` : ''
+    prevPoint ? ` Esimerkiksi elinkustannusindeksillä ${f.monthName(prevYear)} → ${f.monthName(eki.month)}: ${f.idx(eki.value, 0)} / ${f.idx(prevPoint, 0)} = ${f.num(eki.value / prevPoint, 4)} eli hinnat ${eki.value >= prevPoint ? 'nousivat' : 'laskivat'} ${f.pct(Math.abs(eki.value / prevPoint - 1) * 100, { decimals: 2 })}.` : ''
   }</p>
   <p>Käytä aina samaa indeksiä ja perusvuotta kuin sopimuksessasi. Kaikki kuukausittaiset pisteluvut perusvuosineen löydät <a href="/pisteluvut/">Pisteluvut</a>-sivulta ja laskentatavat <a href="/menetelmat/">Menetelmät</a>-sivulta.</p>
 </div>`;
@@ -283,7 +295,7 @@ ${c.section({ id: 'laskurit', title: 'Valitse laskuri', className: 'section--flu
 ${c.section({ id: 'pisteluvut', title: 'Miten laskurit laskevat?', intro: 'Pisteluvut, perusvuodet ja lähteet lyhyesti.', body: intro })}
 ${c.section({ id: 'englanniksi', title: 'Laskurit englanniksi', intro: 'Englanninkieliset versiot esimerkiksi ulkomaalaisille vuokralaisille.', body: h`<div lang="en">${en}</div>` })}`;
 
-  const description = `Vuokrankorotus-, rahanarvo-, säästö-, oma inflaatio- ja ostovoimalaskuri. Viralliset luvut ${ablative(k.month)}: KHI ${f.pct(k.yoy)}, elinkustannusindeksi ${f.idx(eki.value, 0)}.`;
+  const description = `Laskurit vuokrankorotukselle, rahan arvolle, säästöille, omalle inflaatiolle ja ostovoimalle. Viralliset luvut ${ablative(k.month)}: KHI ${f.pct(k.yoy)}.`;
   const jsonLd = [
     {
       '@context': 'https://schema.org',

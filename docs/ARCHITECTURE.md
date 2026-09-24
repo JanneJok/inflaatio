@@ -73,9 +73,9 @@ Design decisions that shape everything else:
 | Path | What it is | Owner / notes |
 |---|---|---|
 | `scripts/build.js` | the build (`node scripts/build.js`) | exports `build()`, `computeLatest()`, `cspProblems()` |
-| `scripts/serve.js` | local static server mirroring nginx | `--dir`, `--port`, `--build`, `--watch` |
+| `scripts/serve.js` | local static server mirroring nginx: headers, cache, MIME, `/healthz`, 404/410 pages, dotfile 404; the old-site redirects and the 410 list are parsed from the map blocks of `deploy/nginx.conf` (`nginxRules()`) | `--dir`, `--port`, `--build`, `--watch` |
 | `scripts/check-links.js` | crawls a build dir: links, `#anchors`, `aria-controls`/`aria-labelledby`, sitemap | `--dir` |
-| `scripts/lib/html.js` | `html` tagged template (escaping), `raw`, `attrs`, `classes`, `join`, `jsonLd`, `jsonScript`, `safeJson` | build only |
+| `scripts/lib/html.js` | `html` tagged template (escaping), `raw`, `attrs`, `classes`, `join`, `jsonLd`, `jsonScript`, `safeJson`, `escapeHtml`, `xmlEscape` (sitemap, RSS), `toHtml` | build only |
 | `scripts/lib/svg.js` | server-side SVG charts: `lineChart`, `sparkline`, `barChart`, `hBarChart` | build only |
 | `scripts/fetch/` | data fetchers + orchestrator | see `DATA.md` |
 | `src/site.config.js` | site constants, `NAV`, `FOOTER`, `PAGES` registry, `pageName()` | isomorphic |
@@ -92,7 +92,8 @@ Design decisions that shape everything else:
 | `src/css/print.css` | print stylesheet (last) | |
 | `src/js/theme-boot.js` | blocking classic script: `.js` class + saved theme before first paint | |
 | `src/js/site.js` | every page: initialises the `lib/` modules | |
-| `src/js/lib/*.js` | browser modules (theme, nav, dom, consent, analytics, contact, copy, share, segmented, table-toggle, url-state) + isomorphic `format.js`, `stats.js` | |
+| `src/js/lib/*.js` | browser modules (theme, nav, dom, consent, analytics, contact, copy, share, segmented, table-toggle, url-state) + isomorphic `format.js`, `stats.js`, `calc.js` | |
+| `src/js/lib/calc-form.js` | form helpers shared by the calculator scripts: `byId`, `fill`, `messages`, `setError`, `readPeriod`/`setPeriod`, `render`, `showResult`, `wireRecalc` | CALC |
 | `src/js/charts/setup.js` | themed, lazily loaded Chart.js (`createChart` …) | |
 | `src/js/charts/chartjs.js` | the Chart.js parts we register (loaded only via `import()`) | |
 | `src/js/pages/<name>.js` | optional page script, auto-discovered as an esbuild entry | page owner |
@@ -375,7 +376,7 @@ format as `'–'`.
 | Function | Example |
 |---|---|
 | `pct(v, { decimals = 1, sign = false })` | `pct(2.2)` → `2,2 %`; `pct(-0.2)` → `−0,2 %`; `pct(0.4, { sign: true })` → `+0,4 %` |
-| `pp(v, { decimals = 1, sign = true })` | `+0,1 %-yks.`, `−0,1 %-yks.`, `±0,0 %-yks.` |
+| `pp(v, { decimals = 1, sign = true })` | `+0,1 %-yks.`, `−0,1 %-yks.`, `±0,0 %-yks.` — the unit is `PP_UNIT`, whose hyphen is U+2011 (non-breaking), so prose never wraps it as "%-" / "yks."; match it with `/%[-\u2011]yks\./` |
 | `num(v, decimals = 0, { sign })` | `num(1234567)` → `1 234 567` |
 | `idx(v, decimals = 2)` | `125,15` |
 | `eur(v, decimals = 2, { sign })` | `1 234,56 €` |
@@ -393,9 +394,15 @@ format as `'–'`.
 | `capitalize(s)` | `Elokuu 2026` |
 | `parseYm`, `toYm`, `ymAdd`, `ymDiff(a, b)` (= b − a months), `yearOf`, `monthSlug`, `monthFromSlug` | month arithmetic without `Date` |
 | `round(v, d)`, `isNum(v)` | helpers |
-| `DASH`, `NBSP`, `MINUS`, `MONTHS`, `MONTHS_SHORT`, `MONTH_SLUGS` | constants |
+| `DASH`, `NBSP`, `MINUS`, `NB_HYPHEN`, `PP_UNIT`, `MONTHS`, `MONTHS_SHORT`, `MONTH_SLUGS` | constants |
+| `enNum`, `enPct`, `enPp`, `enEur`, `enMonthName`, `enMonthShort`, `enDate`, `EN_MONTHS`, `EN_MONTHS_SHORT` | English pages and charts: `1,234.5`, `2.2%`, `+0.1 pp`, `€1,234.56`, `August 2026`, `Aug 2026`, `17 September 2026` (the single source for English month names) |
 
 `parseYm` throws on malformed strings — a bad month is a bug, not a missing value.
+
+Kept on purpose although no page uses them yet (they are tested and part of
+the documented toolkit): `dateTime()` here, `stats.priceChangeFromIndex()` /
+`stats.alignSeries()`, `html.toHtml()`. Remove a helper instead of leaving
+it undocumented.
 
 ### stats.js (`ctx.stats`)
 
@@ -437,7 +444,7 @@ Isomorphic, pure; returns unrounded numbers (format with `fmt`), `null` for miss
 | `noindex` | `false` | `<meta name="robots" content="noindex">`, no canonical; also return `sitemap: false` |
 | `breadcrumbs` | `[]` | sub pages: visible trail + BreadcrumbList JSON-LD (use `ctx.crumbs`) |
 | `page` | – | `<body data-page="…">` for CSS scoping |
-| `bare` | `false` | no header/footer/banners/dialogs (embeddable widget) |
+| `bare` | `false` | no header/footer/banners/dialogs and no `site.js`; only the page's own `scripts` load (embeddable widget) |
 | `head` | – | extra head markup (SafeString), e.g. `rel=prev/next` |
 
 The layout renders: skip link, sticky header (brand, nav with
@@ -508,7 +515,10 @@ c.cardGrid([{ href: '/vuokrankorotus/', eyebrow: 'Laskuri', title: 'Vuokrankorot
 
 **`kpiCard({ label, value, unit?, note?, delta?, deltaWords = 'pp', foot?, id?, field?, headingLevel = 3 })`** —
 label (12 px caps), value (32 px tabular), note. A trailing NBSP unit in
-`value` (`'2,2 %'`, `'+0,1 %-yks.'`) is split off automatically. `delta:
+`value` (`'2,2 %'`, `'+0,1 %-yks.'`) is split off automatically; the NBSP
+stays at the end of `.kpi__number`, so copied text reads "2,2 %". In a
+`kpiGrid` the values line up across a row (CSS subgrid, ≥ 641 px) even when
+one label wraps to two lines. `delta:
 'up'|'down'|'flat'` adds colour + arrow — **only for changes**, never for
 levels. `deltaWords: 'pct'` reads nousi/laski instead of kiihtyi/hidastui.
 `field` adds `data-kpi` for page JS updates.
@@ -791,7 +801,17 @@ Every chart needs a text alternative in the page: wrap it in
 - **Analytics**: `track('calculator_used', { … })` from `lib/analytics.js`
   sends a GA event only with consent (and only on inflaatio.fi); or put
   `data-track="csv_download"` on a clickable element. The cookieless page-view
-  counter needs nothing from pages.
+  counter needs nothing from pages. GA never loads on bare pages (the
+  `/upotus/` widget, whose own entry `pages/upotus-kortti.js` only counts a
+  page view, and not for `?esikatselu` previews), and GA receives page and
+  referrer addresses without query string or hash (`gaPageUrl()`), so amounts
+  typed into the calculators (kept in the URL) never reach Google.
+- **Calculators**: the four calculator scripts share `lib/calc-form.js`
+  (field errors, period inputs, result rendering, debounced recalculation) and
+  compute with the isomorphic `lib/calc.js`. The value-of-money calculator
+  (`/rahanarvo/`, `/en/value-of-money/`) offers KHI (default, the chained
+  official series back to 1860) or YKHI (Eurostat HICP, monthly from 1996;
+  `?indeksi=ykhi` / `?index=ykhi`).
 - **Lazy work**: `onVisible(el, callback)` from `lib/dom.js` (IntersectionObserver,
   300 px margin). Heavy libraries are imported with `import()` so they get
   their own chunk (EmailJS in `contact.js`, Chart.js in `charts/setup.js`).
@@ -810,12 +830,12 @@ a dashed annotation.
 
 | Export | Description |
 |---|---|
-| `createChart(canvas, { type = 'line', months \| labels, datasets, annotations?, unit = '%', decimals?, yMin?, yMax?, beginAtZero?, lastValue = true, tooltipFooter?, options? })` | creates the chart (async); returns the Chart instance with `setMonths(months, [data…])` for range changes |
-| `lineDataset({ series, label, data, dashed?, hidden?, fill? })` | `series` = series key (`khi`, `ykhi`, `ea`, `core`, `s3`…) |
+| `createChart(canvas, { type = 'line', months \| labels, datasets, annotations?, unit = '%', decimals?, locale = 'fi', yMin?, yMax?, beginAtZero?, lastValue = true, tooltipFooter?, options? })` | creates the chart (async); returns the Chart instance with `setMonths(months, [data…])` for range changes. `locale: 'en'` (English pages): English month names in ticks and tooltips, `2.2%` / `€1,234.50`. The right padding is sized to the widest end label, so labels are never clipped |
+| `lineDataset({ series, label, data, dashed?, hidden?, fill?, decimals? })` | `series` = series key (`khi`, `ykhi`, `ea`, `core`, `s3`…); `decimals` overrides the chart's decimals for this line (tooltip + end label), e.g. KHI with 1 decimal next to 2-decimal interest rates |
 | `barDataset({ series, label, data, partial? })` | `series` = one key or one per bar (e.g. `levelBand` results) |
 | `targetLine(value = 2, label?)`, `eventLine(month, label)` | annotations (`src/content/tapahtumat.json` → `eventLine`) |
-| `downloadPng(chart, filename, { title, source })` | "Lataa kuva" with surface background, title and source |
-| `applyTheme(chart)`, `readTokens(el)`, `valueFormatter(unit)`, `axisFormatter(unit)`, `monthTicks(months, width)`, `withAlpha(hex, a)` | lower-level helpers |
+| `downloadPng(chart, filename, { title, source, legend = true })` | "Lataa kuva" with surface background, title, a legend of the visible series (+ the 2 % target) and source |
+| `applyTheme(chart)`, `readTokens(el)`, `valueFormatter(unit, decimals, locale)`, `axisFormatter(unit, locale)`, `monthTicks(months, width, locale)`, `legendEntries(chart, tokens)`, `layoutLegend(…)`, `withAlpha(hex, a)` | lower-level helpers |
 
 Pattern (see `src/pages/tyylit.js` + `src/js/pages/tyylit.js` for a working example):
 
@@ -881,7 +901,14 @@ Consequences (the build fails on the first three):
   fonts are self-hosted (`/fonts/`). New third-party origins need a CSP change
   in `deploy/security-headers.conf` (and `test/serve.test.js` compares it with SPEC §10).
 - `/upotus/` (embeddable widget) uses `deploy/security-headers-embed.conf`
-  (framing allowed); nginx needs a matching `location` block.
+  (framing allowed); nginx needs a matching `location` block. Its document
+  is `layout({ bare: true })`, which loads only the page's own `scripts`
+  (no `site.js`: no consent, Google Analytics, contact or theme-menu code).
+
+Caching (`cacheControl()` in `scripts/serve.js` = the `$inflaatio_cache_control`
+map in `deploy/nginx.conf`): `/assets/*` and `/fonts/*` a year, immutable;
+HTML `no-cache`; `/data/*` an hour; the share image `/og/*` a day (it is
+regenerated every month); other images a week; everything else `no-cache`.
 
 Forbidden APIs (ESLint + a local pre-write hook; SPEC §1): the HTML-string DOM
 sinks (the element properties and methods that parse HTML strings, and the
@@ -926,7 +953,7 @@ post nowhere (`form-action 'self'`), JS sends them.
 | `test/html.test.js`, `test/svg.test.js` | escaping template, SVG charts |
 | `test/build.test.js` | build output, CSP check, head/landmarks, sitemap, `computeLatest` |
 | `test/design.test.js` | token contrast in both themes |
-| `test/serve.test.js`, `test/check-links.test.js` | local server parity with nginx/SPEC §10, link checker |
+| `test/serve.test.js`, `test/check-links.test.js` | local server parity with nginx/SPEC §10 (headers, nginx map parsing, redirects, 410, `/healthz`, dotfiles), link checker |
 | `test/fetch.test.js` | fetch pipeline with fixtures (no network) |
 | `test/data-contract.test.js` | committed `data/*.json` and release calendar against SPEC §7 |
 | `test/home.test.js`, `test/calc.test.js`, `test/archive.test.js`, `test/topics.test.js`, `test/trust.test.js`, `test/extras.test.js` | page modules (built into a temp dir) and their calculations: home, calculators (`lib/calc.js`), archive/reviews/feed, prices/fuels/comparison/rates, terms/privacy/consent/contact, open data/OG image/English/widget/404 |

@@ -4,7 +4,9 @@
  * imported lazily (own chunk) when the dialog opens and awaited before sending.
  *
  * - Native <dialog> + showModal(): focus trap, Esc and backdrop are native;
- *   focus goes to the first field and returns to the opener on close (dom.js).
+ *   focus goes to the first field (on touch screens to the dialog title, so
+ *   the on-screen keyboard does not cover the dialog) and returns to the
+ *   opener on close (dom.js).
  * - Spam protection: a honeypot field (bots fill it: we pretend success and
  *   send nothing), a minimum fill time of 3 s, maxlength limits (also checked
  *   here, pasted text can exceed them) and one message per minute per page.
@@ -14,7 +16,8 @@
  *   text stays in the form and the message tells another way to reach us
  *   (the postal address from data-fallback, rendered by layout.js).
  *
- * validateContact() is pure and unit-tested in test/trust.test.js.
+ * validateContact() and initialFocusTarget() are pure and unit-tested in
+ * test/trust.test.js.
  */
 import { EMAILJS } from '../../site.config.js';
 import { on, openDialog, isEnglishPage } from './dom.js';
@@ -82,6 +85,35 @@ export function validateContact({ name = '', email = '', message = '' }, lang = 
     errors.message = t.messageLong(values.message.length, CONTACT_LIMITS.message);
   }
   return { values, errors };
+}
+
+/**
+ * Where focus goes when the dialog opens: the first field with a fine pointer
+ * (mouse, keyboard); the dialog title on touch screens, where focusing a
+ * field would pop up the on-screen keyboard over the intro and the errors.
+ * @param {boolean} coarsePointer matchMedia('(pointer: coarse)').matches
+ * @returns {'field'|'title'}
+ */
+export function initialFocusTarget(coarsePointer) {
+  return coarsePointer ? 'title' : 'field';
+}
+
+/**
+ * @param {HTMLDialogElement} dialog
+ * @param {{name: HTMLElement|null, email: HTMLElement|null}} fields
+ * @returns {HTMLElement|null}
+ */
+function initialFocus(dialog, fields) {
+  const coarse = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+  if (initialFocusTarget(coarse) === 'title') {
+    const title = /** @type {HTMLElement|null} */ (dialog.querySelector('.dialog__title'));
+    if (title) {
+      // Programmatic focus only (not in the Tab order); screen readers read the title.
+      if (!title.hasAttribute('tabindex')) title.setAttribute('tabindex', '-1');
+      return title;
+    }
+  }
+  return fields.name ?? fields.email;
 }
 
 let emailjsPromise = null;
@@ -154,7 +186,7 @@ export function initContact() {
     reset();
     openedAt = Date.now();
     openDialog(dialog, opener);
-    (fields.name ?? fields.email)?.focus();
+    initialFocus(dialog, fields)?.focus({ preventScroll: true });
     loadEmailjs().catch(() => {});
   });
 

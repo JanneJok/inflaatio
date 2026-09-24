@@ -42,10 +42,14 @@ jobs:
       subject: ${{ steps.commit.outputs.subject }}
       fetch_status: ${{ steps.fetch.outputs.status }}
     steps:
+      # persist-credentials: false – the write token is NOT stored in
+      # .git/config, where the dependency code run by npm ci / fetch / build
+      # could read it. Only the push step below gets it.
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Node.js 24
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -53,8 +57,9 @@ jobs:
           node-version: '24'
           cache: npm
 
+      # --ignore-scripts: no install script of any dependency runs.
       - name: Asenna riippuvuudet
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       # Never fails the step: the exit status is recorded and checked in the
       # last job, after the successful sources have been committed.
@@ -91,6 +96,8 @@ jobs:
         env:
           FETCH_STATUS: ${{ steps.fetch.outputs.status }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # The write token exists only in this step (GitHub masks it in logs).
+          GH_PUSH_TOKEN: ${{ github.token }}
         run: |
           # Sources whose latest period or source timestamp changed, e.g.
           # "khi 2026-09, hyodykkeet 2026-09".
@@ -122,8 +129,9 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- data src/content/julkaisukalenteri.json
           git commit -q -F "$RUNNER_TEMP/commit-message.txt"
+          remote="https://x-access-token:${GH_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           for attempt in 1 2 3; do
-            if git pull -q --rebase origin main && git push -q origin HEAD:main; then
+            if git pull -q --rebase "$remote" main && git push -q "$remote" HEAD:main; then
               break
             fi
             git rebase --abort 2>/dev/null || true
@@ -142,22 +150,32 @@ jobs:
   deploy:
     name: Julkaise Fly.io:hon
     needs: update
-    if: ${{ !cancelled() && needs.update.result == 'success' && (needs.update.outputs.changed == 'true' || (github.event_name == 'workflow_dispatch' && inputs.deploy)) }}
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && needs.update.result == 'success' && (needs.update.outputs.changed == 'true' || (github.event_name == 'workflow_dispatch' && inputs.deploy)) }}
+    environment: production
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    # Shared with deploy.yml: never two deployments at once.
+    # Shared with deploy.yml: never two deployments at once. A newer pending
+    # deployment replaces an older pending one, so each deployment ships the
+    # main of the moment it starts (below), never an older commit.
     concurrency:
       group: fly-deploy
       cancel-in-progress: false
     steps:
-      - name: Checkout (datakommitti)
+      # main, not the data commit's SHA: main contains the data commit, and a
+      # code commit pushed on top of it in the meantime (whose own deploy.yml
+      # run this job may have replaced in the queue) goes live as well. The
+      # smoke test reads data/meta.json from this same checkout.
+      - name: Checkout (main)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.update.outputs.sha || github.sha }}
+          ref: main
           persist-credentials: false
 
+      # Pinned like in deploy.yml (docs/OPERATIONS.md → Päivitykset).
       - name: flyctl
         uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be # 1.5
+        with:
+          version: '0.4.104'
 
       - name: flyctl deploy --remote-only
         run: flyctl deploy --remote-only
@@ -218,8 +236,10 @@ jobs:
             exit 1
           fi
           if [ "$DEPLOY_RESULT" = "cancelled" ]; then
-            # A newer deployment in the fly-deploy queue replaced this one; it
-            # deploys a later commit of main that contains this data.
+            # A newer deployment in the fly-deploy queue replaced this one. Both
+            # workflows deploy main as it is when they start (deploy.yml: the
+            # pushed commit, which is on top of this data commit), so the
+            # replacement contains this data.
             echo "::warning::Julkaisu korvautui uudemmalla julkaisulla (fly-deploy-jono)."
           fi
           if [ "$FETCH_STATUS" != "0" ]; then

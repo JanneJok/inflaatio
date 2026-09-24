@@ -21,6 +21,13 @@
   height: 100%;
 }
 
+/* The sticky header sits inside html's scroll-padding-top zone: without this,
+   focusing a header control (Shift+Tab, a click, focus returned from a menu)
+   would scroll the page up to "reveal" it. */
+.site-header * {
+  scroll-margin-top: calc(-1 * (var(--header-h) + var(--space-4)));
+}
+
 .brand {
   flex: none;
   display: inline-flex;
@@ -90,14 +97,18 @@
   display: flex;
   align-items: center;
   gap: var(--space-1);
+  min-width: 0;
   margin-left: auto;
 }
 
 /* Live chip: latest KHI value and month (server-rendered from data). */
 .live-chip {
   display: inline-flex;
+  flex-shrink: 1;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+  overflow: hidden;
   height: 32px;
   margin-right: var(--space-2);
   padding: 0 var(--space-3);
@@ -367,6 +378,27 @@ html[data-theme='dark'] .theme-menu__icon--dark {
   }
 }
 
+/* 320–359 px (WCAG 1.4.10 reflow): the chip keeps only the value (the month
+   stays in its accessible name and title), so the header fits without
+   horizontal scrolling. */
+@media (max-width: 359.98px) {
+  .brand {
+    margin-right: var(--space-1);
+  }
+
+  .header-tools {
+    gap: 0;
+  }
+
+  .live-chip {
+    padding: 0 8px;
+  }
+
+  .live-chip__month-short {
+    display: none;
+  }
+}
+
 /* ------------------------------------------------------------------- main */
 
 .site-main {
@@ -442,6 +474,14 @@ html[data-theme='dark'] .theme-menu__icon--dark {
   font: inherit;
   text-align: left;
   text-decoration: none;
+}
+
+/* A <button> is always inline-block, so the vertical padding would make the
+   "Evästeasetukset" and "Ota yhteyttä" rows taller than the link rows. */
+button.site-footer__link {
+  padding: 0;
+  line-height: inherit;
+  vertical-align: baseline;
 }
 
 .site-footer__link:hover {

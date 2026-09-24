@@ -11,8 +11,12 @@
  *                without the parameter (or without JS) it follows the reader's
  *                prefers-color-scheme. The theme is applied before first paint by
  *                src/js/pages/upotus-ohje.js loaded as a classic script in <head>
- *                (data-upotus="widget").
- * /upotus/ohje/  Instructions: live preview, copyable iframe code (GA event
+ *                (data-upotus="widget"). The card's own module script is
+ *                src/js/pages/upotus-kortti.js (cookieless page-view counter
+ *                only); the card must never set cookies or load Google
+ *                Analytics (promised in the embed terms below).
+ * /upotus/ohje/  Instructions: live preview (/upotus/?esikatselu=1, not counted
+ *                as a widget load), copyable iframe code (GA event
  *                'widget_code_copied' after consent via data-track → track()),
  *                theme/width options (JS), attribution rules and FAQ.
  */
@@ -23,6 +27,24 @@ const TITLE = 'Inflaatio Suomessa – Inflaatio.fi';
 
 /** Theme option → query string of the widget URL. */
 export const WIDGET_THEMES = Object.freeze({ auto: '', vaalea: '?teema=vaalea', tumma: '?teema=tumma' });
+
+/**
+ * Query parameter that marks the live preview on /upotus/ohje/: the preview
+ * is not a widget load on another site, so it is not counted
+ * (src/js/pages/upotus-kortti.js, lib/analytics.js). Never part of the
+ * published embed code.
+ */
+export const PREVIEW_PARAM = 'esikatselu';
+
+/**
+ * URL of the live preview iframe on /upotus/ohje/ (same origin, relative).
+ * @param {'auto'|'vaalea'|'tumma'} [theme]
+ * @returns {string} e.g. '/upotus/?esikatselu=1', '/upotus/?teema=tumma&esikatselu=1'
+ */
+export function previewUrl(theme = 'auto') {
+  const q = WIDGET_THEMES[theme] ?? '';
+  return `/upotus/${q ? `${q}&` : '?'}${PREVIEW_PARAM}=1`;
+}
 
 /**
  * The iframe snippet for embedding the widget.
@@ -83,6 +105,9 @@ export default async function upotus(ctx) {
     page: 'upotus',
     bare: true,
     noindex: true,
+    // Only the cookieless page-view counter (no consent, GA, contact or theme
+    // menu code: the card sets no cookies and never loads Google Analytics).
+    scripts: ['pages/upotus-kortti.js'],
     head: html`<script src="${ctx.asset('pages/upotus-ohje.js')}" data-upotus="widget"></script>`,
     main: widget,
   });
@@ -92,7 +117,7 @@ export default async function upotus(ctx) {
   const variants = {};
   for (const theme of Object.keys(WIDGET_THEMES)) {
     for (const width of ['320', 'full']) {
-      variants[`${theme}|${width}`] = { code: embedCode(ctx.baseUrl, { theme, width }), preview: `/upotus/${WIDGET_THEMES[theme]}` };
+      variants[`${theme}|${width}`] = { code: embedCode(ctx.baseUrl, { theme, width }), preview: previewUrl(/** @type {any} */ (theme)) };
     }
   }
   const defaultCode = variants['auto|320'].code;
@@ -130,7 +155,7 @@ export default async function upotus(ctx) {
 </div>`;
 
   const preview = html`<div class="embed-preview" data-embed-preview data-leveys="320">
-  <iframe class="embed-preview__frame" id="upotus-esikatselu" src="/upotus/" width="${WIDGET_WIDTH}" height="${WIDGET_HEIGHT}" loading="lazy" title="${`Esikatselu: ${TITLE}`}"></iframe>
+  <iframe class="embed-preview__frame" id="upotus-esikatselu" src="${previewUrl('auto')}" width="${WIDGET_WIDTH}" height="${WIDGET_HEIGHT}" loading="lazy" title="${`Esikatselu: ${TITLE}`}"></iframe>
 </div>
 <p class="embed-preview__note no-js-only">Kortti seuraa lukijan laitteen vaaleaa tai tummaa teemaa. Kiinteän teeman saat lisäämällä osoitteen loppuun <code>?teema=vaalea</code> tai <code>?teema=tumma</code>.</p>`;
 
@@ -154,9 +179,9 @@ export default async function upotus(ctx) {
     [
       {
         summary: 'Kuinka usein luku päivittyy?',
-        body: html`<p>Kortti näyttää aina tuoreimman kuluttajahintaindeksin vuosimuutoksen. Tilastokeskus julkaisee luvun kerran kuukaudessa, yleensä kuun puolivälissä${
+        body: html`<p>Kortti näyttää aina tuoreimman kuluttajahintaindeksin vuosimuutoksen. Tilastokeskus julkaisee luvun kerran kuukaudessa, yleensä seuraavan kuukauden puolivälissä${
           ctx.latest.nextRelease?.khi ? html`; seuraava julkaisu on <time datetime="${ctx.latest.nextRelease.khi.date}">${fmt.date(ctx.latest.nextRelease.khi.date)}</time>` : ''
-        }. Kortti päivittyy samana päivänä.</p>`,
+        }. Kortti päivittyy yleensä samana päivänä.</p>`,
       },
       {
         summary: 'Voiko kortin kokoa muuttaa?',

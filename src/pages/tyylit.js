@@ -161,7 +161,7 @@ export default async function tyylit(ctx) {
   <p class="h1">Inflaatio Suomessa nyt</p>
   <p class="h2">Mikä nostaa hintoja?</p>
   <p class="h3">Vuosi ${vm.curYear}${partialRow ? ` (${partialRow.span})` : ''}</p>
-  <p class="measure">Leipäteksti 16 px / 1,6. Kuluttajahinnat olivat ${fmt.inessive(L.month)} ${fmt.pct(L.yoy)} korkeammat kuin vuotta aiemmin. Luvut ovat tasalevyisiä: 1 234,56 € · −0,2 % · +0,1 %-yks.</p>
+  <p class="measure">Leipäteksti 16 px / 1,6. ${fmt.capitalize(fmt.inessive(L.month))} kuluttajahinnat olivat ${fmt.pct(L.yoy)} korkeammat kuin vuotta aiemmin. Luvut ovat tasalevyisiä: 1 234,56 € · −0,2 % · +0,1 %-yks.</p>
   <p><small>Pieni teksti 14 px – lähteet, selitteet ja apuviivat.</small></p>
   <p class="type-scale__caption">KUVATEKSTI 12 PX · ISOT KIRJAIMET</p>
   <p><a href="#varit">Tekstilinkki</a> ja <code>koodi</code>.</p>
@@ -279,7 +279,7 @@ ${c.kpiGrid(kpiCards.slice(1, 5))}`;
       { cls: 'target', label: 'EKP:n tavoite 2 %', dashed: true },
     ]),
     chart: lineSvg,
-    summary: `KHI oli ${fmt.inessive(L.month)} ${fmt.pct(L.yoy)} ja YKHI ${fmt.pct(L.ykhi)}. Jakson korkein KHI oli ${fmt.pct(s5.max?.value)} ${fmt.inessive(s5.max?.months[0])}.`,
+    summary: `${fmt.capitalize(fmt.inessive(L.month))} KHI oli ${fmt.pct(L.yoy)} ja YKHI ${fmt.pct(L.ykhi)}. Jakson korkein KHI oli ${fmt.pct(s5.max?.value)} (${fmt.monthName(s5.max?.months[0])}).`,
     table: lineTable,
     source: c.sourceLine({ sources: [khiSource, ykhiSource], updated: vm.updated }),
     actions: html`${c.shareButton({ size: 'sm' })}${c.button({ label: 'Lataa kuva', icon: 'download', size: 'sm', attrs: { disabled: true, title: 'Kuvan lataus kuuluu Chart.js-kaavioon (etusivu)' } })}`,
@@ -381,7 +381,7 @@ ${c.chartFigure({
   <div class="chart-canvas" data-chart="kehitys" data-label="${`Vuosi-inflaatio: KHI ja YKHI kuukausittain, viimeisin ${fmt.monthName(L.month)}.`}" hidden></div>
 </div>
 ${ctx.jsonScript('kaavio-chartjs-data', { months: all.months, khi: all.series.khi, ykhi: all.series.ykhi })}`,
-    summary: `KHI oli ${fmt.inessive(L.month)} ${fmt.pct(L.yoy)} ja YKHI ${fmt.pct(L.ykhi)}. Vie osoitin tai sormi kaavion päälle nähdäksesi kuukauden luvut.`,
+    summary: `${fmt.capitalize(fmt.inessive(L.month))} KHI oli ${fmt.pct(L.yoy)} ja YKHI ${fmt.pct(L.ykhi)}. Vie osoitin tai sormi kaavion päälle nähdäksesi kuukauden luvut.`,
     source: c.sourceLine({ sources: [khiSource, ykhiSource], updated: vm.updated }),
     actions: c.button({ label: 'Lataa kuva', icon: 'download', size: 'sm', className: 'js-only', attrs: { data: { chartDownload: 'kehitys' } } }),
   });
@@ -424,7 +424,7 @@ ${ctx.jsonScript('kaavio-chartjs-data', { months: all.months, khi: all.series.kh
       {
         summary: 'Paljonko inflaatio on nyt?',
         open: true,
-        body: html`<p>Kuluttajahinnat olivat ${fmt.inessive(L.month)} ${fmt.pct(L.yoy)} korkeammat kuin vuotta aiemmin (Tilastokeskus, kuluttajahintaindeksi).</p>`,
+        body: html`<p>${fmt.capitalize(fmt.inessive(L.month))} kuluttajahinnat olivat ${fmt.pct(L.yoy)} korkeammat kuin vuotta aiemmin (Tilastokeskus, kuluttajahintaindeksi).</p>`,
       },
       { summary: 'Mitä eroa on KHI:llä ja YKHI:llä?', body: 'Suurin ero: KHI sisältää omistusasumisen kuluja, kuten asuntolainojen korot, YKHI ei.' },
       { summary: 'Milloin seuraava luku julkaistaan?', body: 'Julkaisukalenteri näkyy etusivun Lähteet ja päivitykset -osiossa.' },

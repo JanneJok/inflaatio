@@ -30,9 +30,20 @@ test('monthTicks: years for long ranges, months (January = year) for short', () 
   assert.ok(all.length <= 10);
   assert.ok(all.every((t) => Number(t.text) % 5 === 0));
   assert.ok(all.some((t) => t.minor) && !all.at(-1).minor);
+  // Short ranges: a fixed calendar step counted from January, so ticks are
+  // evenly spaced ('syys · marras · 2026 · maalis · touko · heinä').
   const year = monthTicks(months('2025-08', 13));
-  assert.equal(year.at(-1).text, 'elo');
-  assert.ok(year.some((t) => t.text === '2026'));
+  assert.deepEqual(year.map((t) => t.text), ['syys', 'marras', '2026', 'maalis', 'touko', 'heinä']);
+  const gaps = (ticks) => ticks.slice(1).map((t, i) => t.index - ticks[i].index);
+  assert.ok(gaps(year).every((g) => g === 2), 'every 2 months');
+  // Phones show every other tick; the January (year) tick stays visible.
+  assert.deepEqual(year.filter((t) => !t.minor).map((t) => t.text), ['syys', '2026', 'touko']);
+  const y2022 = monthTicks(months('2022-01', 12));
+  assert.deepEqual(y2022.map((t) => t.text), ['2022', 'maalis', 'touko', 'heinä', 'syys', 'marras']);
+  const two = monthTicks(months('2024-08', 25));
+  assert.ok(gaps(two).every((g) => g === 3), 'every 3 months');
+  assert.ok(two.every((t) => /^(2025|2026|huhti|heinä|loka)$/.test(t.text)), two.map((t) => t.text).join());
+  assert.ok(gaps(two.filter((t) => !t.minor)).every((g) => g === 6), 'phones: every 6 months');
 });
 
 test('lineChart renders an accessible, class-styled, CSP-safe SVG', () => {
@@ -121,8 +132,8 @@ test('hBarChart: labels, values, negative bars and truncation', () => {
   );
   assert.match(s, /chart-hbar chart-hbar--pos/);
   assert.match(s, /chart-hbar chart-hbar--neg/);
-  assert.match(s, /\+0,52\s%-yks\./);
-  assert.match(s, /−0,18\s%-yks\./);
+  assert.match(s, /\+0,52\s%\u2011yks\./); // non-breaking hyphen (format.js PP_UNIT)
+  assert.match(s, /−0,18\s%\u2011yks\./);
   assert.match(s, /…<title>Asuminen, vesi, sähkö, kaasu ja muut polttoaineet<\/title>/);
   assert.match(s, /chart-grid--zero/);
 });

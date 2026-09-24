@@ -1,7 +1,9 @@
 # Production check every 6 hours (and by hand): https://inflaatio.fi/ answers
 # with the security headers, key assets load, /healthz is up, redirects and the
-# 404 page work, and the page shows the latest KHI month of data/meta.json on
-# main. The checks are the "smoke" tests in test/ops.test.js.
+# 404 page work, and the page and /data/latest.json show the latest data of
+# data/meta.json on main (a data deploy that failed is noticed even when the
+# next data run has nothing new to deploy). The checks are the "smoke" tests
+# in test/ops.test.js.
 # On failure: open (or comment on) a GitHub issue labelled "site-check";
 # when the site is fine again, the open issue is closed with a comment.
 name: Tuotannon tarkistus

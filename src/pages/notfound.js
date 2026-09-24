@@ -18,7 +18,7 @@
 export function latestSentence(fmt, k) {
   const when = fmt.capitalize(fmt.inessive(k.month));
   if (k.yoy > 0) return `${when} kuluttajahinnat olivat ${fmt.pct(k.yoy)} korkeammat kuin vuotta aiemmin (Tilastokeskus).`;
-  if (k.yoy < 0) return `${when} kuluttajahinnat olivat ${fmt.pct(Math.abs(k.yoy))} matalammat kuin vuotta aiemmin (Tilastokeskus).`;
+  if (k.yoy < 0) return `${when} kuluttajahinnat olivat ${fmt.pct(Math.abs(k.yoy))} alemmat kuin vuotta aiemmin (Tilastokeskus).`;
   return `${when} kuluttajahinnat olivat samalla tasolla kuin vuotta aiemmin (Tilastokeskus).`;
 }
 
@@ -46,7 +46,7 @@ export default async function notfound(ctx) {
   const main = html`${c.pageHeader({
     eyebrow: 'Virhe 404',
     title: 'Sivua ei löytynyt',
-    lede: 'Hakemaasi sivua ei ole olemassa, tai se on siirretty. Tarkista osoite tai jatka alla olevista linkeistä.',
+    lede: 'Hakemaasi sivua ei ole olemassa tai se on siirretty. Tarkista osoite tai jatka alla olevista linkeistä.',
   })}
 ${c.section({
   id: 'jatka',

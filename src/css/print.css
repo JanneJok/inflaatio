@@ -40,7 +40,7 @@
     --delta-up-soft: transparent;
     --delta-down-soft: transparent;
     --delta-flat-soft: transparent;
-    --shadow-sm: none;
+    --shadow-sm: 0 0 #0000;
     --shadow-md: none;
     --shadow-lg: none;
   }

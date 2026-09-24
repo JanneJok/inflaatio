@@ -1,7 +1,7 @@
 # Docker build context = ALLOWLIST. Only what the Dockerfile copies is sent to
 # the builder (locally or Fly's remote builder): no node_modules, dist, .tmp,
-# .git, docs, tests or the old site's root files. Add a path here only when
-# the Dockerfile starts to COPY it (test/ops.test.js checks both agree).
+# .git, docs or tests. Add a path here only when the Dockerfile starts to
+# COPY it (test/ops.test.js checks both agree).
 *
 !package.json
 !package-lock.json

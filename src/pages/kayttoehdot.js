@@ -119,7 +119,7 @@ ${sub('palvelun-kuvaus', 'Palvelun kuvaus')}
 ${sub('lainaaminen', 'Lukujen lainaaminen ja jakaminen')}
 <p>Saat lainata ja jakaa sivuston lukuja, taulukoita ja kuvaajia esimerkiksi uutisissa, opetuksessa, opinnäytteissä ja sosiaalisessa mediassa. Mainitse lähteenä ${ctx.site.brand} ja alkuperäinen tilastolähde, esimerkiksi näin:</p>
 <p class="legal__example">Lähde: ${ctx.site.brand}, Tilastokeskus (kuluttajahintaindeksi)</p>
-<p>Voit myös upottaa inflaatiokortin omalle sivullesi (<a href="/upotus/ohje/">Upota sivullesi</a>) tai ladata aineistot koneluettavina tiedostoina (<a href="/data/">Avoin data</a>). Avoimen datan tiedostoja saa käyttää lisenssillä ${ext(LINKS.ccBy, 'CC BY 4.0')}, kun lähteeksi mainitaan ${ctx.site.brand} ja alkuperäinen tilastolähde. Sivuston ulkoasun, tekstien ja ohjelmakoodin kopioiminen kokonaisuutena, esimerkiksi koko sivuston jäljentäminen, on kielletty ilman lupaa.</p>
+<p>Voit myös upottaa inflaatiokortin omalle sivullesi (<a href="/upotus/ohje/">Upota sivullesi</a>) tai ladata aineistot koneluettavina tiedostoina (<a href="/data/">Avoin data</a>). Avoimen datan tiedostoja saa käyttää vapaasti, kun lähteeksi mainitaan ${ctx.site.brand} ja alkuperäinen tilastolähde; tilastotietoihin sovelletaan alla lueteltuja tuottajien lisenssejä. Sivuston ulkoasun, tekstien ja ohjelmakoodin kopioiminen kokonaisuutena, esimerkiksi koko sivuston jäljentäminen, on kielletty ilman lupaa.</p>
 ${sub('lisenssit', 'Tilastojen lisenssit')}
 <p>Tilastotiedot ovat niiden tuottajien avointa dataa, ja niihin sovelletaan tuottajan käyttöehtoja:</p>
 <ul>
@@ -176,7 +176,7 @@ ${sub('sovellettava-laki', 'Sovellettava laki')}
       [
         html`<a href="#evasteet">Evästevalinta</a>`,
         'Valintasi ja sen päivämäärä (eväste omassa selaimessasi)',
-        'Välttämätön valintasi toteuttamiseksi',
+        'Välttämätön eväste (ei vaadi suostumusta)',
         `${consentMonths} kuukautta`,
       ],
     ],
@@ -204,7 +204,7 @@ ${sub('kavijatilasto', 'Kävijätilasto ilman evästeitä')}
 <p><strong>Käsittelijä:</strong> tiedot tallennetaan Supabase-tietokantapalveluun (Supabase, Inc.). Palvelu vastaanottaa rivin verkon yli ja käsittelee siksi teknisesti myös pyynnön IP-osoitetta, mutta IP-osoitetta ei tallenneta tilastoon.</p>
 ${sub('google-analytics', 'Google Analytics (vain suostumuksella)')}
 <p>Jos sallit analytiikan evästeasetuksissa, sivusto lataa Google Analytics 4 -palvelun. Ilman suostumustasi sitä ei ladata lainkaan.</p>
-<p>Google Analytics kerää tietoa siitä, miten sivustoa käytetään: avatut sivut, viittaava sivu, sivuston toimintojen käyttö (esimerkiksi laskurin käyttö, CSV-tiedoston lataus, linkin jakaminen ja upotuskoodin kopiointi), laite- ja selaintiedot sekä IP-osoitteesta päätelty karkea sijainti. Tunnistaakseen palaavan selaimen se tallentaa selaimeesi evästeet _ga ja ${gaCookie}. Google Analytics 4 ei tallenna IP-osoitteita. Googlen signaalit ja mainonnan personointi ovat poissa käytöstä.</p>
+<p>Google Analytics kerää tietoa siitä, miten sivustoa käytetään: avatut sivut ja viittaava sivu (osoitteet ilman hakuparametreja, joten esimerkiksi laskureihin syöttämäsi summat eivät välity Googlelle), sivuston toimintojen käyttö (esimerkiksi laskurin käyttö, CSV-tiedoston lataus, linkin jakaminen ja upotuskoodin kopiointi), laite- ja selaintiedot sekä IP-osoitteesta päätelty karkea sijainti. Tunnistaakseen palaavan selaimen se tallentaa selaimeesi evästeet _ga ja ${gaCookie}. Google Analytics 4 ei tallenna IP-osoitteita. Googlen signaalit ja mainonnan personointi ovat poissa käytöstä.</p>
 <p><strong>Peruste:</strong> suostumuksesi (6 artiklan 1 kohdan a alakohta). Voit perua suostumuksen milloin tahansa evästeasetuksista. Silloin Google Analytics pysäytetään ja sen evästeet poistetaan selaimestasi.</p>
 <p><strong>Säilytys:</strong> Google Analyticsin tapahtumatiedot säilytetään ${RETENTION_MONTHS} kuukautta, minkä jälkeen ne poistuvat automaattisesti.</p>
 <p><strong>Käsittelijä ja siirrot:</strong> Google Ireland Limited ja sen emoyhtiö Google LLC. Google voi käsitellä tietoja myös Yhdysvalloissa, ks. <a href="#siirrot">Tietojen siirrot</a>.</p>
@@ -258,7 +258,7 @@ ${cookieTable}
 ${sub('selaimen-tallennustila', 'Selaimen tallennustila')}
 <p>Lisäksi sivusto muistaa kaksi näkymävalintaasi selaimesi omassa tallennustilassa (localStorage): teemavalinnan (avain theme), jos valitset vaalean tai tumman teeman, ja etusivulla valitun mittarin (avain inflaatio.mittari), jos valitset YKHI:n. Nämä tiedot eivät lähde selaimestasi mihinkään, ja voit poistaa ne selaimen asetuksista.</p>
 ${sub('evastevalinta', 'Evästevalinnan muuttaminen')}
-<p>Voit muuttaa tai perua valintasi milloin tahansa sivun alareunan Evästeasetukset-painikkeesta tai alla olevasta painikkeesta. Kun perut analytiikan, Google Analytics pysäytetään ja sen evästeet poistetaan. Valintaa kysytään uudelleen ${consentMonths} kuukauden kuluttua tai jos evästeiden käyttötarkoitukset muuttuvat.</p>
+<p>Voit muuttaa tai perua valintasi milloin tahansa sivun alareunan Evästeasetukset-painikkeesta tai alla olevasta painikkeesta. Kun perut analytiikan, Google Analytics pysäytetään ja sen evästeet poistetaan. Valintaa kysytään uudelleen ${consentMonths} kuukauden kuluttua tai jos evästeiden käyttötarkoitukset muuttuvat. Kunnes valitset uudelleen, Google Analytics ei ole käytössä, ja sen evästeet poistetaan.</p>
 <p class="js-only">${c.button({ label: 'Avaa evästeasetukset', variant: 'secondary', attrs: { data: { openConsent: '' } } })}</p>
 <p class="no-js-only">JavaScript on poissa käytöstä, joten sivusto ei aseta evästeitä eikä lataa Google Analyticsia.</p>
 <p>Voit myös poistaa evästeet ja estää niiden tallentamisen selaimesi asetuksista.</p>`;
@@ -266,8 +266,8 @@ ${sub('evastevalinta', 'Evästevalinnan muuttaminen')}
   /* ------------------------------------------------------ 4. Vastuuvapaus */
   const disclaimer = html`
 <p>Sivuston tiedot ovat yleistä tietoa. Ne eivät ole sijoitus-, talous- tai oikeudellista neuvontaa eivätkä korvaa asiantuntijan arviota.</p>
-<p><strong>Tietojen oikeellisuus.</strong> Luvut haetaan automaattisesti Tilastokeskuksen, Eurostatin ja Euroopan keskuspankin avoimista rajapinnoista ja tarkistetaan ennen julkaisua. Virallinen lähde on aina tilaston tuottajan oma julkaisu. Jos huomaat eron, kerro siitä meille.</p>
-<p><strong>Ennakkotiedot.</strong> Eurostatin ennakkoarviot, jotka on merkitty sanalla ennakko, voivat muuttua lopullisessa julkaisussa.</p>
+<p><strong>Tietojen oikeellisuus.</strong> Luvut haetaan automaattisesti Tilastokeskuksen, Eurostatin ja Euroopan keskuspankin avoimista rajapinnoista ja tarkistetaan automaattisesti ennen julkaisua. Virallinen lähde on aina tilaston tuottajan oma julkaisu. Jos huomaat eron, kerro siitä meille.</p>
+<p><strong>Ennakkotiedot.</strong> Sanalla ennakko merkityt luvut (Eurostatin YKHI-pikaennakko ja Tilastokeskuksen ansiotasoindeksin uusimmat neljännekset) voivat muuttua lopullisessa julkaisussa.</p>
 <p><strong>Laskurit.</strong> Laskurien tulokset ovat suuntaa antavia. Esimerkiksi vuokrankorotus määräytyy vuokrasopimuksen ehtojen mukaan, joten tarkista oma sopimuksesi.</p>
 <p><strong>Vastuunrajoitus.</strong> ${op.name} ei vastaa välittömistä tai välillisistä vahingoista, jotka aiheutuvat palvelun tietojen käytöstä tai palvelun käyttökatkoista, ellei pakottavasta lainsäädännöstä muuta johdu.</p>
 <p><strong>Ulkoiset linkit.</strong> Emme vastaa linkitettyjen ulkopuolisten sivustojen sisällöstä tai tietosuojakäytännöistä.</p>`;

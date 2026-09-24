@@ -427,7 +427,8 @@ March–August 2026 releases (see the verification record).
 ## Verification record (September 2026)
 
 Run on 24.9.2026 against the live APIs and compared with the previous site's
-inline data (`index.html`, commit 377bcfa):
+inline data (`index.html` at commit 377bcfa; the old site's files have
+since been removed from the repository):
 
 - KHI annual change: all 560 months 1980-01…2026-08 identical; 2015=100 point
   figures identical for 2015-01…2026-08; 2026-08: 2,2 %, 125,15 (2015=100),
