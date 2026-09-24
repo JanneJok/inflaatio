@@ -556,7 +556,7 @@ ${alts.map((a) => html`<link rel="alternate" hreflang="${a.hreflang}" href="${a.
 <meta name="twitter:image" content="${ogUrl}">
 <meta name="twitter:image:alt" content="${ogAlt}">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
-<link rel="icon" href="/icons/favicon-32x32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
 <link rel="alternate" type="application/rss+xml" title="Inflaatio.fi – uudet luvut" href="/feed.xml">

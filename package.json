@@ -9,6 +9,7 @@
   },
   "scripts": {
     "fetch": "node scripts/fetch/index.js",
+    "icons": "node scripts/generate-icons.js",
     "build": "node scripts/build.js",
     "serve": "node scripts/serve.js",
     "dev": "node scripts/serve.js --build --watch --no-minify",
