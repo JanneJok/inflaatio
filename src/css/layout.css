@@ -1,0 +1,590 @@
+/* =========================================================================
+   Page chrome: sticky header (56 px, hairline), primary nav, live chip,
+   theme menu, mobile menu, main, footer, consent banner, toast.
+   ========================================================================= */
+
+/* ----------------------------------------------------------------- header */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  height: var(--header-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.site-header__inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 100%;
+}
+
+.brand {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  margin-right: var(--space-5);
+  color: var(--text);
+  font-size: 1.0625rem;
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.brand:hover {
+  color: var(--text);
+}
+
+.brand__tld {
+  color: var(--brand);
+}
+
+.site-nav__list {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  list-style: none;
+}
+
+.site-nav__link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: var(--header-h);
+  padding: 0 var(--space-3);
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.site-nav__link:hover {
+  color: var(--text);
+}
+
+.site-nav__link[aria-current] {
+  color: var(--text);
+  font-weight: var(--fw-semibold);
+}
+
+.site-nav__link[aria-current]::after {
+  content: '';
+  position: absolute;
+  left: var(--space-3);
+  right: var(--space-3);
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--brand);
+}
+
+.site-nav__link:focus-visible {
+  outline-offset: -6px;
+}
+
+.header-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+/* Live chip: latest KHI value and month (server-rendered from data). */
+.live-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  margin-right: var(--space-2);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.live-chip:hover {
+  border-color: var(--border-control);
+  color: var(--text);
+}
+
+.live-chip__src {
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-caps);
+}
+
+.live-chip__value {
+  color: var(--text);
+  font-weight: var(--fw-semibold);
+}
+
+.live-chip__month-short {
+  display: none;
+}
+
+/* Icon buttons (theme menu, hamburger, dialog close). */
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-2);
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.icon-button:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.icon-button[aria-expanded='true'] {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* Theme menu (menu button + three menuitemradio). Needs JS. */
+.theme-menu {
+  position: relative;
+  display: none;
+}
+
+.js .theme-menu {
+  display: block;
+}
+
+.theme-menu__icon {
+  display: none;
+}
+
+html:not([data-theme]) .theme-menu__icon--auto,
+html[data-theme='light'] .theme-menu__icon--light,
+html[data-theme='dark'] .theme-menu__icon--dark {
+  display: block;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: var(--z-menu);
+  min-width: 12.5rem;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.menu__label {
+  padding: 6px 10px 4px;
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font-size: var(--fs-small);
+  text-align: left;
+  transition: background-color var(--dur) var(--ease);
+}
+
+.menu__item:hover,
+.menu__item:focus-visible {
+  background: var(--surface-2);
+}
+
+.menu__item:focus-visible {
+  outline-offset: -2px;
+}
+
+.menu__item .icon {
+  color: var(--text-2);
+}
+
+.menu__check {
+  margin-left: auto;
+  visibility: hidden;
+  color: var(--brand);
+}
+
+.menu__item[aria-checked='true'] {
+  font-weight: var(--fw-semibold);
+}
+
+.menu__item[aria-checked='true'] .menu__check {
+  visibility: visible;
+}
+
+/* Hamburger: only on narrow screens and only with JS. */
+.nav-toggle {
+  display: none;
+}
+
+.nav-toggle .icon--close,
+.nav-toggle[aria-expanded='true'] .icon--menu {
+  display: none;
+}
+
+.nav-toggle[aria-expanded='true'] .icon--close {
+  display: block;
+}
+
+@media (max-width: 959.98px) {
+  .js .nav-toggle {
+    display: inline-grid;
+  }
+
+  .js .site-nav {
+    position: absolute;
+    top: var(--header-h);
+    left: 0;
+    right: 0;
+    display: none;
+    padding: var(--space-2) var(--gutter) var(--space-4);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: var(--shadow-lg), 0 0 0 100vmax var(--overlay);
+    clip-path: inset(0 0 -100vmax 0);
+  }
+
+  .js .site-nav.is-open {
+    display: block;
+  }
+
+  .js .site-nav__list {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .js .site-nav__link {
+    width: 100%;
+    height: 48px;
+    padding: 0 var(--space-3);
+    border-bottom: 1px solid var(--border);
+    font-size: var(--fs-body);
+  }
+
+  .js .site-nav__list > li:last-child .site-nav__link {
+    border-bottom: 0;
+  }
+
+  .js .site-nav__link[aria-current]::after {
+    top: 12px;
+    bottom: 12px;
+    left: 0;
+    right: auto;
+    width: 3px;
+    height: auto;
+    border-radius: 0 2px 2px 0;
+  }
+
+  /* Without JS the links wrap onto a second header row. */
+  html:not(.js) .site-header {
+    height: auto;
+  }
+
+  html:not(.js) .site-header__inner {
+    flex-wrap: wrap;
+    padding-block: var(--space-2);
+  }
+
+  html:not(.js) .site-nav {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  html:not(.js) .site-nav__link {
+    height: var(--tap);
+  }
+
+  .live-chip {
+    height: var(--tap);
+    margin-right: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .brand {
+    margin-right: var(--space-2);
+  }
+
+  .live-chip {
+    position: relative;
+    gap: 4px;
+    padding: 0 10px;
+  }
+
+  /* Phones: the month stays visible in the short form "8/2026"; the long
+     form "elo 2026" remains available to screen readers. */
+  .live-chip__month {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .live-chip__month-short {
+    display: inline;
+  }
+}
+
+@media (max-width: 369.98px) {
+  .live-chip__src {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------- main */
+
+.site-main {
+  flex: 1 0 auto;
+}
+
+.page-crumbs {
+  padding-top: var(--space-5);
+}
+
+/* ----------------------------------------------------------------- footer */
+
+.site-footer {
+  margin-top: var(--space-9);
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: var(--fs-small);
+}
+
+.site-footer__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 4fr);
+  gap: var(--space-6) var(--space-7);
+  padding-block: var(--space-7) var(--space-5);
+}
+
+.site-footer__logo {
+  margin-bottom: var(--space-3);
+  color: var(--text);
+  font-size: 1.0625rem;
+  font-weight: var(--fw-bold);
+}
+
+.site-footer__brand p + p {
+  margin-top: var(--space-3);
+}
+
+.site-footer__disclaimer {
+  color: var(--text-3);
+}
+
+.site-footer__nav {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+.site-footer__heading {
+  margin-bottom: var(--space-3);
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-caps);
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.site-footer__list {
+  list-style: none;
+}
+
+.site-footer__list li + li {
+  margin-top: 6px;
+}
+
+.site-footer__link {
+  display: inline;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+}
+
+.site-footer__link:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.site-footer__bottom {
+  grid-column: 1 / -1;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+  color: var(--text-3);
+}
+
+@media (max-width: 860px) {
+  .site-footer__inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .site-footer__nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-5) var(--space-4);
+  }
+}
+
+@media (max-width: 860px) and (pointer: coarse) {
+  .site-footer__list li + li {
+    margin-top: 0;
+  }
+
+  .site-footer__link {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
+  }
+}
+
+/* --------------------------------------------------------- consent banner */
+
+.consent-banner {
+  position: fixed;
+  left: var(--space-4);
+  bottom: var(--space-4);
+  z-index: var(--z-banner);
+  width: min(420px, calc(100vw - 2 * var(--space-4)));
+  max-height: calc(100dvh - var(--header-h) - 2 * var(--space-4));
+  overflow: auto;
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+}
+
+.consent-banner__title {
+  margin-bottom: var(--space-2);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0;
+}
+
+.consent-banner__text {
+  color: var(--text-2);
+  font-size: var(--fs-small);
+}
+
+.consent-banner__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.consent-banner__actions .button {
+  white-space: normal;
+  text-align: center;
+}
+
+.consent-banner__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-3);
+  font-size: var(--fs-small);
+}
+
+.consent-banner__links > * {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+}
+
+/* Keep focused elements visible above the banner (WCAG 2.4.11). */
+html.has-consent-banner {
+  scroll-padding-bottom: 18rem;
+}
+
+@media (max-width: 560px) {
+  .consent-banner {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    padding: var(--space-4) var(--gutter) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+    border-width: 1px 0 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+}
+
+/* A static copy for the style guide. */
+.consent-banner--static {
+  position: static;
+  width: auto;
+  max-width: 420px;
+  max-height: none;
+}
+
+/* ------------------------------------------------------------------ toast */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-5);
+  z-index: var(--z-toast);
+  max-width: min(90vw, 28rem);
+  padding: 10px var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--text);
+  color: var(--bg);
+  font-size: var(--fs-small);
+  font-weight: var(--fw-medium);
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity var(--dur) var(--ease);
+}
+
+.toast.is-visible {
+  opacity: 1;
+}
+
+.toast:empty {
+  padding: 0;
+}

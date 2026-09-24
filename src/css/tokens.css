@@ -1,0 +1,262 @@
+/* =========================================================================
+   Design tokens – "pohjoismainen editoriaalinen datasivu" (ui-suunta.md,
+   SPEC §5 with the verifier corrections: --text-3 #56616D and
+   --series-ykhi-text #9C5205).
+
+   Theme model:
+   - bare :root (and any [data-theme="light"] subtree) = light
+   - OS dark mode applies unless the user chose light (theme-boot.js sets
+     data-theme on <html> before first paint)
+   - [data-theme="dark"] = dark (also usable on a subtree, e.g. the style guide)
+   Components use ONLY these tokens (no hard-coded colours).
+
+   WCAG contrast (computed with the WCAG 2.x formula, min over bg / surface /
+   surface-2). Text needs ≥ 4.5:1, lines/graphics and UI boundaries ≥ 3:1.
+     LIGHT                 bg     surface  surface-2
+     --text               16.58   17.62    15.85
+     --text-2              6.86    7.29     6.56
+     --text-3              5.94    6.31     5.68
+     --brand / khi         6.99    7.43     6.68
+     --series-ykhi         4.31    4.58     4.12   (lines only)
+     --series-ykhi-text    5.46    5.80     5.21
+     --series-ea           5.95    6.32     5.69
+     --series-core         6.13    6.52     5.86
+     --series-3 (green)    5.70    6.06     5.45
+     --series-4 (mustard)  5.67    6.02     5.42
+     --series-5 (blue)     6.47    6.88     6.19
+     --series-6 (slate)    6.86    7.29     6.56
+     --target              5.12    5.44     4.89
+     --delta-up            6.19    6.57     5.91   on --delta-up-soft 5.70
+     --delta-down          5.13    5.45     4.90   on --delta-down-soft 4.75
+     --delta-flat          5.12    5.44     4.89   on --delta-flat-soft 4.76
+     --infl-deflation      6.42    6.83     6.14
+     --infl-low            5.56    5.91     5.31
+     --infl-elevated       4.70    4.99     4.49   (dots/bars only)
+     --infl-high           5.38    5.72     5.14
+     --border-control      3.39    3.61     3.25   (input/checkbox boundaries)
+     --focus               4.65    4.94     4.44
+     white on --brand 7.43, white on --brand-hover 9.67, --brand on --brand-soft 6.46
+     DARK                  bg     surface  surface-2
+     --text               16.22   15.03    13.96
+     --text-2              9.18    8.50     7.89
+     --text-3              6.03    5.59     5.19
+     --brand / khi         8.39    7.77     7.21
+     --series-ykhi(-text)  8.89    8.23     7.64
+     --series-ea           8.54    7.91     7.35
+     --series-core         8.28    7.67     7.12
+     --series-3            9.56    8.85     8.22
+     --series-4           10.76    9.97     9.26
+     --series-5            8.02    7.43     6.90
+     --series-6           10.27    9.51     8.84
+     --target / flat       6.03    5.59     5.19   flat on soft 4.82
+     --delta-up            6.81    6.31     5.86   on --delta-up-soft 5.61
+     --delta-down          9.51    8.81     8.18   on --delta-down-soft 7.30
+     --infl-*              ≥ 5.56 on every surface
+     --border-control      3.72    3.45     3.20
+     --focus               9.07    8.40     7.80
+     --on-brand (#0B1117) on --brand 8.39, on --brand-hover 10.44,
+     --brand on --brand-soft 6.12
+   ========================================================================= */
+
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
+  /* Surfaces */
+  --bg: #F7F8FA;
+  --surface: #FFFFFF;
+  --surface-2: #F1F3F6;
+  --border: #E3E7EC;
+  --border-strong: #C9D1DA;
+  --border-control: #7D8894;
+
+  /* Text */
+  --text: #0E1A24;
+  --text-2: #4A5866;
+  --text-3: #56616D;
+
+  /* Brand */
+  --brand: #0B5C7A;
+  --brand-hover: #094A63;
+  --brand-soft: #E6F1F5;
+  --on-brand: #FFFFFF;
+  --focus: #1F6FD1;
+
+  /* Data series (fixed everywhere: charts, legends, buttons, tables) */
+  --series-khi: #0B5C7A;
+  --series-ykhi: #B45F06;
+  --series-ykhi-text: #9C5205;
+  --series-ea: #6D4AB8;
+  --series-core: #A3326A;
+  --series-3: #2F6F3E;
+  --series-4: #716300;
+  --series-5: #3656A8;
+  --series-6: #4A5866;
+  --target: #5F6B78;
+
+  /* Inflation level (vs. the ECB 2 % target) – shown as a small dot only */
+  --infl-deflation: #5147C7;
+  --infl-low: #23705F;
+  --infl-elevated: #9A6412;
+  --infl-high: #B93A0B;
+
+  /* Direction of a change: kiihtyi / hidastui / ennallaan */
+  --delta-up: #B42318;
+  --delta-down: #1D6FA3;
+  --delta-flat: #5F6B78;
+  --delta-up-soft: #FCEBE9;
+  --delta-down-soft: #E6F1F8;
+  --delta-flat-soft: #EDF0F3;
+
+  /* Feedback */
+  --danger: #B42318;
+  --overlay: rgb(14 26 36 / 0.48);
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px rgb(14 26 36 / 0.06);
+  --shadow-md: 0 1px 2px rgb(14 26 36 / 0.04), 0 4px 12px rgb(14 26 36 / 0.06);
+  --shadow-lg: 0 12px 32px rgb(14 26 36 / 0.14);
+
+  /* Typography: 7-step scale */
+  --font-sans: 'Inter', 'InterFallback', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  --fs-display: clamp(3.25rem, 2.5rem + 5vw, 6rem);
+  --fs-h1: clamp(2rem, 1.6rem + 1.6vw, 2.75rem);
+  --fs-h2: clamp(1.5rem, 1.3rem + 0.8vw, 1.875rem);
+  --fs-h3: 1.125rem;
+  --fs-body: 1rem;
+  --fs-small: 0.875rem;
+  --fs-caption: 0.75rem;
+  --lh-tight: 1.05;
+  --lh-snug: 1.3;
+  --lh-body: 1.6;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --tracking-display: -0.035em;
+  --tracking-tight: -0.02em;
+  --tracking-caps: 0.06em;
+  --measure: 68ch;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  /* Layout */
+  --container: 1120px;
+  --gutter: clamp(16px, 4vw, 32px);
+  --header-h: 56px;
+  --tap: 40px;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  /* Motion: colour transitions only */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur: 160ms;
+
+  /* Layers (dialogs use the top layer) */
+  --z-header: 50;
+  --z-menu: 60;
+  --z-banner: 80;
+  --z-toast: 90;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #0B1117;
+    --surface: #111A22;
+    --surface-2: #16212B;
+    --border: #22303C;
+    --border-strong: #2E3F4E;
+    --border-control: #5F7080;
+    --text: #E8EEF3;
+    --text-2: #A9B6C2;
+    --text-3: #8593A0;
+    --brand: #5CB8D6;
+    --brand-hover: #7FCBE3;
+    --brand-soft: #12303D;
+    --on-brand: #0B1117;
+    --focus: #7FB6FF;
+    --series-khi: #5CB8D6;
+    --series-ykhi: #F0A04B;
+    --series-ykhi-text: #F0A04B;
+    --series-ea: #C39BFF;
+    --series-core: #F28BB8;
+    --series-3: #7CC98A;
+    --series-4: #D6C45C;
+    --series-5: #7FA7FF;
+    --series-6: #B5C0CB;
+    --target: #8593A0;
+    --infl-deflation: #9B9BFF;
+    --infl-low: #4FB3A0;
+    --infl-elevated: #E0A43A;
+    --infl-high: #F2703A;
+    --delta-up: #F97066;
+    --delta-down: #6CC3E0;
+    --delta-flat: #8593A0;
+    --delta-up-soft: #3A1A1B;
+    --delta-down-soft: #0F2C3A;
+    --delta-flat-soft: #1C2732;
+    --danger: #F97066;
+    --overlay: rgb(0 0 0 / 0.62);
+    --shadow-sm: none;
+    --shadow-md: 0 0 0 1px #22303C;
+    --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.55);
+  }
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0B1117;
+  --surface: #111A22;
+  --surface-2: #16212B;
+  --border: #22303C;
+  --border-strong: #2E3F4E;
+  --border-control: #5F7080;
+  --text: #E8EEF3;
+  --text-2: #A9B6C2;
+  --text-3: #8593A0;
+  --brand: #5CB8D6;
+  --brand-hover: #7FCBE3;
+  --brand-soft: #12303D;
+  --on-brand: #0B1117;
+  --focus: #7FB6FF;
+  --series-khi: #5CB8D6;
+  --series-ykhi: #F0A04B;
+  --series-ykhi-text: #F0A04B;
+  --series-ea: #C39BFF;
+  --series-core: #F28BB8;
+  --series-3: #7CC98A;
+  --series-4: #D6C45C;
+  --series-5: #7FA7FF;
+  --series-6: #B5C0CB;
+  --target: #8593A0;
+  --infl-deflation: #9B9BFF;
+  --infl-low: #4FB3A0;
+  --infl-elevated: #E0A43A;
+  --infl-high: #F2703A;
+  --delta-up: #F97066;
+  --delta-down: #6CC3E0;
+  --delta-flat: #8593A0;
+  --delta-up-soft: #3A1A1B;
+  --delta-down-soft: #0F2C3A;
+  --delta-flat-soft: #1C2732;
+  --danger: #F97066;
+  --overlay: rgb(0 0 0 / 0.62);
+  --shadow-sm: none;
+  --shadow-md: 0 0 0 1px #22303C;
+  --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.55);
+}

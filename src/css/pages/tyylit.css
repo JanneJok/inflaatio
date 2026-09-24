@@ -1,0 +1,207 @@
+/* Page styles: /tyylit/ (style guide, module tyylit, owner BUILD).
+   Everything is scoped under [data-page="tyylit"]. */
+
+[data-page='tyylit'] .guide {
+  display: grid;
+  grid-template-columns: minmax(0, 13rem) minmax(0, 1fr);
+  gap: var(--space-7);
+  align-items: start;
+}
+
+/* The sticky ToC needs a full-height grid cell to slide in. */
+[data-page='tyylit'] .guide > aside {
+  align-self: stretch;
+}
+
+@media (max-width: 959.98px) {
+  [data-page='tyylit'] .guide {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+}
+
+[data-page='tyylit'] .guide__body > section {
+  padding-block: var(--space-7);
+  border-top: 1px solid var(--border);
+}
+
+[data-page='tyylit'] .guide__body > section:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+[data-page='tyylit'] .guide__body h2 {
+  margin-bottom: var(--space-4);
+}
+
+[data-page='tyylit'] .guide__body h2 + .guide__intro {
+  margin-top: calc(-1 * var(--space-2));
+}
+
+[data-page='tyylit'] .guide__body section > .chart-figure,
+[data-page='tyylit'] .guide__body section > .guide__two {
+  margin-top: var(--space-7);
+}
+
+[data-page='tyylit'] .guide__body section > .guide__intro + .chart-figure {
+  margin-top: 0;
+}
+
+[data-page='tyylit'] .guide__intro {
+  max-width: var(--measure);
+  margin-bottom: var(--space-5);
+  color: var(--text-2);
+}
+
+[data-page='tyylit'] .guide__label {
+  margin: var(--space-6) 0 var(--space-3);
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+[data-page='tyylit'] .guide__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+[data-page='tyylit'] .guide__two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+
+@media (max-width: 720px) {
+  [data-page='tyylit'] .guide__two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+[data-page='tyylit'] .guide__chart {
+  margin-top: var(--space-4);
+}
+
+[data-page='tyylit'] .guide__demo {
+  padding: var(--space-5);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+/* Colour swatches */
+[data-page='tyylit'] .swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+  gap: var(--space-3);
+  list-style: none;
+}
+
+[data-page='tyylit'] .swatch {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-size: var(--fs-small);
+}
+
+[data-page='tyylit'] .swatch__chip {
+  display: block;
+  height: 44px;
+  border-bottom: 1px solid var(--border);
+}
+
+[data-page='tyylit'] .swatch code {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+}
+
+[data-page='tyylit'] .swatch--bg { background: var(--bg); }
+[data-page='tyylit'] .swatch--surface { background: var(--surface); }
+[data-page='tyylit'] .swatch--surface-2 { background: var(--surface-2); }
+[data-page='tyylit'] .swatch--border { background: var(--border); }
+[data-page='tyylit'] .swatch--border-strong { background: var(--border-strong); }
+[data-page='tyylit'] .swatch--border-control { background: var(--border-control); }
+[data-page='tyylit'] .swatch--text { background: var(--text); }
+[data-page='tyylit'] .swatch--text-2 { background: var(--text-2); }
+[data-page='tyylit'] .swatch--text-3 { background: var(--text-3); }
+[data-page='tyylit'] .swatch--brand { background: var(--brand); }
+[data-page='tyylit'] .swatch--brand-hover { background: var(--brand-hover); }
+[data-page='tyylit'] .swatch--brand-soft { background: var(--brand-soft); }
+[data-page='tyylit'] .swatch--focus { background: var(--focus); }
+[data-page='tyylit'] .swatch--series-khi { background: var(--series-khi); }
+[data-page='tyylit'] .swatch--series-ykhi { background: var(--series-ykhi); }
+[data-page='tyylit'] .swatch--series-ykhi-text { background: var(--series-ykhi-text); }
+[data-page='tyylit'] .swatch--series-ea { background: var(--series-ea); }
+[data-page='tyylit'] .swatch--series-core { background: var(--series-core); }
+[data-page='tyylit'] .swatch--series-3 { background: var(--series-3); }
+[data-page='tyylit'] .swatch--series-4 { background: var(--series-4); }
+[data-page='tyylit'] .swatch--series-5 { background: var(--series-5); }
+[data-page='tyylit'] .swatch--series-6 { background: var(--series-6); }
+[data-page='tyylit'] .swatch--target { background: var(--target); }
+[data-page='tyylit'] .swatch--infl-deflation { background: var(--infl-deflation); }
+[data-page='tyylit'] .swatch--infl-low { background: var(--infl-low); }
+[data-page='tyylit'] .swatch--infl-elevated { background: var(--infl-elevated); }
+[data-page='tyylit'] .swatch--infl-high { background: var(--infl-high); }
+[data-page='tyylit'] .swatch--delta-up { background: var(--delta-up); }
+[data-page='tyylit'] .swatch--delta-down { background: var(--delta-down); }
+[data-page='tyylit'] .swatch--delta-flat { background: var(--delta-flat); }
+[data-page='tyylit'] .swatch--delta-up-soft { background: var(--delta-up-soft); }
+[data-page='tyylit'] .swatch--delta-down-soft { background: var(--delta-down-soft); }
+[data-page='tyylit'] .swatch--delta-flat-soft { background: var(--delta-flat-soft); }
+
+/* Type scale */
+[data-page='tyylit'] .type-scale > * + * {
+  margin-top: var(--space-4);
+}
+
+[data-page='tyylit'] .type-scale__display {
+  font-size: var(--fs-display);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-display);
+  line-height: var(--lh-tight);
+}
+
+[data-page='tyylit'] .type-scale__caption {
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+}
+
+/* Side-by-side theme panels */
+[data-page='tyylit'] .theme-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+@media (max-width: 860px) {
+  [data-page='tyylit'] .theme-panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+[data-page='tyylit'] .theme-panel {
+  --chart-halo: var(--bg);
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+[data-page='tyylit'] .theme-panel > * + * {
+  margin-top: var(--space-4);
+}
+
+[data-page='tyylit'] .theme-panel .kpi-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+[data-page='tyylit'] .demo-output {
+  margin-top: var(--space-3);
+  color: var(--text-2);
+  font-size: var(--fs-small);
+}

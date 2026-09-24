@@ -1,0 +1,145 @@
+/* =========================================================================
+   Print: dark text on white, no chrome or controls, URLs of external links,
+   every <details> expanded (site.js opens them on beforeprint), all table
+   rows visible.
+   ========================================================================= */
+
+@media print {
+  /* Force the light palette whatever the screen theme (specificity 0,2,0
+     beats the auto-dark rule; this file is imported last). */
+  :root:not(.print-x),
+  [data-theme]:not(.print-x) {
+    color-scheme: light;
+    --bg: #FFFFFF;
+    --surface: #FFFFFF;
+    --surface-2: #FFFFFF;
+    --border: #BBBBBB;
+    --border-strong: #888888;
+    --border-control: #888888;
+    --text: #000000;
+    --text-2: #222222;
+    --text-3: #444444;
+    --brand: #0B5C7A;
+    --series-khi: #0B5C7A;
+    --series-ykhi: #B45F06;
+    --series-ykhi-text: #9C5205;
+    --series-ea: #6D4AB8;
+    --series-core: #A3326A;
+    --series-3: #2F6F3E;
+    --series-4: #716300;
+    --series-5: #3656A8;
+    --series-6: #4A5866;
+    --target: #5F6B78;
+    --infl-deflation: #5147C7;
+    --infl-low: #23705F;
+    --infl-elevated: #9A6412;
+    --infl-high: #B93A0B;
+    --delta-up: #B42318;
+    --delta-down: #1D6FA3;
+    --delta-flat: #5F6B78;
+    --delta-up-soft: transparent;
+    --delta-down-soft: transparent;
+    --delta-flat-soft: transparent;
+    --shadow-sm: none;
+    --shadow-md: none;
+    --shadow-lg: none;
+  }
+
+  @page {
+    margin: 16mm 14mm;
+  }
+
+  html {
+    font-size: 11pt;
+  }
+
+  body {
+    display: block;
+    background: #FFFFFF;
+    color: #000000;
+  }
+
+  .skip-link,
+  .site-header,
+  .site-nav,
+  .consent-banner,
+  .toast,
+  .dialog,
+  .theme-menu,
+  .nav-toggle,
+  .segmented,
+  .button,
+  .table-toggle,
+  .chart-figure__actions,
+  .site-footer__nav,
+  .toc,
+  .no-print,
+  [data-copy-target],
+  [data-copy-text],
+  [data-share] {
+    display: none !important;
+  }
+
+  .container {
+    max-width: none;
+    padding-inline: 0;
+  }
+
+  .section {
+    padding-block: 12pt;
+  }
+
+  a {
+    color: #000000;
+  }
+
+  /* Show where external links point. */
+  .site-main a[href^='http']:not([href^='https://inflaatio.fi'])::after {
+    content: ' (' attr(href) ')';
+    color: #444444;
+    font-size: 0.85em;
+    font-weight: 400;
+    word-break: break-all;
+  }
+
+  details > summary::after {
+    display: none;
+  }
+
+  details::details-content {
+    display: block;
+    content-visibility: visible;
+  }
+
+  .js .data-table[data-collapsed='true'] tr[data-extra] {
+    display: table-row;
+  }
+
+  .kpi,
+  .card,
+  .callout,
+  .chart-figure,
+  .chart-svg,
+  .data-table tr,
+  .disclosure {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+
+  .site-footer {
+    margin-top: 18pt;
+    border-top: 1px solid #888888;
+    background: none;
+  }
+
+  .site-footer__inner {
+    display: block;
+    padding-block: 8pt 0;
+  }
+}

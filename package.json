@@ -1,15 +1,32 @@
 {
   "name": "inflaatio-site",
-  "version": "1.0.0",
-  "description": "Inflaatio.fi - Finnish inflation tracker",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Inflaatio.fi – Suomen viralliset inflaatioluvut. Staattinen sivusto, joka generoidaan omalla build-skriptillä.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
-    "build": "node build.js",
-    "bump": "node scripts/bump-version.js",
-    "release": "node build.js && node scripts/bump-version.js",
-    "dev": "python -m http.server 8000"
+    "fetch": "node scripts/fetch/index.js",
+    "build": "node scripts/build.js",
+    "serve": "node scripts/serve.js",
+    "dev": "node scripts/serve.js --build --watch --no-minify",
+    "test": "node --test \"test/**/*.test.js\"",
+    "lint": "eslint .",
+    "check-links": "node scripts/check-links.js",
+    "check": "npm run lint && npm test && npm run build && npm run check-links"
   },
   "devDependencies": {
-    "clean-css": "^5.3.3",
-    "terser": "^5.36.0"
+    "@emailjs/browser": "^4.4.1",
+    "@eslint/js": "^10.0.1",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource/inter": "^5.3.0",
+    "@resvg/resvg-js": "^2.6.2",
+    "chart.js": "^4.5.1",
+    "chartjs-plugin-annotation": "^3.1.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.11.0",
+    "globals": "^17.12.0"
   }
 }
