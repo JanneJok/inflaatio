@@ -66,7 +66,7 @@ jobs:
       # The action installs flyctl itself: pinned too (docs/OPERATIONS.md →
       # Päivitykset), the same version in update-data.yml.
       - name: flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be # 1.5
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
         with:
           version: '0.4.104'
 
