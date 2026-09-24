@@ -1,0 +1,35 @@
+# Dependabot version updates: weekly, grouped into few pull requests.
+# Every PR runs CI (.github/workflows/ci.yml) before it can be merged.
+# Security updates are separate: enable "Dependabot alerts" and "Dependabot
+# security updates" in the repository settings (docs/OPERATIONS.md).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Helsinki
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: deps
+    groups:
+      # Minor and patch updates of all packages in one PR; majors one by one.
+      npm-minor-ja-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Helsinki
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: ci
+    groups:
+      # Keeps the pinned commit SHAs and their version comments up to date.
+      actions:
+        patterns: ['*']

@@ -1,0 +1,89 @@
+# CI: every pull request and every push to main.
+# Lint, tests, production build, internal link check, and the Docker image
+# (built and smoke-tested locally on the runner, never pushed).
+# Every action is pinned to a full commit SHA (version in the comment);
+# Dependabot (.github/dependabot.yml) proposes updates.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: Lint, testit, build ja linkit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Node.js 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Asenna riippuvuudet (package-lock.json)
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Testit
+        run: npm test
+
+      - name: Tuotantobuild
+        run: npm run build
+
+      - name: Sisäiset linkit
+        run: node scripts/check-links.js
+
+  docker:
+    name: Docker-image ja savutesti
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Node.js 24 (savutestiä varten)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+
+      - name: Rakenna image (ei pushia)
+        run: docker build --pull -t inflaatio:ci .
+
+      - name: Käynnistä kontti
+        run: |
+          docker run -d --name inflaatio-ci -p 8080:8080 inflaatio:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/healthz >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          docker logs inflaatio-ci
+          exit 1
+
+      - name: Savutesti (otsakkeet, välimuisti, uudelleenohjaukset, 404, gzip)
+        env:
+          SMOKE_URL: http://127.0.0.1:8080
+          SMOKE_EXPECT_LATEST: '1'
+        run: node --test --test-name-pattern='^smoke' test/ops.test.js
+
+      - name: nginx-loki
+        if: always()
+        run: docker logs inflaatio-ci 2>&1 | tail -n 100 || true

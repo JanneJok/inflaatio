@@ -1,27 +1,46 @@
-# fly.toml app configuration file generated for inflaatio on 2026-01-06T20:40:00+02:00
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+# Fly.io configuration for Inflaatio.fi: a static site served by nginx in
+# Docker (see Dockerfile and deploy/nginx.conf). Deployed by
+# .github/workflows/deploy.yml and update-data.yml (flyctl deploy --remote-only).
+# Reference: https://fly.io/docs/reference/configuration/
+# Cutover, costs and day-to-day operations: docs/OPERATIONS.md
 
 app = 'inflaatio'
-primary_region = 'arn'  # Stockholm - closest to Finland
+primary_region = 'arn'        # Stockholm, the region closest to Finland
+kill_signal = 'SIGQUIT'       # nginx: graceful shutdown (finish open requests)
+kill_timeout = '10s'
 
 [build]
   dockerfile = 'Dockerfile'
 
+[deploy]
+  # Start new machines, wait for the health check below to pass, then replace
+  # the old ones: no downtime, and a broken image never goes live.
+  strategy = 'bluegreen'
+
 [http_service]
-  internal_port = 8080
+  internal_port = 8080        # = listen in deploy/nginx.conf
   force_https = true
-  auto_stop_machines = true
+  auto_stop_machines = 'stop'
   auto_start_machines = true
+  # 0 = cheapest: an idle machine stops and the first request after a quiet
+  # period waits for it to start (typically well under 2 s for nginx). Set 1
+  # to keep one machine always running (no cold starts, costs a few euros a
+  # month); see "Kylmäkäynnistys" in docs/OPERATIONS.md.
   min_machines_running = 0
   processes = ['app']
 
   [http_service.concurrency]
     type = 'requests'
-    hard_limit = 250
     soft_limit = 200
+    hard_limit = 250
+
+  [[http_service.checks]]
+    grace_period = '5s'
+    interval = '30s'
+    method = 'GET'
+    path = '/healthz'
+    timeout = '5s'
 
 [[vm]]
+  size = 'shared-cpu-1x'
   memory = '256mb'
-  cpu_kind = 'shared'
-  cpus = 1

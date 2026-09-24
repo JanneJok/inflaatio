@@ -1,0 +1,84 @@
+# Deploy to Fly.io on every push to main that changes the site (and by hand).
+# Data commits made by update-data.yml do NOT trigger this workflow (pushes
+# with GITHUB_TOKEN never trigger workflows); that workflow deploys itself.
+# Both share the concurrency group "fly-deploy", so deployments never overlap.
+# The FLY_API_TOKEN secret is a deploy token of the Fly app (docs/OPERATIONS.md).
+name: Julkaisu (Fly.io)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - 'deploy/**'
+      - 'data/**'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'fly.toml'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fly-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Testaa ja julkaise
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Node.js 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Asenna riippuvuudet
+        run: npm ci
+
+      # A direct push to main (without a pull request) must not go live broken.
+      - name: Testit, build ja linkit ennen julkaisua
+        run: |
+          npm test
+          npm run build
+          node scripts/check-links.js
+
+      - name: flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be # 1.5
+
+      - name: flyctl deploy --remote-only
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      # Straight to the Fly app (not through Cloudflare): headers, cache rules,
+      # redirects, 404 and the latest KHI month of the deployed commit.
+      - name: Savutesti julkaistuun sovellukseen
+        run: |
+          app="$(sed -n "s/^app = '\(.*\)'.*/\1/p" fly.toml)"
+          echo "Tarkistetaan https://$app.fly.dev"
+          SMOKE_URL="https://$app.fly.dev" SMOKE_EXPECT_LATEST=1 \
+            node --test --test-name-pattern='^smoke' test/ops.test.js
+
+      - name: Yhteenveto
+        if: always()
+        run: |
+          {
+            echo "### Julkaisu (Fly.io)"
+            echo
+            echo "- Commit: \`${GITHUB_SHA:0:7}\`"
+            echo "- Tulos: ${{ job.status }}"
+            echo "- Sovellus: $(sed -n "s/^app = '\(.*\)'.*/\1/p" fly.toml) · https://inflaatio.fi/"
+          } >> "$GITHUB_STEP_SUMMARY"

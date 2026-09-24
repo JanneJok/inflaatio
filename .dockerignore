@@ -1,26 +1,18 @@
-# Git
-.git
-.gitignore
-.github
+# Docker build context = ALLOWLIST. Only what the Dockerfile copies is sent to
+# the builder (locally or Fly's remote builder): no node_modules, dist, .tmp,
+# .git, docs, tests or the old site's root files. Add a path here only when
+# the Dockerfile starts to COPY it (test/ops.test.js checks both agree).
+*
+!package.json
+!package-lock.json
+!scripts/
+!src/
+!data/
+!deploy/
 
-# Node
-node_modules
-npm-debug.log
-
-# Development files
-.vscode
-.idea
-*.md
-!README.md
-
-# Local files
-stats-viewer.html
-update-all-data.js
-.claude
-.env
-*.log
-
-# OS files
-.DS_Store
-Thumbs.db
-nul
+# Never, even inside the allowed directories.
+**/.DS_Store
+**/Thumbs.db
+**/*.log
+**/.env
+**/.env.*
