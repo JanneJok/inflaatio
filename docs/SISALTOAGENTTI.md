@@ -31,12 +31,36 @@ Muut automaatiot, joita agentti ei tarvitse:
 | Nimi | Inflaatio.fi: kuukausittainen sisältötarkistus |
 | Aikataulu | `0 6 24 * *` (UTC) eli kuun 24. päivä klo 9.00 kesäaikaan, 8.00 talviaikaan |
 | Repositorio | https://github.com/JanneJok/inflaatio |
-| Työkalut | Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch |
+| Malli | Claude Sonnet 5 (`claude-sonnet-5`) |
+| Työkalut | pilvisession oletustyökalut: mm. Bash, WebFetch, WebSearch ja GitHub-työkalut (`mcp__github__*`); `gh`-komentoa ei ole |
+| GitHub | claude.ai-tiliin yhdistetty GitHub-tili; vain JanneJok voi pushata repoon, ja pushaus onnistuu vain `claude/`-alkuisiin haaroihin |
 | Hallinta | https://claude.ai/code/routines (ajo käsin, keskeytys, poisto, lokit) |
 
 Kuun 24. päivänä saman kuun ennusteet ovat yleensä jo julkaistu: EKP ja
 Suomen Pankki julkaisevat kuun alku- tai puolivälissä, valtiovarainministeriö
 yleensä viimeistään kolmannella viikolla.
+
+### Verkkoyhteydet
+
+Pilviympäristön oletusasetus (*Trusted*) sallii vain yleiset kehityspalvelut
+(esimerkiksi npm:n; GitHub kulkee omaa reittiään), joten lähteiden osoitteet
+pitää sallia erikseen. Kerran tehtävä asetus: rutiinin sivulla nimen vieressä
+oleva valikko → *Edit* → *Instructions*-kentän alla oleva pilvikuvake
+(ympäristö) → ympäristön asetuskuvake → *Network access*: *Custom*, valitse
+*Also include default list of common package managers* ja kirjoita
+*Allowed domains* -kenttään (yksi riviä kohden):
+
+```text
+www.eurojatalous.fi
+www.suomenpankki.fi
+vm.fi
+julkaisut.valtioneuvosto.fi
+www.ecb.europa.eu
+```
+
+Tallenna (*Save changes*); asetus on voimassa seuraavasta ajosta alkaen.
+Ilman näitä verkkohaku palauttaa virheen `EGRESS_BLOCKED`, eikä agentti voi
+tarkistaa lukuja.
 
 ## Agentin tehtävä
 
@@ -59,9 +83,11 @@ Säännöt:
    muokattua tai kaupallista käyttöä). Älä kopioi julkaisusta mitään muuta.
 2. **Tarkista jokainen luku julkaisijan omalta sivulta** (HTML-sivu tai
    PDF). Uutiset, tiedotteiden uudelleenjulkaisut ja muut toissijaiset
-   lähteet eivät kelpaa luvun lähteeksi. Jos et saa alkuperäistä auki etkä
-   pysty lukemaan lukuja varmasti, älä muuta riviä vaan kerro asiasta
-   raportissa.
+   lähteet eivät kelpaa luvun lähteeksi, eivätkä myöskään hakutulosten
+   tiivistelmät. Jos et saa alkuperäistä auki etkä pysty lukemaan lukuja
+   varmasti, älä muuta riviä vaan kerro asiasta raportissa. Jos haku
+   palauttaa `EGRESS_BLOCKED`, älä yritä kiertää estoa, vaan nimeä
+   raportissa domain, joka pitää sallia (ks. *Verkkoyhteydet*).
 3. Luku on **vuosimuutos prosentteina (vuosikeskiarvo)** juuri sille
    mittarille ja alueelle, jonka rivi kertoo: Suomen YKHI, Suomen KHI tai
    euroalueen YKHI. Euroalueen lukua ei koskaan kirjata Suomen luvuksi.
@@ -145,16 +171,20 @@ raportissa ja PR:ssä.
   raporttiin "Ei muutoksia" ja lyhyeen yhteenvetoon siitä, mitä tarkistit.
 - Muuta vain tiedostoja `src/content/ennusteet.json` ja
   `src/content/tapahtumat.json`.
-- Git-identiteetti asetetaan repokohtaisesti ennen committia:
+- Git-identiteetti asetetaan repokohtaisesti ennen committia. Pilviympäristön
+  oletus on `Claude <noreply@anthropic.com>`, joten tätä ei saa ohittaa:
 
   ```bash
   git config user.name "JanneJok"
   git config user.email "janne.jokela84@gmail.com"
+  git var GIT_AUTHOR_IDENT   # pitää näyttää JanneJok <janne.jokela84@gmail.com>
   ```
 
 - Haara `claude/sisalto-YYYY-MM` (ajon kuukausi), commit-viesti
   `sisältö: ennusteet ja tapahtumat YYYY-MM`.
 - PR `main`-haaraan otsikolla `Sisältö YYYY-MM: ennusteet ja tapahtumat`.
+  Avaa PR GitHub-työkalulla `mcp__github__create_pull_request` (lataa se
+  ToolSearchilla); `gh`-komentoa ympäristössä ei ole.
   Kuvaukseen jokaisesta muuttuneesta ennusteesta: ennustaja, julkaisu,
   julkaisupäivä, linkki, vanhat → uudet luvut ja kohta, josta luvut löytyvät
   (taulukon nimi tai sivunumero). Jokaisesta uudesta tapahtumasta:
