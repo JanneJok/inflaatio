@@ -1,10 +1,11 @@
 /**
- * Cookie consent (SPEC §0.2): Google Analytics runs only after an explicit
- * "Salli analytiikka". The own page-view counter (analytics.js) is cookieless
- * and does not depend on this choice.
+ * Cookie consent (SPEC §0.2): Google Analytics and the own event statistics
+ * (analytics.js ownEvent) run only after an explicit "Salli analytiikka". The
+ * own page-view counter (analytics.js) is cookieless and does not depend on
+ * this choice.
  *
  * Storage: ONE first-party cookie, no localStorage fallback:
- *   inflaatio_cookie_consent = encodeURIComponent('{"v":2,"analytics":true|false,"d":"YYYY-MM-DD"}')
+ *   inflaatio_cookie_consent = encodeURIComponent('{"v":3,"analytics":true|false,"d":"YYYY-MM-DD"}')
  *   Max-Age 12 months, Path=/, SameSite=Lax, Secure on https.
  * A stored choice is ignored (the banner is shown again) when
  *   - its version differs from CONSENT_VERSION (bump it whenever the purposes

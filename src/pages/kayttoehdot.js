@@ -16,15 +16,20 @@
  */
 import { operatorAddress, operatorPostal } from '../templates/layout.js';
 import { GA_COOKIE_MAX_AGE_DAYS, PAGE_VIEW_FIELDS, RETENTION_MONTHS } from '../js/lib/analytics.js';
+import { OWN_EVENTS } from '../js/lib/tilastot-events.js';
 
 /** Date the terms/privacy text was last changed (YYYY-MM-DD). */
-export const TERMS_UPDATED = '2026-09-24';
+export const TERMS_UPDATED = '2026-09-29';
 
 /** Retention of contact form messages after the matter is closed (owner practice). */
 export const CONTACT_RETENTION_MONTHS = 12;
 
 /** Change history of this document, newest first. */
 const CHANGES = [
+  {
+    date: '2026-09-29',
+    text: 'Lisättiin oma tapahtumatilasto, joka on käytössä vain analytiikkasuostumuksella: se laskee esimerkiksi laskurien käytön ja tiedostolataukset ilman evästeitä ja tunnisteita. Siksi evästevalinta kysytään uudelleen.',
+  },
   {
     date: '2026-09-24',
     text: 'Käyttöehdot ja tietosuojaseloste uudistettiin ja koottiin yhdelle sivulle. Seloste kuvaa nyt evästeettömän kävijätilaston, Google Analyticsin (vain suostumuksella), yhteydenottolomakkeen ja sivuston tekniset palveluntarjoajat säilytysaikoineen, ja evästeluettelo lisättiin. Lukujen lainaaminen lähdeviitteen kanssa on sallittu.',
@@ -156,6 +161,12 @@ ${sub('sovellettava-laki', 'Sovellettava laki')}
         `${RETENTION_MONTHS} kuukautta`,
       ],
       [
+        html`<a href="#tapahtumatilasto">Oma tapahtumatilasto</a>`,
+        'Sivuston toiminnon nimi (esimerkiksi laskurin käyttö), sivun osoite, tarkenne ja aika',
+        'Suostumus',
+        `${RETENTION_MONTHS} kuukautta`,
+      ],
+      [
         html`<a href="#google-analytics">Google Analytics</a>`,
         'Sivujen ja toimintojen käyttö, laite- ja selaintiedot, karkea sijainti ja evästetunniste',
         'Suostumus',
@@ -202,6 +213,15 @@ ${sub('kavijatilasto', 'Kävijätilasto ilman evästeitä')}
 <p><strong>Peruste:</strong> oikeutettu etu (tietosuoja-asetuksen 6 artiklan 1 kohdan f alakohta). Etumme on seurata palvelun käyttöä, jotta voimme kehittää ja ylläpitää sitä. Koska tiedot on minimoitu eikä niistä voi tunnistaa kävijää, käsittely ei arviomme mukaan juurikaan vaikuta yksityisyyteesi. Voit vastustaa käsittelyä, ks. <a href="#oikeutesi">Oikeutesi</a>.</p>
 <p><strong>Säilytys:</strong> rivit poistetaan automaattisesti ${RETENTION_MONTHS} kuukauden kuluttua.</p>
 <p><strong>Käsittelijä:</strong> tiedot tallennetaan Supabase-tietokantapalveluun (Supabase, Inc.). Palvelu vastaanottaa rivin verkon yli ja käsittelee siksi teknisesti myös pyynnön IP-osoitetta, mutta IP-osoitetta ei tallenneta tilastoon.</p>
+${sub('tapahtumatilasto', 'Oma tapahtumatilasto (vain suostumuksella)')}
+<p>Jos sallit analytiikan evästeasetuksissa, sivusto kirjaa samaan omaan tilastoon myös sivuston toimintojen käytön. Ilman suostumusta tapahtumia ei lähetetä. Jokaisesta tapahtumasta tallentuu yksi rivi, jossa on vain tapahtuman nimi, sivun osoite ilman hakuparametreja, tarvittaessa sivuston oma tarkenne (esimerkiksi laskurin nimi, ladatun tiedoston nimi, kaavion aikaväli tai avatun linkin verkkotunnus) sekä tallennusaika. Laskureihin syöttämiäsi lukuja, kirjoittamiasi tekstejä, IP-osoitetta, evästeitä tai tunnisteita ei tallenneta, eikä rivejä yhdistetä toisiinsa tai sivulatauksiin.</p>
+<p>Kirjattavat tapahtumat:</p>
+<ul>
+  ${Object.values(OWN_EVENTS).map((e) => html`<li><strong>${e.label}:</strong> ${e.desc}</li>`)}
+</ul>
+<p><strong>Peruste:</strong> suostumuksesi (6 artiklan 1 kohdan a alakohta). Voit perua suostumuksen milloin tahansa evästeasetuksista, jolloin tapahtumia ei enää lähetetä.</p>
+<p><strong>Säilytys:</strong> rivit poistetaan automaattisesti ${RETENTION_MONTHS} kuukauden kuluttua.</p>
+<p><strong>Käsittelijä:</strong> Supabase (Supabase, Inc.), kuten kävijätilastossa. Tilastoja katsoo vain ylläpitäjä kirjautumisen takana olevasta koostenäkymästä, jossa näkyvät vain päiväkohtaiset määrät.</p>
 ${sub('google-analytics', 'Google Analytics (vain suostumuksella)')}
 <p>Jos sallit analytiikan evästeasetuksissa, sivusto lataa Google Analytics 4 -palvelun. Ilman suostumustasi sitä ei ladata lainkaan.</p>
 <p>Google Analytics kerää tietoa siitä, miten sivustoa käytetään: avatut sivut ja viittaava sivu (osoitteet ilman hakuparametreja, joten esimerkiksi laskureihin syöttämäsi summat eivät välity Googlelle), sivuston toimintojen käyttö (esimerkiksi laskurin käyttö, CSV-tiedoston lataus, linkin jakaminen ja upotuskoodin kopiointi), laite- ja selaintiedot sekä IP-osoitteesta päätelty karkea sijainti. Tunnistaakseen palaavan selaimen se tallentaa selaimeesi evästeet _ga ja ${gaCookie}. Google Analytics 4 ei tallenna IP-osoitteita. Googlen signaalit ja mainonnan personointi ovat poissa käytöstä.</p>
@@ -216,7 +236,7 @@ ${sub('yhteydenotot', 'Yhteydenottolomake')}
 ${sub('palveluntarjoajat', 'Sivuston toimittaminen: palvelin, verkko ja lokit')}
 <p>Sivusto toimitetaan Fly.io-pilvipalvelusta (Fly.io, Inc.), ja liikenne kulkee Cloudflaren (Cloudflare, Inc.) verkon kautta. Kun avaat sivun, nämä palveluntarjoajat käsittelevät teknisesti välttämättömiä tietoja, kuten IP-osoitettasi, selaimesi tietoja sekä pyydetyn sivun osoitetta ja ajankohtaa, jotta sivu voidaan toimittaa ja palvelu suojata hyökkäyksiltä ja väärinkäytöksiltä. Tiedot voivat tallentua palveluntarjoajien lokeihin lyhyeksi ajaksi niiden käytäntöjen mukaisesti. Emme käytä lokeja kävijöiden seurantaan emmekä yhdistä niitä muihin tietoihin.</p>
 <p><strong>Peruste:</strong> oikeutettu etu (palvelun toimittaminen ja tietoturva).</p>
-<p>Sivusto ei lataa fontteja, skriptejä tai muita tiedostoja kolmansien osapuolten palvelimilta. Ainoat poikkeukset ovat edellä kuvatut: kävijätilaston tallennus Supabaseen, Google Analytics suostumuksellasi ja yhteydenottolomakkeen lähetys EmailJS:lle.</p>
+<p>Sivusto ei lataa fontteja, skriptejä tai muita tiedostoja kolmansien osapuolten palvelimilta. Ainoat poikkeukset ovat edellä kuvatut: kävijätilaston ja (suostumuksellasi) tapahtumatilaston tallennus Supabaseen, Google Analytics suostumuksellasi ja yhteydenottolomakkeen lähetys EmailJS:lle.</p>
 ${sub('siirrot', 'Tietojen siirrot EU:n ja ETA:n ulkopuolelle')}
 <p>Osa palveluntarjoajistamme on yhdysvaltalaisia yrityksiä tai niiden tytäryhtiöitä, ja ne voivat käsitellä tietoja myös EU:n ja ETA:n ulkopuolella. Tällöin siirrot perustuvat tietosuoja-asetuksen mukaisiin suojatoimiin, kuten Euroopan komission tietosuojan riittävyyttä koskevaan päätökseen (EU:n ja Yhdysvaltojen välinen tietosuojakehys) tai komission hyväksymiin vakiosopimuslausekkeisiin. Emme myy tai luovuta henkilötietoja muille.</p>
 ${sub('oikeutesi', 'Oikeutesi')}
@@ -230,7 +250,7 @@ ${sub('oikeutesi', 'Oikeutesi')}
   <li>oikeus vastustaa oikeutettuun etuun perustuvaa käsittelyä (21 artikla)</li>
   <li>oikeus perua suostumuksesi milloin tahansa; peruminen ei vaikuta sitä ennen tehdyn käsittelyn lainmukaisuuteen (7 artikla).</li>
 </ul>
-<p>Voit käyttää oikeuksiasi ottamalla yhteyttä yhteydenottolomakkeella tai kirjeitse (${op.name}, ${address}). Vastaamme viimeistään kuukauden kuluessa. Kävijätilaston rivejä emme pysty yhdistämään sinuun, joten niistä emme yleensä voi löytää sinua koskevia tietoja (11 artikla). Google Analyticsin tiedonkeruun voit lopettaa perumalla suostumuksen.</p>
+<p>Voit käyttää oikeuksiasi ottamalla yhteyttä yhteydenottolomakkeella tai kirjeitse (${op.name}, ${address}). Vastaamme viimeistään kuukauden kuluessa. Kävijä- ja tapahtumatilaston rivejä emme pysty yhdistämään sinuun, joten niistä emme yleensä voi löytää sinua koskevia tietoja (11 artikla). Tapahtumatilaston ja Google Analyticsin tiedonkeruun voit lopettaa perumalla suostumuksen.</p>
 <p>Emme tee henkilötietojesi perusteella automaattisia päätöksiä.</p>
 ${sub('valitusoikeus', 'Oikeus valittaa valvontaviranomaiselle')}
 <p>Jos katsot, että henkilötietojesi käsittely rikkoo tietosuojalainsäädäntöä, voit tehdä valituksen valvontaviranomaiselle: Tietosuojavaltuutetun toimisto, ${ext(LINKS.tietosuoja, 'tietosuoja.fi')}.</p>
@@ -253,12 +273,12 @@ ${sub('muutokset', 'Selosteen muutokset')}
   });
 
   const cookies = html`
-<p>Eväste on pieni tekstitiedosto, jonka sivusto tallentaa selaimeesi. ${ctx.site.brand} käyttää evästeitä vain evästevalintasi muistamiseen ja – jos sallit sen – Google Analyticsiin. Kävijätilastomme ei käytä evästeitä.</p>
+<p>Eväste on pieni tekstitiedosto, jonka sivusto tallentaa selaimeesi. ${ctx.site.brand} käyttää evästeitä vain evästevalintasi muistamiseen ja – jos sallit sen – Google Analyticsiin. Kävijä- ja tapahtumatilastomme eivät käytä evästeitä.</p>
 ${cookieTable}
 ${sub('selaimen-tallennustila', 'Selaimen tallennustila')}
 <p>Lisäksi sivusto muistaa kaksi näkymävalintaasi selaimesi omassa tallennustilassa (localStorage): teemavalinnan (avain theme), jos valitset vaalean tai tumman teeman, ja etusivulla valitun mittarin (avain inflaatio.mittari), jos valitset YKHI:n. Nämä tiedot eivät lähde selaimestasi mihinkään, ja voit poistaa ne selaimen asetuksista.</p>
 ${sub('evastevalinta', 'Evästevalinnan muuttaminen')}
-<p>Voit muuttaa tai perua valintasi milloin tahansa sivun alareunan Evästeasetukset-painikkeesta tai alla olevasta painikkeesta. Kun perut analytiikan, Google Analytics pysäytetään ja sen evästeet poistetaan. Valintaa kysytään uudelleen ${consentMonths} kuukauden kuluttua tai jos evästeiden käyttötarkoitukset muuttuvat. Kunnes valitset uudelleen, Google Analytics ei ole käytössä, ja sen evästeet poistetaan.</p>
+<p>Voit muuttaa tai perua valintasi milloin tahansa sivun alareunan Evästeasetukset-painikkeesta tai alla olevasta painikkeesta. Kun perut analytiikan, Google Analytics pysäytetään ja sen evästeet poistetaan, eikä tapahtumatilastoon lähetetä enää mitään. Valintaa kysytään uudelleen ${consentMonths} kuukauden kuluttua tai jos evästeiden käyttötarkoitukset muuttuvat. Kunnes valitset uudelleen, Google Analytics ja tapahtumatilasto eivät ole käytössä, ja Google Analyticsin evästeet poistetaan.</p>
 <p class="js-only">${c.button({ label: 'Avaa evästeasetukset', variant: 'secondary', attrs: { data: { openConsent: '' } } })}</p>
 <p class="no-js-only">JavaScript on poissa käytöstä, joten sivusto ei aseta evästeitä eikä lataa Google Analyticsia.</p>
 <p>Voit myös poistaa evästeet ja estää niiden tallentamisen selaimesi asetuksista.</p>`;

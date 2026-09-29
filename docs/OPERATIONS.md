@@ -470,6 +470,14 @@ Rastita, kun tehty.
   SQL Editor → New query → liitä → Run) ennen uuden sivuston julkaisua tai
   heti sen jälkeen, ja tee tiedoston alussa kuvatut tarkistukset (anon voi
   vain lisätä rivejä, ei lukea; 14 kuukauden poistoajo on ajastettu).
+- [ ] **Tilastonäkymä /tilastot/ ja tapahtumatilasto:** luo Supabaseen
+  ylläpitäjän käyttäjä, estä muut rekisteröitymiset ja aja
+  `docs/supabase-tilastot.sql` omalla sähköpostiosoitteellasi. Ohje:
+  [`docs/TILASTOT.md`](TILASTOT.md), kohta 1. Ennen tätä tapahtumat hylätään
+  tietokannassa hiljaa, mutta sivukatselut kirjautuvat normaalisti.
+- [ ] **Supabasen alue ja DPA:** tarkista projektin alue (Project Settings →
+  General; EU-alue, esim. Frankfurt tai Tukholma, on paras) ja hyväksy
+  Supabasen DPA (https://supabase.com/legal/dpa). Ks. `docs/TIETOSUOJA.md`.
 - [ ] **Google Analytics 4:** Admin → Data collection and modification →
   Data retention → *Event data retention* = **14 months**. Tarkista samalla,
   että tietosuojaselosteen lupaukset pitävät: *Google signals data collection*

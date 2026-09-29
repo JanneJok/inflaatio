@@ -22,8 +22,10 @@ export const OPERATOR = Object.freeze({
 /**
  * Consent cookie (the only cookie set without consent). Bumping
  * CONSENT_VERSION asks every visitor again.
+ * v3 (2026-09-29): analytics consent also covers the own event statistics
+ * (tilastot-events.js), not only Google Analytics.
  */
-export const CONSENT_VERSION = 2;
+export const CONSENT_VERSION = 3;
 export const CONSENT = Object.freeze({
   cookieName: 'inflaatio_cookie_consent',
   version: CONSENT_VERSION,
