@@ -88,6 +88,8 @@ EmailJS, GitHubin asetukset) ja vianetsintä: [`docs/OPERATIONS.md`](docs/OPERAT
 - `docs/ARCHITECTURE.md` – arkkitehtuuri, build-sopimus ja komponentit
 - `docs/DATA.md` – datalähteet, tiedostomuodot ja laskentasäännöt
 - `docs/OPERATIONS.md` – julkaisu, ajastetut ajot ja ylläpitäjän tehtävät
+- `docs/TILASTOT.md` – ylläpitäjän tilastonäkymä https://inflaatio.fi/tilastot/ (kirjautuminen), laskurit, tapahtumat ja hälytykset
+- `docs/TIETOSUOJA.md` – käsittelytoimien seloste, käsittelijät, säilytysajat ja tietoturvaloukkaukset
 - `docs/ROADMAP.md` – kehityssuunnitelma: mitä on tehty ja mitä on jäljellä
 - `docs/SEO-CHECKLIST.md` – hakukoneoptimoinnin tila ja jatkuva tarkistuslista
 - `CONTRIBUTING.md` – kehitysohjeet ja säännöt (CSP, saavutettavuus, tekstit)

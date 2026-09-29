@@ -18,7 +18,17 @@
  *    the prerendered page is actually shown).
  *    Table schema, RLS and retention: docs/supabase.sql.
  *
- * 2. Google Analytics 4 – gtag.js is loaded from googletagmanager.com ONLY
+ * 2. Own event statistics – ONLY with analytics consent (same choice as GA):
+ *    whitelisted product events (tilastot-events.js) are inserted into the
+ *    same Supabase table as { event_type, page, detail } – no referrer, no
+ *    device, no ids, no text the visitor typed. Explicit calls go through
+ *    track(); initOwnEvents() adds the automatic ones (page read to the end,
+ *    chart option, table/FAQ opened, outbound link host, copy, print, own
+ *    script errors). At most MAX_OWN_EVENTS_PER_PAGE per page load, each
+ *    event+detail once. Skipped like the page view (GPC/DNT, other hosts, own
+ *    frames) and in the bare widget. Shown on the owner dashboard /tilastot/.
+ *
+ * 3. Google Analytics 4 – gtag.js is loaded from googletagmanager.com ONLY
  *    after explicit consent (consent.js), only on the production host and
  *    never in the bare embeddable widget (/upotus/ promises embedders no
  *    cookies and no GA). Product events (calculator used, CSV download,
@@ -33,6 +43,7 @@
 import { GA_ID, SUPABASE } from '../../site.config.js';
 import { hasAnalyticsConsent } from './consent.js';
 import { on } from './dom.js';
+import { eventDetail, isOwnEvent } from './tilastot-events.js';
 
 /** Hosts where analytics may run (never localhost, previews or fly.dev). */
 export const PRODUCTION_HOSTS = Object.freeze(['inflaatio.fi', 'www.inflaatio.fi']);
@@ -52,6 +63,15 @@ export const PAGE_VIEW_EVENT = 'page_view';
 
 /** Columns sent to Supabase, in this order (the privacy policy lists them). */
 export const PAGE_VIEW_FIELDS = Object.freeze(['event_type', 'page', 'referrer', 'device']);
+
+/** Columns of an own event row (only with consent; the privacy policy lists them). */
+export const OWN_EVENT_FIELDS = Object.freeze(['event_type', 'page', 'detail']);
+
+/** Upper bound of own events sent from one page load. */
+export const MAX_OWN_EVENTS_PER_PAGE = 40;
+
+/** Seconds on the page before "read to the end" (page_read) can count. */
+export const PAGE_READ_MIN_SECONDS = 10;
 
 const MAX_PATH = 200;
 const MAX_HOST = 100;
@@ -190,6 +210,50 @@ export function isValidEventName(name) {
   return typeof name === 'string' && /^[a-z][a-z0-9_]{0,39}$/i.test(name);
 }
 
+/**
+ * The own event row (exactly OWN_EVENT_FIELDS).
+ * @param {{event: string, detail?: unknown, pathname: string, canonical?: string|null, notFound?: boolean}} o
+ * @returns {{event_type: string, page: string, detail: string|null}}
+ */
+export function ownEventPayload({ event, detail, pathname, canonical, notFound }) {
+  return { event_type: event, page: pagePath({ pathname, canonical, notFound }), detail: eventDetail(detail) };
+}
+
+/**
+ * The detail of an own event from the parameters given to track():
+ * an explicit `detail`, else the calculator name or the downloaded file.
+ * @param {string} event
+ * @param {Record<string, unknown>} [params]
+ * @returns {unknown}
+ */
+export function detailFromParams(event, params = {}) {
+  if (params.detail != null) return params.detail;
+  if (event === 'calculator_used') return params.laskuri ?? null;
+  if (event === 'csv_download' || event === 'json_download') return params.file_name ?? null;
+  return null;
+}
+
+/**
+ * Host name (without "www.") of a link to another site, or null for links
+ * inside the site, relative links and non-http(s) links (mailto:, tel: …).
+ * @param {string|null|undefined} href
+ * @param {string} hostname location.hostname
+ * @returns {string|null}
+ */
+export function outboundHost(href, hostname) {
+  if (!href) return null;
+  let u;
+  try {
+    u = new URL(href, `https://${hostname || 'localhost'}/`);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+  const bare = (h) => String(h ?? '').toLowerCase().replace(/^www\./, '');
+  const host = bare(u.hostname);
+  return host && host !== bare(hostname) ? host : null;
+}
+
 /* ------------------------------------------------- page-view counter (1) */
 
 /** True in the bare embeddable widget (layout({ bare: true }) → body.is-bare). */
@@ -222,7 +286,8 @@ function collectPageView() {
   });
 }
 
-function sendPageView() {
+/** Insert one row into the statistics table (fire and forget). */
+function postRow(row) {
   try {
     fetch(`${SUPABASE.url}/rest/v1/${SUPABASE.table}`, {
       method: 'POST',
@@ -232,7 +297,7 @@ function sendPageView() {
         'Content-Type': 'application/json',
         Prefer: 'return=minimal',
       },
-      body: JSON.stringify(collectPageView()),
+      body: JSON.stringify(row),
       keepalive: true,
       credentials: 'omit',
       referrerPolicy: 'no-referrer',
@@ -241,6 +306,10 @@ function sendPageView() {
   } catch {
     /* analytics must never break the page */
   }
+}
+
+function sendPageView() {
+  postRow(collectPageView());
 }
 
 /** Record the cookieless page view (at most once per page load). */
@@ -281,7 +350,126 @@ function sendLater() {
   window.addEventListener('pagehide', send, { once: true });
 }
 
-/* ------------------------------------------------ Google Analytics (2) */
+/* --------------------------------------------- own event statistics (2) */
+
+const ownSent = new Set();
+let ownCount = 0;
+
+/** Own events are sent only with consent, on the production host, never in the widget or our own frames. */
+function canSendOwn() {
+  return (
+    !isBarePage() &&
+    isProductionHost(window.location.hostname) &&
+    hasAnalyticsConsent() &&
+    !privacySignal() &&
+    !isOwnFrame()
+  );
+}
+
+/**
+ * Record an own product event (no-op without analytics consent). Each
+ * event+detail is sent once per page load, at most MAX_OWN_EVENTS_PER_PAGE.
+ * @param {string} event a name from tilastot-events.js
+ * @param {unknown} [detail] site vocabulary only (normalised by eventDetail)
+ */
+export function ownEvent(event, detail = null) {
+  try {
+    if (!isOwnEvent(event) || !canSendOwn()) return;
+    const row = ownEventPayload({
+      event,
+      detail,
+      pathname: window.location.pathname,
+      canonical: document.querySelector('link[rel="canonical"]')?.getAttribute('href') ?? null,
+      notFound: document.body?.dataset.page === 'notfound',
+    });
+    const key = `${row.event_type}|${row.detail ?? ''}`;
+    if (ownSent.has(key) || ownCount >= MAX_OWN_EVENTS_PER_PAGE) return;
+    ownSent.add(key);
+    ownCount += 1;
+    postRow(row);
+  } catch {
+    /* never break the page */
+  }
+}
+
+/** "Read to the end": the footer became visible and the page has been open PAGE_READ_MIN_SECONDS. */
+function watchPageRead() {
+  const footer = document.querySelector('.site-footer');
+  if (!footer || typeof IntersectionObserver !== 'function') return;
+  const started = Date.now();
+  let seen = false;
+  let done = false;
+  let observer = null;
+  const maybe = () => {
+    if (done || !seen || Date.now() - started < PAGE_READ_MIN_SECONDS * 1000) return;
+    done = true;
+    observer?.disconnect();
+    ownEvent('page_read');
+  };
+  observer = new IntersectionObserver((entries) => {
+    seen = entries.some((e) => e.isIntersecting);
+    maybe();
+  });
+  observer.observe(footer);
+  window.setTimeout(maybe, PAGE_READ_MIN_SECONDS * 1000 + 50);
+}
+
+/** Automatic own events (each call checks consent at the time of the event). */
+function initOwnEvents() {
+  let printedAt = -Infinity;
+  window.addEventListener('beforeprint', () => {
+    printedAt = Date.now();
+    ownEvent('page_printed');
+  });
+
+  // Chart and view options (segmented controls: range, measure …).
+  document.addEventListener('segmentedchange', (e) => {
+    const d = /** @type {CustomEvent} */ (e).detail;
+    if (d?.name && d.value != null) ownEvent('chart_changed', `${d.name}-${d.value}`);
+  });
+
+  // <details> opened by the visitor (toggle does not bubble: capture). The
+  // print preparation opens every <details>: ignore those.
+  document.addEventListener(
+    'toggle',
+    (e) => {
+      const d = e.target;
+      if (!(d instanceof HTMLDetailsElement) || !d.open || Date.now() - printedAt < 3000) return;
+      if (d.querySelector('table')) {
+        ownEvent('table_opened', d.closest('[id]')?.id ?? null);
+        return;
+      }
+      const question = d.id || d.querySelector('summary')?.textContent?.trim().slice(0, 60) || null;
+      ownEvent('faq_opened', question);
+    },
+    true,
+  );
+
+  on(document, 'click', '[data-table-toggle]', (_e, button) => {
+    if (button.getAttribute('aria-expanded') !== 'true') ownEvent('table_opened', `${button.getAttribute('aria-controls') ?? ''}-kaikki`);
+  });
+
+  on(document, 'click', '[data-copy-target], [data-copy-text]', (_e, button) => {
+    if (button.hasAttribute('data-track')) return; // tracked by its own name (e.g. widget_code_copied)
+    ownEvent('text_copied', button.getAttribute('data-copy-target') ?? 'teksti');
+  });
+
+  on(document, 'click', 'a[href]', (_e, a) => {
+    const host = outboundHost(a.getAttribute('href'), window.location.hostname);
+    if (host) ownEvent('outbound_click', host);
+  });
+
+  // Errors of the site's own scripts only (browser extensions are not ours);
+  // a count, never the message or the file.
+  window.addEventListener('error', (e) => {
+    const file = typeof e.filename === 'string' ? e.filename : '';
+    if (file.startsWith(window.location.origin)) ownEvent('js_error');
+  });
+
+  watchPageRead();
+}
+
+/* ------------------------------------------------ Google Analytics (3) */
 
 let gaLoaded = false;
 
@@ -344,15 +532,19 @@ function stopGa() {
 }
 
 /**
- * Product event to Google Analytics (no-op without consent or outside the
- * production host).
- * @param {string} event e.g. 'calculator_used', 'csv_download', 'share', 'widget_code_copied'
- * @param {Record<string, string|number|boolean>} [params]
+ * Product event to Google Analytics and, when the name is whitelisted
+ * (tilastot-events.js), to the own event statistics. No-op without consent
+ * or outside the production host.
+ * @param {string} event e.g. 'calculator_used', 'csv_download', 'result_shared', 'widget_code_copied'
+ * @param {Record<string, string|number|boolean>} [params] `detail` goes to the own statistics only
  */
 export function track(event, params = {}) {
-  if (!isValidEventName(event) || !hasAnalyticsConsent() || !loadGa()) return;
+  if (!isValidEventName(event) || !hasAnalyticsConsent()) return;
+  ownEvent(event, detailFromParams(event, params));
+  if (!loadGa()) return;
+  const gaParams = Object.fromEntries(Object.entries(params).filter(([k]) => k !== 'detail'));
   try {
-    window.gtag('event', event, { ...params, ...gaPageParams() });
+    window.gtag('event', event, { ...gaParams, ...gaPageParams() });
   } catch {
     /* never break the page */
   }
@@ -373,4 +565,5 @@ export function initAnalytics() {
     const params = href && href.startsWith('/') ? { file_name: href.split(/[?#]/)[0] } : {};
     track(el.getAttribute('data-track') ?? '', params);
   });
+  initOwnEvents();
 }

@@ -295,7 +295,7 @@ describe('cookieless page-view counter (analytics.js)', () => {
     assert.match(src, /page_referrer: gaPageUrl\(document\.referrer\)/);
     assert.match(src, /window\.gtag\('set', page\)/);
     assert.match(src, /window\.gtag\('config', GA_ID, \{\s*\.\.\.page,/);
-    assert.match(src, /window\.gtag\('event', event, \{ \.\.\.params, \.\.\.gaPageParams\(\) \}\)/);
+    assert.match(src, /window\.gtag\('event', event, \{ \.\.\.gaParams, \.\.\.gaPageParams\(\) \}\)/);
     assert.match(src, /function loadGa\(\) \{\s*if \(isBarePage\(\) \|\|/);
     assert.match(src, /if \(isBarePage\(\)\) return;/);
   });
@@ -535,7 +535,7 @@ describe('built TRUST pages', () => {
     const h = pages.kayttoehdot;
     assert.match(h, /<dialog class="dialog" id="evasteasetukset"/);
     assert.match(h, /data-consent="necessary">Vain välttämättömät<\/button>[\s\S]*data-consent="analytics">Salli analytiikka<\/button>[\s\S]*data-consent-save>Tallenna valinnat<\/button>/);
-    assert.match(h, /<label class="check__label" for="evaste-analytiikka">Analytiikka \(Google Analytics\)<\/label>/);
+    assert.match(h, /<label class="check__label" for="evaste-analytiikka">Analytiikka \(Google Analytics ja oma tapahtumatilasto\)<\/label>/);
     assert.match(h, /data-fallback="Voit myös lähettää viestin postitse: Opak Oy, Kivikastintie 24, 65300 Vaasa\."/);
     assert.match(h, /id="yhteys-email"[^>]*maxlength="254"/);
     assert.match(h, /id="yhteys-viesti"[^>]*maxlength="3000"/);

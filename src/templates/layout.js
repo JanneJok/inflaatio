@@ -252,7 +252,7 @@ const monthsOf = (days) => Math.round(days / 30.44);
 function consentBanner() {
   return html`<section class="consent-banner" id="evasteilmoitus" aria-labelledby="evasteilmoitus-otsikko" hidden>
   <h2 class="consent-banner__title" id="evasteilmoitus-otsikko">Evästeet</h2>
-  <p class="consent-banner__text">Käytämme Google Analyticsia sivuston kehittämiseen vain, jos sallit sen. Välttämätön eväste tallentaa ainoastaan tämän valintasi. Sivulatausten määrän laskemme ilman evästeitä ja tunnisteita. Voit muuttaa valintaa milloin tahansa sivun alareunan Evästeasetukset-painikkeesta.</p>
+  <p class="consent-banner__text">Jos sallit analytiikan, käytämme sivuston kehittämiseen Google Analyticsia ja omaa tapahtumatilastoa (esimerkiksi mitä laskureita käytetään). Välttämätön eväste tallentaa ainoastaan tämän valintasi. Sivulatausten määrän laskemme ilman evästeitä ja tunnisteita. Voit muuttaa valintaa milloin tahansa sivun alareunan Evästeasetukset-painikkeesta.</p>
   <div class="consent-banner__actions">
     <button type="button" class="button button--primary" data-consent="necessary">Vain välttämättömät</button>
     <button type="button" class="button button--primary" data-consent="analytics">Salli analytiikka</button>
@@ -294,8 +294,8 @@ function consentDialog(ctx) {
       <div class="consent-option check">
         <input type="checkbox" id="evaste-analytiikka" name="analytics" aria-describedby="evaste-analytiikka-kuvaus">
         <div>
-          <label class="check__label" for="evaste-analytiikka">Analytiikka (Google Analytics)</label>
-          <p class="check__desc" id="evaste-analytiikka-kuvaus">Kertoo, miten sivustoa käytetään, esimerkiksi mitä sivuja luetaan ja mitä laskureita käytetään. Asettaa evästeet _ga ja ${gaCookie} (${gaMonths} kuukautta). Google voi käsitellä tietoja myös Yhdysvalloissa.</p>
+          <label class="check__label" for="evaste-analytiikka">Analytiikka (Google Analytics ja oma tapahtumatilasto)</label>
+          <p class="check__desc" id="evaste-analytiikka-kuvaus">Kertoo, miten sivustoa käytetään, esimerkiksi mitä sivuja luetaan ja mitä laskureita käytetään. Google Analytics asettaa evästeet _ga ja ${gaCookie} (${gaMonths} kuukautta), ja Google voi käsitellä tietoja myös Yhdysvalloissa. Oma tapahtumatilasto ei käytä evästeitä eikä tunnisteita.</p>
         </div>
       </div>
     </fieldset>
@@ -354,7 +354,7 @@ function contactDialog(ctx) {
 function consentBannerEn() {
   return html`<section class="consent-banner" id="evasteilmoitus" aria-labelledby="evasteilmoitus-otsikko" hidden>
   <h2 class="consent-banner__title" id="evasteilmoitus-otsikko">Cookies</h2>
-  <p class="consent-banner__text">We use Google Analytics to improve the site only if you allow it. The necessary cookie only stores this choice. We count page loads without cookies or identifiers. You can change your choice at any time with the Cookie settings button at the bottom of the page.</p>
+  <p class="consent-banner__text">If you allow analytics, we use Google Analytics and our own event statistics (for example which calculators are used) to improve the site. The necessary cookie only stores this choice. We count page loads without cookies or identifiers. You can change your choice at any time with the Cookie settings button at the bottom of the page.</p>
   <div class="consent-banner__actions">
     <button type="button" class="button button--primary" data-consent="necessary">Necessary only</button>
     <button type="button" class="button button--primary" data-consent="analytics">Allow analytics</button>
@@ -390,8 +390,8 @@ function consentDialogEn(ctx) {
       <div class="consent-option check">
         <input type="checkbox" id="evaste-analytiikka" name="analytics" aria-describedby="evaste-analytiikka-kuvaus">
         <div>
-          <label class="check__label" for="evaste-analytiikka">Analytics (Google Analytics)</label>
-          <p class="check__desc" id="evaste-analytiikka-kuvaus">Tells us how the site is used, for example which pages are read and which calculators are used. Sets the cookies _ga and ${gaCookie} (${gaMonths} months). Google may also process the data in the United States.</p>
+          <label class="check__label" for="evaste-analytiikka">Analytics (Google Analytics and own event statistics)</label>
+          <p class="check__desc" id="evaste-analytiikka-kuvaus">Tells us how the site is used, for example which pages are read and which calculators are used. Google Analytics sets the cookies _ga and ${gaCookie} (${gaMonths} months), and Google may also process the data in the United States. Our own event statistics use no cookies or identifiers.</p>
         </div>
       </div>
     </fieldset>

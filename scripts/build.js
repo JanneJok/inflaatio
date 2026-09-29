@@ -116,6 +116,9 @@ async function bundleAssets(outDir, { minify }) {
   /** logical name → source path (relative to ROOT) */
   const entries = {
     'main.css': 'src/css/main.css',
+    // Own stylesheet of the owner dashboard /tilastot/ (not in main.css, so
+    // visitors never download it).
+    'tilastot.css': 'src/css/tilastot.css',
     'site.js': 'src/js/site.js',
     ...Object.fromEntries(pageEntries.map((f) => [`pages/${f}`, `src/js/pages/${f}`])),
   };
