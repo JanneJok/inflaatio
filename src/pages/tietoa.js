@@ -118,12 +118,13 @@ ${nextLines.length
 <p>Koko julkaisukalenteri on <a href="/menetelmat/#paivitykset">Menetelmät-sivulla</a>.</p>`;
 
   /* -------------------------------------------------- 5. Tarkistukset */
-  // Hand-entered content: forecasts (src/content/ennusteet.json) and the
-  // chart event notes (tapahtumat.json) are not fetched from an API.
+  // Content that is not fetched from an API: forecasts (src/content/ennusteet.json)
+  // and the chart event notes (tapahtumat.json). The monthly content routine
+  // (docs/SISALTOAGENTTI.md) proposes changes; the maintainer approves each one.
   const hasForecasts = Array.isArray(ctx.content?.ennusteet) && ctx.content.ennusteet.length > 0;
   const handEntered = hasForecasts
-    ? 'Poikkeuksia ovat inflaatioennusteet, jotka kirjataan käsin julkaisijan omalta sivulta (ennustetaulukossa näkyy jokaisen ennusteen julkaisupäivä ja linkki alkuperäiseen julkaisuun), sekä kaavioiden tapahtumamerkinnät, jotka ylläpito kirjoittaa itse.'
-    : 'Poikkeus ovat kaavioiden tapahtumamerkinnät, jotka ylläpito kirjoittaa itse.';
+    ? 'Poikkeuksia ovat inflaatioennusteet, jotka kootaan kerran kuukaudessa ennustajien omilta sivuilta ja tarkistetaan ennen kuin ne tulevat sivulle (ennustetaulukossa näkyy jokaisen ennusteen julkaisupäivä ja linkki alkuperäiseen julkaisuun), sekä kaavioiden tapahtumamerkinnät, jotka ylläpito kirjoittaa tai hyväksyy itse.'
+    : 'Poikkeus ovat kaavioiden tapahtumamerkinnät, jotka ylläpito kirjoittaa tai hyväksyy itse.';
   const checks = html`
 <ul>
   <li>Tilastoluvut haetaan suoraan tilastojen tuottajilta, ei välikäsien kautta eikä käsin kopioiden. ${handEntered}</li>

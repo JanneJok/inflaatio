@@ -30,6 +30,7 @@ const PATH = '/';
 const SRC = Object.freeze({
   khi: { name: 'Tilastokeskus', href: 'https://stat.fi/tilasto/khi', detail: 'kuluttajahintaindeksi' },
   ykhi: { name: 'Eurostat', href: 'https://ec.europa.eu/eurostat/web/hicp', detail: 'YKHI' },
+  ecb: { name: 'EKP', href: 'https://data.ecb.europa.eu/data/datasets/FM', detail: 'korkopäätökset' },
   groups: { name: 'Tilastokeskus', href: 'https://stat.fi/tilasto/khi', detail: 'kuluttajahintaindeksi, taulukot 15b5 ja 15bc' },
 });
 
@@ -396,6 +397,8 @@ function prepare(ctx) {
     .filter((e) => typeof e?.month === 'string' && /^\d{4}-\d{2}$/.test(e.month) && e.label && e.month >= start && e.month <= end)
     .map((e) => ({ month: e.month, label: String(e.label), text: String(e.text ?? '') }))
     .sort((a, b) => (a.month < b.month ? -1 : 1));
+  // ECB deposit rate changes come with the rate data (no hand-written list).
+  const rates = model.rateMarkers(d.korot?.decisions, start, end);
 
   const flagged = (geo) =>
     Object.entries(y.flags?.[geo] ?? {})
@@ -412,10 +415,11 @@ function prepare(ctx) {
     lvl: { khi: encodeAll(levelIndex.khi), ykhi: encodeAll(levelIndex.ykhi) },
     flags: { ykhi: flagged('FI'), ea: flagged('EA') },
     events,
+    rates,
     text,
   };
 
-  return { L, d, months, series, levelIndex, text, events, island, updated: newest(fmt, [L.khi.updated, L.ykhi.updated]) };
+  return { L, d, months, series, levelIndex, text, events, rates, island, updated: newest(fmt, [L.khi.updated, L.ykhi.updated]) };
 }
 
 /** Newest of ISO timestamps (for "Päivitetty"). */
@@ -685,16 +689,19 @@ function trendSection(ctx, vm) {
       { cls: 'core', label: 'Pohjainflaatio, Suomi', dashed: true, key: 'core', hidden: true },
       { cls: 'ea', label: 'Pohjainflaatio, euroalue', dashed: true, key: 'core-ea', hidden: true },
       vm.events.length ? { cls: 'muted', label: 'Tapahtuma', key: 'events', hidden: true } : null,
+      vm.rates.length ? { cls: 's6', label: model.RATE_LABELS.up, key: 'rates-up', marker: 'up', hidden: true } : null,
+      vm.rates.length ? { cls: 's6', label: model.RATE_LABELS.down, key: 'rates-down', marker: 'down', hidden: true } : null,
       { cls: 'target', label: `EKP:n tavoite 2${fmt.NBSP}%`, dashed: true },
     ].filter(Boolean),
   );
 
-  // Event markers are off by default: a 5-year range has a dozen of them.
+  // Event and rate markers are off by default: a 5-year range has a dozen or more of each.
   const toggles = html`<fieldset class="home-toggles js-only no-print">
   <legend class="home-toggles__legend">Näytä myös</legend>
   ${c.checkbox({ id: 'kehitys-euroalue', label: 'Euroalue' })}
   ${c.checkbox({ id: 'kehitys-pohja', label: 'Pohjainflaatio' })}
   ${vm.events.length ? c.checkbox({ id: 'kehitys-tapahtumat', label: 'Tapahtumat' }) : ''}
+  ${vm.rates.length ? c.checkbox({ id: 'kehitys-korot', label: 'EKP:n korkopäätökset' }) : ''}
 </fieldset>`;
 
   const statsRow = c.statsList(
@@ -733,6 +740,7 @@ ${statsRow}`,
       sources: [
         { ...SRC.khi, detail: 'KHI' },
         { ...SRC.ykhi, detail: 'YKHI, euroalue ja pohjainflaatio' },
+        ...(vm.rates.length ? [SRC.ecb] : []),
       ],
       updated: vm.updated,
     }),
@@ -1005,14 +1013,19 @@ function calculatorsSection(ctx, vm) {
   });
 }
 
-/** 9 Ennusteet (src/content/ennusteet.json; hidden when missing or empty). */
+/**
+ * 9 Ennusteet (src/content/ennusteet.json): the newest forecast of each
+ * publisher, measure and area; a forecast older than about 7 months and years
+ * with an official annual figure drop out on their own (model.currentForecasts),
+ * and the section is hidden when nothing is left.
+ */
 function forecastSection(ctx) {
   const { html, fmt, c } = ctx;
-  const list = (Array.isArray(ctx.content?.ennusteet) ? ctx.content.ennusteet : []).filter(
-    (f) => f?.org && f?.values && typeof f.values === 'object' && Object.values(f.values).some(fmt.isNum),
-  );
+  const { shown: list, years } = model.currentForecasts(ctx.content?.ennusteet, {
+    today: ctx.latest?.dataUpdated ?? ctx.buildDate ?? null,
+    lastYear: ctx.latest?.khiAnnual?.year ?? null,
+  });
   if (!list.length) return '';
-  const years = [...new Set(list.flatMap((f) => Object.keys(f.values)))].filter((y) => /^\d{4}$/.test(y)).sort();
   const table = c.dataTable({
     id: 'ennusteet-taulukko',
     caption: 'Inflaatioennusteet, vuosimuutos %',

@@ -641,8 +641,8 @@ const workflows = Object.fromEntries(
     .map((f) => [f, fs.readFileSync(path.join(WORKFLOW_DIR, f), 'utf8')]),
 );
 
-test('workflows: the four expected files', () => {
-  assert.deepEqual(Object.keys(workflows).sort(), ['ci.yml', 'deploy.yml', 'site-check.yml', 'update-data.yml']);
+test('workflows: the five expected files', () => {
+  assert.deepEqual(Object.keys(workflows).sort(), ['ci.yml', 'content-check.yml', 'deploy.yml', 'site-check.yml', 'update-data.yml']);
 });
 
 test('workflows: every action pinned to a full commit SHA with its version in a comment', () => {
@@ -674,7 +674,7 @@ test('workflows: least privilege, concurrency, timeouts, Node 24, pinned runner,
       assert.ok(['deploy.yml', 'update-data.yml'].includes(file), `${file} must not use secrets`);
     }
     const write = [...text.matchAll(/^\s*(contents|issues|pull-requests|packages|id-token|actions):\s*write\s*$/gm)].map((m) => m[1]);
-    const allowed = { 'update-data.yml': ['contents'], 'site-check.yml': ['issues'] }[file] ?? [];
+    const allowed = { 'update-data.yml': ['contents'], 'site-check.yml': ['issues'], 'content-check.yml': ['issues'] }[file] ?? [];
     for (const w of write) assert.ok(allowed.includes(w), `${file}: ${w}: write`);
   }
 });
@@ -768,6 +768,21 @@ test('deploy.yml and site-check.yml', () => {
   assert.match(s, /--label site-check/);
   assert.match(s, /SMOKE_URL="\$SITE_URL"/);
   assert.match(s, /SITE_URL: https:\/\/inflaatio\.fi/);
+});
+
+test('content-check.yml: weekly forecast freshness check off the hour, reminder issue, no dependencies', () => {
+  const t = workflows['content-check.yml'];
+  const crons = [...t.matchAll(/cron:\s*'([^']+)'/g)].map((m) => m[1]);
+  assert.equal(crons.length, 1);
+  const [minute, , dom, , dow] = crons[0].split(/\s+/);
+  assert.notEqual(minute, '0', 'runs off the full hour');
+  assert.equal(dom, '*');
+  assert.match(dow, /^[0-6]$/, 'once a week');
+  assert.match(t, /workflow_dispatch:/);
+  assert.match(t, /node scripts\/check-content\.js --report/);
+  assert.match(t, /--label sisalto/);
+  assert.match(t, /gh issue close/);
+  assert.doesNotMatch(t, /npm (ci|install)|flyctl|secrets\./);
 });
 
 test('dependabot.yml: npm and GitHub Actions, weekly, grouped', () => {

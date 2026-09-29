@@ -613,13 +613,14 @@ export function codeBlock({ id, code, label = 'Kopioi koodi', track }) {
  * Chart legend. `cls` = series class (khi, ykhi, ea, core, s3…s6, target).
  * `hidden` renders the item hidden (page JS shows it when the series is
  * toggled on); `key` adds data-series="<key>" as a hook for page JS.
- * @param {{cls: string, label: string, dashed?: boolean, box?: boolean, hidden?: boolean, key?: string}[]} items
+ * `marker: 'up'|'down'` draws a triangle instead of a line (point markers).
+ * @param {{cls: string, label: string, dashed?: boolean, box?: boolean, marker?: 'up'|'down', hidden?: boolean, key?: string}[]} items
  * @returns {SafeString}
  */
 export function legend(items) {
   return html`<ul class="legend">${items.map(
     (it) => html`<li${attrs({ class: 'legend__item', hidden: Boolean(it.hidden), data: { series: it.key } })}><span${attrs({
-      class: ['legend__swatch', `series--${it.cls}`, it.dashed && 'legend__swatch--dashed', it.box && 'legend__swatch--box'],
+      class: ['legend__swatch', `series--${it.cls}`, it.dashed && 'legend__swatch--dashed', it.box && 'legend__swatch--box', it.marker && `legend__swatch--${it.marker}`],
       'aria-hidden': 'true',
     })}></span><span class="legend__label">${it.label}</span></li>`,
   )}</ul>`;

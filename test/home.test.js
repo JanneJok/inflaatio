@@ -198,6 +198,10 @@ describe('built page', () => {
     assert.equal(island.text.level.khi.kaikki.period.split(' – ')[0], island.text.trend.kaikki.period.split(' – ')[0]);
     assert.ok(island.text.level.khi.kaikki.summary.includes(allBase));
     assert.equal(island.s.khiIdx, undefined, 'index series travel only in lvl');
+    // ECB rate decisions come from data/korot.json with their tooltip text.
+    const hike = island.rates.find((r) => r.month === '2022-07');
+    assert.deepEqual(hike, { month: '2022-07', dir: 'up', text: `EKP nosti talletuskorkoa: −0,50${fmt.NBSP}% → 0,00${fmt.NBSP}% (27.7.2022 alkaen).` });
+    assert.ok(island.rates.every((r) => r.month >= island.start && r.month <= months.at(-1)));
     // 6 kk is never annualised.
     assert.equal(island.text.stats.khi['6kk'].at(-1).label, 'Hinnat jaksolla');
     assert.equal(island.text.stats.khi['5v'].at(-1).label, 'Hinnat vuodessa');
@@ -205,9 +209,14 @@ describe('built page', () => {
 
   test('main chart: shared legend, toggles off by default and not printed, one announcement channel', () => {
     const fig = page.match(/<figure class="chart-figure" id="kehitys-kaavio"[\s\S]*?<\/figure>/)[0];
-    for (const key of ['ea', 'core', 'core-ea', 'events']) assert.match(fig, new RegExp(`<li class="legend__item" hidden data-series="${key}">`), key);
+    for (const key of ['ea', 'core', 'core-ea', 'events', 'rates-up', 'rates-down']) assert.match(fig, new RegExp(`<li class="legend__item" hidden data-series="${key}">`), key);
+    assert.match(fig, /<span class="legend__swatch series--s6 legend__swatch--up" aria-hidden="true"><\/span><span class="legend__label">EKP:n koronnosto<\/span>/);
+    assert.match(fig, /legend__swatch--down" aria-hidden="true"><\/span><span class="legend__label">EKP:n koronlasku<\/span>/);
     assert.match(fig, /<fieldset class="home-toggles js-only no-print">/);
     assert.match(fig, /id="kehitys-tapahtumat"(?![^>]*checked)[^>]*>/);
+    assert.match(fig, /id="kehitys-korot"(?![^>]*checked)[^>]*>/);
+    // ECB data on the chart: "Lähde: EKP" as its terms require.
+    assert.match(fig, /<a href="https:\/\/data\.ecb\.europa\.eu\/data\/datasets\/FM">EKP<\/a> \(korkopäätökset\)/);
     assert.doesNotMatch(fig, /id="kehitys-(euroalue|pohja)"[^>]*checked/);
     // The page script announces changes once; the summaries are not live regions.
     assert.doesNotMatch(page, /chart-figure__summary" aria-live/);
@@ -339,12 +348,15 @@ describe('home-model', () => {
 
   test('?nayta= round trip for the optional series', () => {
     assert.equal(model.parseShow(null), null);
-    assert.deepEqual(model.parseShow(''), { ea: false, core: false, events: false });
-    assert.deepEqual(model.parseShow('pohja,ea,xyz'), { ea: true, core: true, events: false });
+    assert.deepEqual(model.parseShow(''), { ea: false, core: false, events: false, rates: false });
+    assert.deepEqual(model.parseShow('pohja,ea,xyz'), { ea: true, core: true, events: false, rates: false });
     assert.equal(model.formatShow({ ea: true, core: false, events: true }), 'ea tapahtumat');
-    assert.deepEqual(model.parseShow('ea tapahtumat'), { ea: true, core: false, events: true });
+    assert.equal(model.formatShow({ rates: true, ea: true }), 'ea korot');
+    assert.deepEqual(model.parseShow('ea tapahtumat'), { ea: true, core: false, events: true, rates: false });
+    assert.deepEqual(model.parseShow('KOROT'), { ea: false, core: false, events: false, rates: true });
     assert.equal(model.formatShow({}), '');
-    assert.deepEqual(model.parseShow(model.formatShow({ ea: true, core: true, events: true })), { ea: true, core: true, events: true });
+    const all = { ea: true, core: true, events: true, rates: true };
+    assert.deepEqual(model.parseShow(model.formatShow(all)), all);
   });
 
   test('month table toggle labels name the unit', () => {
@@ -529,6 +541,26 @@ describe('edge scenarios', () => {
     assert.match(out.html, /<a href="https:\/\/example\.org\/ennuste">Testilaitos<\/a>/);
     assert.ok(out.html.includes('Euroalue, YKHI'));
     assert.ok(out.html.includes(`2,1${fmt.NBSP}%`));
+  });
+
+  test('forecasts: only the newest of each kind, none over 7 months old (by the data date), no past years', async () => {
+    const f = (org, published, values, extra = {}) => ({ org, published, url: 'https://example.org/e', measure: 'YKHI', area: 'FI', values, ...extra });
+    const x = makeCtx(data, {
+      ...content,
+      ennusteet: [
+        f('Vanha laitos', fmt.isoDate(Date.parse(`${latest.dataUpdated}T12:00:00Z`) - 250 * 86400000), { 2027: 9.1 }),
+        f('Testilaitos', '2020-03-01', { 2020: 8.8 }),
+        f('Testilaitos', latest.dataUpdated, { [latest.khiAnnual.year]: 7.7, [latest.khiAnnual.year + 1]: 2.3 }),
+      ],
+    });
+    const [out] = await home(x);
+    const section = out.html.match(/<section[^>]*id="ennusteet"[\s\S]*?<\/section>/)[0];
+    assert.ok(section.includes(`2,3${fmt.NBSP}%`));
+    for (const gone of ['Vanha laitos', '8,8', '9,1', '7,7']) assert.ok(!section.includes(gone), gone);
+    assert.doesNotMatch(section, new RegExp(`<th[^>]*>${latest.khiAnnual.year}</th>`), 'the year with an official figure has no column');
+    // Nothing fresh left: no section.
+    const [old] = await home(makeCtx(data, { ...content, ennusteet: [f('Vanha laitos', '2020-03-01', { 2021: 1.1 })] }));
+    assert.doesNotMatch(old.html, /id="ennusteet"/);
   });
 
   test('missing KHI data fails loudly', async () => {

@@ -81,9 +81,10 @@ Karkeassa tärkeysjärjestyksessä:
    käyttävät samaa `/og/inflaatio.png`-kuvaa.
 5. **Lisää hyödykesivuja** hakukysynnän mukaan (`scripts/fetch/hyodykesivut.json`).
 6. **Laajempi englanninkielinen osio,** esimerkiksi vuosisivut ja hinnat.
-7. **Ennusteet ja tapahtumat ajan tasalla**
-   (`src/content/ennusteet.json`, `src/content/tapahtumat.json`; ohje
-   `OPERATIONS.md`:ssä).
+7. **Ennusteet ja tapahtumat ajan tasalla:** kuukausittainen Claude-rutiini
+   ehdottaa päivitykset pull requestina (`src/content/ennusteet.json`,
+   `src/content/tapahtumat.json`; ohje `SISALTOAGENTTI.md`:ssä), ja
+   ylläpitäjä tarkistaa ja yhdistää ne.
 
 Ei suunnitelmissa: push-ilmoitukset. Service worker on nykyään vain vanhan
 sivun service workerin poistaja, ja se poistetaan 9/2027.

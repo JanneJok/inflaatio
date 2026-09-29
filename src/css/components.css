@@ -1209,6 +1209,24 @@ a.chip:hover {
   background: currentColor;
 }
 
+/* Triangle markers (ECB rate decisions on the home chart): ▲ up, ▼ down. */
+.legend__swatch--up,
+.legend__swatch--down {
+  width: 0;
+  height: 0;
+  margin-inline: 3px;
+  border-top: 0;
+  border-inline: 6px solid transparent;
+}
+
+.legend__swatch--up {
+  border-bottom: 10px solid currentColor;
+}
+
+.legend__swatch--down {
+  border-top: 10px solid currentColor;
+}
+
 .legend__label {
   color: var(--text-2);
 }

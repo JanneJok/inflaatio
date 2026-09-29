@@ -462,27 +462,6 @@ test('group changes before contributions: falling prices are not "rose the least
   assert.doesNotMatch(doc, /vähiten pääryhmässä/);
 });
 
-test('events file: month precision, short neutral labels, sorted', () => {
-  const ev = content.tapahtumat;
-  assert.ok(ev.length >= 15 && ev.length <= 30);
-  for (const e of ev) {
-    assert.match(e.month, /^\d{4}-(0[1-9]|1[0-2])$/);
-    assert.ok(e.label.length <= 24, e.label);
-    assert.ok(e.text.length > 20 && /\.$/.test(e.text), e.text);
-    assert.ok(e.month >= '1980-01' && e.month <= L);
-  }
-  assert.deepEqual(ev.map((e) => e.month), [...ev.map((e) => e.month)].sort());
-  // Facts checked against the ECB decisions in data/korot.json.
-  const dec = readJson('data/korot.json').decisions;
-  const cuts = dec.filter((d, i) => i > 0 && d.date >= '2024-06-01' && d.date <= '2025-06-30' && d.depositRate < dec[i - 1].depositRate);
-  assert.equal(cuts.length, 8);
-  assert.match(ev.find((e) => e.month === '2025-06').text, /kahdeksas lasku kesäkuusta 2024 alkaen/);
-  const hike = dec.findIndex((d) => d.date === '2022-07-27');
-  assert.equal(dec[hike - 1].depositRate, -0.5);
-  assert.equal(dec[hike].depositRate, 0);
-  assert.match(ev.find((e) => e.month === '2022-07').text, /talletuskorko nousi −0,50 prosentista nollaan 27\.7\.2022/);
-});
-
 test('katsaus index: table note and lede wording', () => {
   const doc = page('/katsaus/');
   assert.ok(doc.includes('Muutos = ero edellisen kuukauden vuosimuutokseen, prosenttiyksikköä.'));

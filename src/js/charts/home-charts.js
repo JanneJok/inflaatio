@@ -1,10 +1,10 @@
 /**
  * Interactive charts of the home page (browser only): the main "Kehitys"
- * chart (KHI + YKHI, optional euro area, core inflation and event markers)
- * and the "Hintataso" price-level chart. Both replace a server-rendered SVG
- * of the same size, so nothing moves when Chart.js arrives. Chart.js itself
- * is loaded lazily by charts/setup.js, only when a chart comes near the
- * viewport.
+ * chart (KHI + YKHI, optional euro area, core inflation, event markers and
+ * ECB rate decisions) and the "Hintataso" price-level chart. Both replace a
+ * server-rendered SVG of the same size, so nothing moves when Chart.js
+ * arrives. Chart.js itself is loaded lazily by charts/setup.js, only when a
+ * chart comes near the viewport.
  *
  * Data come from the `etusivu-data` island (src/pages/home.js); the texts
  * that go with every view (summary, stats, labels) are precomputed there.
@@ -12,8 +12,8 @@
 import * as fmt from '../lib/format.js';
 import { onVisible } from '../lib/dom.js';
 import { sliceRange } from '../lib/stats.js';
-import { createChart, lineDataset, targetLine, eventLine, downloadPng, applyTheme } from './setup.js';
-import { decodeSeries, monthAxis, priceLevel, wrapText, METRIC_INFO, DEFAULT_BASE } from './home-model.js';
+import { createChart, lineDataset, targetLine, eventLine, rateMarker, downloadPng, applyTheme } from './setup.js';
+import { decodeSeries, monthAxis, priceLevel, wrapText, METRIC_INFO, DEFAULT_BASE, RATE_LABELS } from './home-model.js';
 
 /** Series of the main chart, in dataset order. */
 const TREND = [
@@ -59,7 +59,7 @@ function abandon(box, err) {
 
 /**
  * @param {any} data the etusivu-data island
- * @param {() => {mittari: 'khi'|'ykhi', jakso: string, ea: boolean, core: boolean, events: boolean}} getState
+ * @param {() => {mittari: 'khi'|'ykhi', jakso: string, ea: boolean, core: boolean, events: boolean, rates: boolean}} getState
  */
 export function initHomeCharts(data, getState) {
   const months = monthAxis(data.start, data.n);
@@ -67,6 +67,7 @@ export function initHomeCharts(data, getState) {
   const S = Object.fromEntries(Object.entries(data.s ?? {}).map(([k, enc]) => [k, decodeSeries(enc, data.n)]));
   const flags = { ykhi: new Set(data.flags?.ykhi ?? []), ea: new Set(data.flags?.ea ?? []) };
   const events = Array.isArray(data.events) ? data.events : [];
+  const rates = Array.isArray(data.rates) ? data.rates : [];
 
   /* ------------------------------------------------------------ Kehitys */
 
@@ -85,14 +86,23 @@ export function initHomeCharts(data, getState) {
 
   function trendAnnotations(labels, st) {
     const out = { target: targetLine(2) };
-    if (!st.events) return out;
-    const inRange = events.filter((e) => labels.includes(e.month));
-    inRange.forEach((e, i) => {
-      const a = eventLine(e.month, e.label);
-      a.label.display = inRange.length <= MAX_EVENT_LABELS;
-      a.borderDash = [2, 3];
-      out[`tapahtuma${i}`] = a;
-    });
+    const inChart = new Set(labels);
+    if (st.events) {
+      const inRange = events.filter((e) => inChart.has(e.month));
+      inRange.forEach((e, i) => {
+        const a = eventLine(e.month, e.label);
+        a.label.display = inRange.length <= MAX_EVENT_LABELS;
+        a.borderDash = [2, 3];
+        out[`tapahtuma${i}`] = a;
+      });
+    }
+    if (st.rates) {
+      rates
+        .filter((r) => inChart.has(r.month))
+        .forEach((r, i) => {
+          out[`korko${i}`] = rateMarker(r.month, r.dir, RATE_LABELS[r.dir]);
+        });
+    }
     return out;
   }
 
@@ -100,9 +110,13 @@ export function initHomeCharts(data, getState) {
     const month = items[0]?.label;
     const lines = [];
     const shown = new Set(items.map((it) => it.dataset?.series));
+    const st = getState();
     if (flags.ykhi.has(month) && shown.has('ykhi')) lines.push('YKHI: ennakko');
     if (flags.ea.has(month) && shown.has('ea')) lines.push('Euroalue: ennakko');
-    if (getState().events) {
+    if (st.rates) {
+      for (const r of rates.filter((x) => x.month === month)) lines.push(...wrapText(r.text));
+    }
+    if (st.events) {
       for (const e of events.filter((x) => x.month === month)) lines.push(...wrapText(`${e.label}: ${e.text}`));
     }
     return lines;
@@ -144,7 +158,7 @@ export function initHomeCharts(data, getState) {
         const period = fmt.monthRange(trendMonths[0], trendMonths.at(-1));
         downloadPng(trend, `inflaatio-suomessa-${trendMonths.at(-1)}.png`, {
           title: `Inflaatio Suomessa, vuosimuutos % (${period})`,
-          source: 'Lähteet: Tilastokeskus (KHI), Eurostat (YKHI) · inflaatio.fi',
+          source: `Lähteet: Tilastokeskus (KHI), Eurostat (YKHI)${getState().rates ? ', EKP (korkopäätökset)' : ''} · inflaatio.fi`,
         });
       });
     }

@@ -390,17 +390,106 @@ export function yearAgoNote(month, yoy, yearAgo) {
   return `${then}. Nyt inflaatio on ${fmt.num(Math.abs(d), 1)} prosenttiyksikköä ${dir === 'up' ? 'korkeampi' : 'matalampi'}.`;
 }
 
+/* ------------------------------------------ forecasts and rate decisions */
+
+/** A forecast is shown for this many days after its publication (about 7 months). */
+export const FORECAST_MAX_AGE_DAYS = 213;
+/** When even the newest forecast is older than this (about 4 months), scripts/check-content.js opens a reminder. */
+export const FORECAST_REMIND_DAYS = 120;
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Whole days from `a` to `b` ('YYYY-MM-DD'); NaN when either is not such a date.
+ * @param {unknown} a
+ * @param {unknown} b
+ */
+export function daysBetween(a, b) {
+  const t = (s) => (typeof s === 'string' && ISO_DATE_RE.test(s) ? Date.parse(`${s}T00:00:00Z`) : NaN);
+  return Math.round((t(b) - t(a)) / 86400000);
+}
+
+/**
+ * The forecasts of src/content/ennusteet.json to show on a given day: the
+ * newest forecast of each publisher × measure × area, if it is at most
+ * FORECAST_MAX_AGE_DAYS old, with only the years whose official annual
+ * figure is not out yet (after `lastYear`).
+ * @param {unknown} list
+ * @param {{today: string|null, lastYear?: number|null}} o `today` 'YYYY-MM-DD'
+ *   (the build passes the date of the newest data, so a rebuild of the same
+ *   commit gives the same page)
+ * @returns {{shown: object[], stale: object[], years: string[]}} `stale`: newest
+ *   forecasts of their kind that are too old to show
+ */
+export function currentForecasts(list, { today, lastYear = null }) {
+  const newest = new Map();
+  for (const f of Array.isArray(list) ? list : []) {
+    if (!f?.org || !ISO_DATE_RE.test(f.published ?? '') || !f.values || typeof f.values !== 'object') continue;
+    const key = [f.org, f.measure, f.area].join('|');
+    if (!newest.has(key) || f.published > newest.get(key).published) newest.set(key, f);
+  }
+  const open = (year) => /^\d{4}$/.test(year) && (lastYear == null || Number(year) > lastYear);
+  const shown = [];
+  const stale = [];
+  for (const f of newest.values()) {
+    if (daysBetween(f.published, today) > FORECAST_MAX_AGE_DAYS) {
+      stale.push(f);
+      continue;
+    }
+    const values = Object.fromEntries(Object.entries(f.values).filter(([year, v]) => open(year) && fmt.isNum(v)));
+    if (Object.keys(values).length) shown.push({ ...f, values });
+  }
+  const years = [...new Set(shown.flatMap((f) => Object.keys(f.values)))].sort();
+  return { shown, stale, years };
+}
+
+/** Legend texts of the rate markers (page legend and image export). */
+export const RATE_LABELS = Object.freeze({ up: 'EKP:n koronnosto', down: 'EKP:n koronlasku' });
+
+/**
+ * Changes of the ECB deposit facility rate (data/korot.json `decisions`,
+ * effective dates, oldest first) as month markers of the main chart. One
+ * marker per month in which the rate ended higher or lower than before it; a
+ * change reversed within the month (January 1999, October 2008) is left out.
+ * @param {unknown} decisions [{date: 'YYYY-MM-DD', depositRate}]
+ * @param {string} start first month of the chart 'YYYY-MM'
+ * @param {string} end last month of the chart
+ * @returns {{month: string, dir: 'up'|'down', text: string}[]}
+ */
+export function rateMarkers(decisions, start, end) {
+  const list = (Array.isArray(decisions) ? decisions : [])
+    .filter((d) => ISO_DATE_RE.test(d?.date ?? '') && fmt.isNum(d.depositRate))
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const byMonth = new Map();
+  for (let i = 1; i < list.length; i++) {
+    const month = list[i].date.slice(0, 7);
+    const m = byMonth.get(month) ?? { month, from: list[i - 1].depositRate };
+    byMonth.set(month, { ...m, to: list[i].depositRate, date: list[i].date });
+  }
+  const rate = (v) => fmt.pct(v, { decimals: 2 });
+  return [...byMonth.values()]
+    .filter((m) => m.month >= start && m.month <= end && fmt.round(m.to - m.from, 2) !== 0)
+    .map((m) => {
+      const up = m.to > m.from;
+      return {
+        month: m.month,
+        dir: up ? 'up' : 'down',
+        text: `EKP ${up ? 'nosti' : 'laski'} talletuskorkoa: ${rate(m.from)} → ${rate(m.to)} (${fmt.date(m.date)} alkaen).`,
+      };
+    });
+}
+
 /* ------------------------------------------------------------ URL state */
 
 /** Optional series of the main chart and their tokens in ?nayta=… (fixed order). */
-export const SHOW_TOKENS = Object.freeze({ ea: 'ea', core: 'pohja', events: 'tapahtumat' });
+export const SHOW_TOKENS = Object.freeze({ ea: 'ea', core: 'pohja', events: 'tapahtumat', rates: 'korot' });
 
 /**
- * Parse ?nayta=ea+pohja+tapahtumat (spaces; commas accepted too) → { ea, core, events }
- * (unknown tokens ignored);
+ * Parse ?nayta=ea+pohja+tapahtumat+korot (spaces; commas accepted too) →
+ * { ea, core, events, rates } (unknown tokens ignored);
  * null when the parameter is missing (keep the server default).
  * @param {string|null|undefined} value
- * @returns {{ea: boolean, core: boolean, events: boolean}|null}
+ * @returns {{ea: boolean, core: boolean, events: boolean, rates: boolean}|null}
  */
 export function parseShow(value) {
   if (value == null) return null;
@@ -411,7 +500,7 @@ export function parseShow(value) {
 /**
  * Inverse of parseShow(): tokens separated by spaces ("+" in the URL, never
  * percent-encoded like a comma); '' when nothing optional is shown (parameter removed).
- * @param {{ea?: boolean, core?: boolean, events?: boolean}} state
+ * @param {{ea?: boolean, core?: boolean, events?: boolean, rates?: boolean}} state
  * @returns {string}
  */
 export function formatShow(state) {
