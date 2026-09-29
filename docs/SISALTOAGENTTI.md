@@ -75,6 +75,25 @@ Tarkista nämä kolme ennustajaa. Muita ei lisätä ilman ylläpitäjän päät�
 | `Valtiovarainministeriö` | Taloudellinen katsaus (https://vm.fi/ ja julkaisuarkisto https://julkaisut.valtioneuvosto.fi/) | `KHI` / `FI` ja `YKHI` / `FI` (kaksi riviä) | yleensä neljästi vuodessa |
 | `Euroopan keskuspankki (EKP)` | EKP:n tai eurojärjestelmän asiantuntijoiden makrotaloudelliset projektiot euroalueelle (https://www.ecb.europa.eu/press/projections/) | `YKHI` / `EA` | maalis-, kesä-, syys- ja joulukuu |
 
+Mistä luvut löytyvät (testattu 29.9.2026):
+
+- **Suomen Pankki:** ennusteartikkeli osoitteessa www.eurojatalous.fi.
+- **EKP:** projektiosivu osoitteessa www.ecb.europa.eu (HICP-rivi, vuosimuutos).
+- **Valtiovarainministeriö:** luvut ovat vain PDF-julkaisussa (taulukko
+  *Hintaindeksejä*), eivät vm.fi-sivulla. vm.fi-sivu linkittää osoitteeseen
+  `urn.fi/URN:ISBN:…`; poimi siitä ISBN. Julkaisuarkiston HTML-sivut
+  palauttavat 403, mutta arkiston rajapinta toimii:
+  1. `https://julkaisut.valtioneuvosto.fi/server/api/discover/search/objects?query=<ISBN>`
+     → julkaisun uuid
+  2. `https://julkaisut.valtioneuvosto.fi/server/api/core/items/<uuid>/bundles`
+     → `ORIGINAL`-niputuksen bitstreams-linkki
+  3. bitstreams-listasta julkaisun PDF (esim. `VM_2026_35.pdf`) ja sen
+     `content`-osoite
+  4. PDF:n teksti: järjestelmän Pythonin kirjastot eivät toimi, joten käytä
+     virtuaaliympäristöä: `python3 -m venv /tmp/pdf && /tmp/pdf/bin/pip install pypdf`
+     ja etsi sivu, jolla on *Kuluttajahintaindeksi* ja *Yhdenmukaistettu
+     kuluttajahintaindeksi*.
+
 Säännöt:
 
 1. **Vain luvut, päivämäärä, otsikko ja linkki.** Luvut ovat tosiasioita,
