@@ -31,6 +31,7 @@ GitHub, Google, Supabase, EmailJS). Muut dokumentit:
  Kävijä ── https://inflaatio.fi ── Cloudflare (DNS, CDN, TLS) ┘
                                                    ^
  site-check.yml: 6 tunnin välein tarkistus → GitHub-issue, jos jokin on vialla
+ Claude-rutiini kuun 24. päivä: uudet ennusteet ja tapahtumat → PR (docs/SISALTOAGENTTI.md)
 ```
 
 - **Sivusto on staattinen.** Docker-image rakentaa sivut repoon commitoidusta
@@ -60,6 +61,7 @@ GitHub, Google, Supabase, EmailJS). Muut dokumentit:
 | `update-data.yml` (Päivitä data) | klo 06.17 ja 13.47 UTC (kesäaikaan 9.17 ja 16.47) + käsin | `npm run fetch` → datasopimus, build ja linkit → kommitti `data: …` mainiin → julkaisu Fly.io:hon → savutesti. Epäonnistuu lopuksi, jos jokin lähde epäonnistui (GitHub lähettää sähköpostin). |
 | `deploy.yml` (Julkaisu) | push mainiin, joka muuttaa sivustoa (`src/`, `scripts/`, `deploy/`, `data/`, Dockerfile, fly.toml, package*.json) + käsin (vain main; muun haaran käsiajo ohitetaan) | testit, build, linkit → `flyctl deploy --remote-only` → savutesti osoitteeseen `https://inflaatio.fly.dev` |
 | `site-check.yml` (Tuotannon tarkistus) | 6 tunnin välein + käsin | tarkistaa https://inflaatio.fi:n (otsakkeet, tiedostot, 404/410, uudelleenohjaukset, `/healthz`, uusin KHI-kuukausi, `/data/latest.json` vs. mainin data ja julkaisukalenteri); virheestä avautuu issue, jolla on tunniste `site-check` |
+| `content-check.yml` (Sisällön tuoreus) | maanantaisin klo 05.41 UTC + käsin | `scripts/check-content.js`: onko uusinkin ennuste (`src/content/ennusteet.json`) yli 4 kuukautta vanha tai jokin ennuste pudonnut etusivulta (yli 7 kuukautta vanha); silloin avautuu issue, jolla on tunniste `sisalto` (ks. [`SISALTOAGENTTI.md`](SISALTOAGENTTI.md)) |
 
 Datakommitit eivät käynnistä `deploy.yml`:ää (GitHubin `GITHUB_TOKEN`-pushit
 eivät käynnistä muita työnkulkuja), siksi `update-data.yml` julkaisee itse.
@@ -560,16 +562,16 @@ Rastita, kun tehty.
 
 **Säännöllinen sisällön ylläpito**
 
-- [ ] **Ennusteet** (`src/content/ennusteet.json`): päivitä julkaisijan omalta
-  sivulta aina uuden ennusteen jälkeen – Suomen Pankki (kesä- ja joulukuu,
-  väliennusteet), valtiovarainministeriö (neljästi vuodessa), EKP:n
-  asiantuntijat (neljännesvuosittain). Kentät: `org`, `title`, `published`,
-  `url`, `measure` (KHI/YKHI), `area` (`FI` tai `EA` – euroalueen ennustetta
-  ei saa näyttää Suomen lukuna), `label`, `values`, `verified`. Tyhjä lista
-  piilottaa ennustekortin.
-- [ ] **Tapahtumat** (`src/content/tapahtumat.json`): lisää merkittävät uudet
-  tapahtumat (esim. ALV-muutokset, EKP:n korkokäänteet); otsikko enintään
-  24 merkkiä, prosenttimerkin edessä sitova välilyönti.
+- [ ] **Ennusteet ja tapahtumat** (`src/content/ennusteet.json`,
+  `src/content/tapahtumat.json`): kuukausittainen Claude-rutiini ehdottaa
+  uudet ennusteet (Suomen Pankki, valtiovarainministeriö, EKP) ja
+  merkittävät tapahtumat pull requestina kuun 24. päivänä. Tarkista luvut
+  linkeistä ja yhdistä PR – ohje ja tarkistuslista:
+  [`SISALTOAGENTTI.md`](SISALTOAGENTTI.md). Etusivu piilottaa yli 7 kuukautta
+  vanhat ennusteet itse, ja `content-check.yml` avaa issuen (`sisalto`), jos
+  uusia ennusteita ei ole tullut 4 kuukauteen. Käsin muokatessa samat
+  säännöt tarkistaa `test/content.test.js`. EKP:n korkopäätökset näkyvät
+  kaaviossa suoraan korkodatasta, joten niitä ei kirjata tapahtumiksi.
 - [ ] **Kuukausikatsauksen kommentti** (valinnainen,
   `src/content/katsauskommentit.json`): `"YYYY-MM": "teksti"` tai
   `{ "text": ["kappale", …], "author": "…", "date": "YYYY-MM-DD" }` näkyy
@@ -717,5 +719,6 @@ vaihtoehto.
 | `gh workflow run update-data.yml` | datapäivitys käsin |
 | `gh workflow run deploy.yml` | julkaisu käsin |
 | `gh workflow run site-check.yml` | tuotannon tarkistus käsin |
+| `gh workflow run content-check.yml` | ennusteiden tuoreuden tarkistus käsin |
 | `gh run list --workflow update-data.yml` | viimeisimmät ajot |
 | `npm run serve` | tuotantobuild paikallisesti samoilla otsakkeilla kuin nginx |

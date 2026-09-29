@@ -6,8 +6,8 @@
  * - one range selector (6 kk … Kaikki) for the main chart, its statistics,
  *   summary and month table, and the price level (chart, texts, table);
  *   kept in ?jakso=;
- * - toggles for euro area, core inflation and event markers; kept in
- *   ?nayta=ea+pohja+tapahtumat;
+ * - toggles for euro area, core inflation, event markers and ECB rate
+ *   decisions; kept in ?nayta=ea+pohja+tapahtumat+korot;
  * - the interactive charts (charts/home-charts.js, Chart.js loaded lazily).
  * Every text shown for a view is precomputed at build time (etusivu-data);
  * the month table is rebuilt from the same data with format.js.
@@ -44,6 +44,7 @@ const TOGGLES = Object.freeze([
   ['kehitys-euroalue', 'ea'],
   ['kehitys-pohja', 'core'],
   ['kehitys-tapahtumat', 'events'],
+  ['kehitys-korot', 'rates'],
 ]);
 
 const root = document.querySelector('[data-home]');
@@ -77,6 +78,7 @@ const state = {
   ea: false,
   core: false,
   events: false,
+  rates: false,
 };
 for (const [id, key] of TOGGLES) {
   const box = byId(id);
@@ -133,7 +135,14 @@ function renderTexts() {
 
 /** Legend items of the optional series follow the toggles. */
 function renderLegend() {
-  const show = { ea: state.ea, core: state.core, 'core-ea': state.core && state.ea, events: state.events };
+  const show = {
+    ea: state.ea,
+    core: state.core,
+    'core-ea': state.core && state.ea,
+    events: state.events,
+    'rates-up': state.rates,
+    'rates-down': state.rates,
+  };
   for (const [key, on] of Object.entries(show)) {
     const item = document.querySelector(`#kehitys-kaavio [data-series="${key}"]`);
     if (item) item.hidden = !on;

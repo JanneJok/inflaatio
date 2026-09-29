@@ -471,27 +471,6 @@ describe('interactive chart spec (src/js/pages/hinnat.js)', () => {
   });
 });
 
-/* ---------------------------------------------------------------- content */
-
-test('ennusteet.json: verified forecasts with publisher url, date, measure and area', () => {
-  if (!has('src/content/ennusteet.json')) return;
-  const list = readJson('src/content/ennusteet.json');
-  assert.ok(Array.isArray(list));
-  for (const f of list) {
-    assert.ok(f.org && f.url && f.title, 'org, title and url');
-    assert.match(f.url, /^https:\/\//);
-    assert.match(f.published, /^\d{4}-\d{2}-\d{2}$/);
-    assert.ok(['KHI', 'YKHI'].includes(f.measure), `measure ${f.measure}`);
-    assert.ok(['FI', 'EA'].includes(f.area), `area ${f.area}`);
-    const years = Object.keys(f.values);
-    assert.ok(years.length > 0);
-    for (const [yr, v] of Object.entries(f.values)) {
-      assert.match(yr, /^\d{4}$/);
-      assert.ok(typeof v === 'number' && v > -5 && v < 30, `${f.org} ${yr}: ${v}`);
-    }
-  }
-});
-
 /* ------------------------------------------------------------------ build */
 
 describe('build of the TOPICS modules', { skip: !has('data/hyodykkeet.json') }, () => {

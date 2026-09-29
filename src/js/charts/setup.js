@@ -270,6 +270,33 @@ export function eventLine(month, label) {
   return { type: 'line', themeKey: 'event', xMin: month, xMax: month, borderWidth: 1, label: { display: true, content: label, position: 'start' } };
 }
 
+/**
+ * ECB rate decision marker (data/korot.json) at a month label: a small
+ * triangle on the bottom edge of the plot, ▲ for a raised and ▼ for a lowered
+ * rate. The y position is resolved after the scales are fitted, so the marker
+ * stays on the edge whatever the range, and it never widens the y range.
+ * @param {string} month 'YYYY-MM' (must be one of the chart labels)
+ * @param {'up'|'down'} dir
+ * @param {string} [legend] legend text of the image export ('EKP:n koronnosto')
+ */
+export function rateMarker(month, dir, legend) {
+  return {
+    type: 'point',
+    themeKey: 'rate',
+    dir,
+    legend,
+    xValue: month,
+    yValue: ({ chart }) => chart.scales.y.min,
+    yAdjust: -7,
+    adjustScaleRange: false,
+    pointStyle: 'triangle',
+    rotation: dir === 'down' ? 180 : 0,
+    // Smaller on phones, where a hiking cycle is a row of adjacent markers.
+    radius: ({ chart }) => (chart.width < 560 ? 4.5 : 6),
+    borderWidth: 1,
+  };
+}
+
 /* ------------------------------------------------------- last value labels */
 
 /** Gap between the end of a line and its value label, px. */
@@ -396,6 +423,11 @@ export function applyTheme(chart, t = readTokens(chart.canvas)) {
     borderColor: t.borderStrong,
   });
   for (const a of Object.values(plugins.annotation?.annotations ?? {})) {
+    if (a.themeKey === 'rate') {
+      // A surface-coloured outline keeps the triangle apart from the lines behind it.
+      Object.assign(a, { backgroundColor: t.series.s6, borderColor: t.surface });
+      continue;
+    }
     a.borderColor = a.themeKey === 'event' ? t.borderStrong : t.target;
     if (a.label) Object.assign(a.label, { color: t.text3, backgroundColor: withAlpha(t.bg, 0.85), font: { family: t.font, size: 11 } });
   }
@@ -555,11 +587,12 @@ export async function createChart(canvas, o) {
 
 /**
  * Legend entries of the image export: every visible dataset with one colour
- * (line: 2 px swatch, dashed when the line is; bar: small box) and the target
- * annotation. Datasets coloured per bar (level bands) are left out.
+ * (line: 2 px swatch, dashed when the line is; bar: small box), the target
+ * annotation and one entry per direction of rate markers (triangle). Datasets
+ * coloured per bar (level bands) are left out.
  * @param {import('chart.js').Chart} chart
  * @param {ReturnType<typeof readTokens>} t
- * @returns {{label: string, color: string, dashed: boolean, box: boolean}[]}
+ * @returns {{label: string, color: string, dashed: boolean, box: boolean, marker?: 'up'|'down'}[]}
  */
 export function legendEntries(chart, t) {
   const en = String(chart.config?.options?.locale ?? '').startsWith('en');
@@ -574,7 +607,12 @@ export function legendEntries(chart, t) {
     });
   });
   const notes = chart.config?.options?.plugins?.annotation?.annotations ?? {};
+  const markers = new Set();
   for (const a of Object.values(notes)) {
+    if (a?.themeKey === 'rate' && a.legend && a.display !== false && !markers.has(a.dir)) {
+      markers.add(a.dir);
+      out.push({ label: String(a.legend), color: t.series.s6, dashed: false, box: false, marker: a.dir === 'down' ? 'down' : 'up' });
+    }
     if (a?.themeKey !== 'target' || a.display === false || !fmt.isNum(a.yMin)) continue;
     const decimals = Number.isInteger(a.yMin) ? 0 : 1;
     const label = a.label?.content || (en ? `ECB target ${fmt.enPct(a.yMin, { decimals })}` : `EKP:n tavoite ${fmt.pct(a.yMin, { decimals })}`);
@@ -662,7 +700,15 @@ export function downloadPng(chart, filename, { title, source, legend = true } = 
       const cx = pad + x;
       const cy = top + row * rowH + rowH / 2;
       c.fillStyle = entry.color;
-      if (entry.box) c.fillRect(cx + metrics.swatch / 2 - px(5), cy - px(5), px(10), px(10));
+      if (entry.marker) {
+        const h = entry.marker === 'down' ? -px(5) : px(5);
+        c.beginPath();
+        c.moveTo(cx + metrics.swatch / 2, cy - h);
+        c.lineTo(cx + metrics.swatch / 2 + px(6), cy + h);
+        c.lineTo(cx + metrics.swatch / 2 - px(6), cy + h);
+        c.closePath();
+        c.fill();
+      } else if (entry.box) c.fillRect(cx + metrics.swatch / 2 - px(5), cy - px(5), px(10), px(10));
       else if (entry.dashed) for (let d = 0; d < metrics.swatch; d += px(7)) c.fillRect(cx + d, cy - px(1), Math.min(px(4), metrics.swatch - d), px(2));
       else c.fillRect(cx, cy - px(1), metrics.swatch, px(2));
       c.fillStyle = t.text2;

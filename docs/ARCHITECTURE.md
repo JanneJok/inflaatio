@@ -75,6 +75,7 @@ Design decisions that shape everything else:
 | `scripts/build.js` | the build (`node scripts/build.js`) | exports `build()`, `computeLatest()`, `cspProblems()` |
 | `scripts/serve.js` | local static server mirroring nginx: headers, cache, MIME, `/healthz`, 404/410 pages, dotfile 404; the old-site redirects and the 410 list are parsed from the map blocks of `deploy/nginx.conf` (`nginxRules()`) | `--dir`, `--port`, `--build`, `--watch` |
 | `scripts/check-links.js` | crawls a build dir: links, `#anchors`, `aria-controls`/`aria-labelledby`, sitemap | `--dir` |
+| `scripts/check-content.js` | freshness of the forecasts in `src/content/ennusteet.json` (weekly `content-check.yml`, see `docs/SISALTOAGENTTI.md`); exit 1 + Markdown report when a reminder is due | `--today`, `--report` |
 | `scripts/lib/html.js` | `html` tagged template (escaping), `raw`, `attrs`, `classes`, `join`, `jsonLd`, `jsonScript`, `safeJson`, `escapeHtml`, `xmlEscape` (sitemap, RSS), `toHtml` | build only |
 | `scripts/lib/svg.js` | server-side SVG charts: `lineChart`, `sparkline`, `barChart`, `hBarChart` | build only |
 | `scripts/fetch/` | data fetchers + orchestrator | see `DATA.md` |
@@ -833,7 +834,7 @@ a dashed annotation.
 | `createChart(canvas, { type = 'line', months \| labels, datasets, annotations?, unit = '%', decimals?, locale = 'fi', yMin?, yMax?, beginAtZero?, lastValue = true, tooltipFooter?, options? })` | creates the chart (async); returns the Chart instance with `setMonths(months, [data…])` for range changes. `locale: 'en'` (English pages): English month names in ticks and tooltips, `2.2%` / `€1,234.50`. The right padding is sized to the widest end label, so labels are never clipped |
 | `lineDataset({ series, label, data, dashed?, hidden?, fill?, decimals? })` | `series` = series key (`khi`, `ykhi`, `ea`, `core`, `s3`…); `decimals` overrides the chart's decimals for this line (tooltip + end label), e.g. KHI with 1 decimal next to 2-decimal interest rates |
 | `barDataset({ series, label, data, partial? })` | `series` = one key or one per bar (e.g. `levelBand` results) |
-| `targetLine(value = 2, label?)`, `eventLine(month, label)` | annotations (`src/content/tapahtumat.json` → `eventLine`) |
+| `targetLine(value = 2, label?)`, `eventLine(month, label)`, `rateMarker(month, dir, legend?)` | annotations (`src/content/tapahtumat.json` → `eventLine`; ECB deposit rate changes of `data/korot.json` → `rateMarker`, a ▲/▼ on the bottom edge of the plot that also gets an entry in the image legend) |
 | `downloadPng(chart, filename, { title, source, legend = true })` | "Lataa kuva" with surface background, title, a legend of the visible series (+ the 2 % target) and source |
 | `applyTheme(chart)`, `readTokens(el)`, `valueFormatter(unit, decimals, locale)`, `axisFormatter(unit, locale)`, `monthTicks(months, width, locale)`, `legendEntries(chart, tokens)`, `layoutLegend(…)`, `withAlpha(hex, a)` | lower-level helpers |
 

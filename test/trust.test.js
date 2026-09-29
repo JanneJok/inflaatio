@@ -519,7 +519,8 @@ describe('built TRUST pages', () => {
     assert.match(pages.menetelmat, /<span class="sr-only"> potenssiin \(12 jaettuna n:llä\)<\/span><sup aria-hidden="true">/);
     assert.doesNotMatch(description(pages.menetelmat), /vuosiluku/);
     assert.match(t, /Kaikki tilastoluvut haetaan suoraan/);
-    assert.match(t, /inflaatioennusteet, jotka kirjataan käsin/);
+    assert.match(t, /inflaatioennusteet, jotka kootaan kerran kuukaudessa ennustajien omilta sivuilta ja tarkistetaan ennen kuin ne tulevat sivulle/);
+    assert.match(t, /tapahtumamerkinnät, jotka ylläpito kirjoittaa tai hyväksyy itse/);
     assert.doesNotMatch(t, /matalammat/);
     assert.doesNotMatch(k, /lisenssillä\s+CC BY 4\.0/);
     assert.match(k, /tilastotietoihin sovelletaan alla lueteltuja tuottajien lisenssejä/);
