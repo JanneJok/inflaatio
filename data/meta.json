@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-24T11:48:48.393Z",
+  "generatedAt": "2026-09-30T12:38:26.709Z",
   "sources": {
     "khi": {
       "name": "Kuluttajahintaindeksi (KHI)",
@@ -70,8 +70,8 @@
       "table": "11xx",
       "url": "https://pxdata.stat.fi/PxWeb/pxweb/fi/StatFin/StatFin__khi/11xx.px/",
       "license": "CC BY 4.0",
-      "updated": "2026-08-31T05:00:00Z",
-      "latest": "2026-08"
+      "updated": "2026-09-30T05:00:00Z",
+      "latest": "2026-09"
     },
     "ansiot": {
       "name": "Ansiotasoindeksi ja reaaliansiot",
