@@ -100,7 +100,7 @@ describe('own event helpers (analytics.js)', () => {
 
   test('own events are sent only with consent and respect privacy signals', async () => {
     const src = await readRoot('src/js/lib/analytics.js');
-    assert.match(src, /function canSendOwn\(\) \{\s*return \(\s*!isBarePage\(\) &&\s*isProductionHost\(window\.location\.hostname\) &&\s*hasAnalyticsConsent\(\) &&\s*!privacySignal\(\) &&\s*!isOwnFrame\(\)/);
+    assert.match(src, /function canSendOwn\(\) \{\s*return \(\s*!isBarePage\(\) &&\s*isProductionHost\(window\.location\.hostname\) &&\s*hasAnalyticsConsent\(\) &&\s*!privacySignal\(\) &&\s*!automated\(\) &&\s*!isOwnFrame\(\)/);
     assert.match(src, /if \(!isOwnEvent\(event\) \|\| !canSendOwn\(\)\) return;/);
     assert.match(src, /ownCount >= MAX_OWN_EVENTS_PER_PAGE/);
     // track() checks consent before anything is sent anywhere.

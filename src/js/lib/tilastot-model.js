@@ -50,6 +50,7 @@ export const SOURCE_LABEL = Object.freeze({ ...Object.fromEntries(SOURCES.map((s
 export const FIXED_MARKERS = Object.freeze([
   { date: '2026-09-24', text: 'Uusi sivusto: laitetyyppi kävijätilastoon, hakusanoja ei enää tallenneta' },
   { date: '2026-09-29', text: 'Oma tapahtumatilasto (vain suostumuksella) ja uusi evästekysely' },
+  { date: '2026-09-30', text: 'Botit ja automaattiselaimet (esim. Googlebot, headless-selaimet) jätetään laskematta; aiemmat päivät voivat olla paisuneita' },
 ]);
 
 export const WEEKDAYS = Object.freeze(['ma', 'ti', 'ke', 'to', 'pe', 'la', 'su']);

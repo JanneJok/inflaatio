@@ -136,8 +136,20 @@ tapahtuma muuttaa käsittelyn tarkoitusta, nosta `CONSENT_VERSION`.
 - **Tapahtumat ovat otos** analytiikan sallineista. Käytä suhdelukuina.
 - **Sivukatseluista puuttuvat** Do Not Track / GPC -selaimet, JavaScriptittömät
   selaimet ja mainosestimet, jotka estävät Supabasen.
-- **Botit:** osa boteista suorittaa JavaScriptiä ja näkyy katseluina.
-  Poikkeuspäivät merkitään "!".
+- **Botit (tarkentui 30.9.2026):** hakukoneiden ja tekoälyjen indeksoijat
+  (esim. Googlebot) suorittavat JavaScriptiä, joten ne kirjautuivat aiemmin
+  sivukatseluiksi. 30.9.2026 alkaen katselua ja tapahtumia ei lähetetä, jos
+  `navigator.webdriver` on tosi tai User-Agent on botti, indeksoija,
+  headless- tai testiselain (Lighthouse, PageSpeed, Playwright, Puppeteer,
+  Selenium …), linkin esikatselija, valvontapalvelu tai HTTP-kirjasto
+  (`BOT_UA_RE` ja `isAutomatedBrowser` tiedostossa `src/js/lib/analytics.js`).
+  **Tätä aiemmat päivät voivat olla paisuneita**, joten vertaa trendejä vasta
+  30.9.2026 alkaen tai katso suhdelukuja. Kaavion merkintä 3 näyttää
+  päivän. Oikeaksi selaimeksi naamioitunut botti, joka ei paljasta itseään,
+  menee yhä läpi. Poikkeuspäivät merkitään "!". Vanhojen bottipiikkien
+  siivous: `docs/supabase-bottisiivous.sql` (ensin esikatselu, sitten
+  piikkipäivät leikataan edeltävän 28 päivän mediaaniin; yksittäistä
+  bottiriviä ei voi tunnistaa, koska tunnisteita ei tallenneta).
 - **Paisutus:** Supabasen julkinen avain on julkinen, joten kuka tahansa voi
   lisätä rivejä, jotka läpäisevät tarkistukset. Trendit ja suhdeluvut ovat
   luotettavampia kuin yksittäinen päivä.
@@ -164,6 +176,7 @@ kunkin päivän edeltäviltä 28 päivältä (vähintään 7 mitattua).
 |---|---|
 | 24.9.2026 | Uusi sivusto: laitetyyppi kävijätilastoon, hakusanoja ei enää tallenneta |
 | 29.9.2026 | Oma tapahtumatilasto (vain suostumuksella) ja uusi evästekysely (`CONSENT_VERSION` 3) |
+| 30.9.2026 | Botit ja automaattiselaimet jätetään laskematta (sivukatselut ja tapahtumat). Aiemmat päivät voivat olla paisuneita |
 
 Lisää uusi merkintä, kun laskentatapa muuttuu.
 

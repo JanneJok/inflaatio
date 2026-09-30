@@ -131,7 +131,7 @@ export default async function tilastot(ctx) {
   </section>
 
   <footer class="dash-foot">
-    <p class="dash-muted dash-small">Luvut ovat sivulatauksia ja tapahtumia, eivät kävijöitä: tilasto ei tunnista palaavia kävijöitä, koska se ei tallenna tunnisteita. Päivät ja tunnit ovat Suomen aikaa. Sivukatselut lasketaan ilman evästeitä; niitä ei lasketa, jos selaimessa on Do Not Track tai Global Privacy Control päällä. Lisää: docs/TILASTOT.md.</p>
+    <p class="dash-muted dash-small">Luvut ovat sivulatauksia ja tapahtumia, eivät kävijöitä: tilasto ei tunnista palaavia kävijöitä, koska se ei tallenna tunnisteita. Päivät ja tunnit ovat Suomen aikaa. Sivukatselut lasketaan ilman evästeitä; niitä ei lasketa, jos selaimessa on Do Not Track tai Global Privacy Control päällä, eikä boteille tai automaattiselaimille (30.9.2026 alkaen; sitä ennen luvut voivat olla paisuneita). Lisää: docs/TILASTOT.md.</p>
   </footer>
 </div>
 </div>`;

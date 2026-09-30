@@ -11,7 +11,10 @@
  *    - device: 'mobile' | 'tablet' | 'desktop' (coarse class).
  *    The time comes from the database (created_at default now()). No ids, no
  *    cookies, no storage, no search terms, no clicks, no polling, no timers.
- *    Skipped entirely when Global Privacy Control or Do Not Track is on,
+ *    Skipped entirely for crawlers and automated browsers (isAutomatedBrowser:
+ *    navigator.webdriver or a bot / headless / test-tool User-Agent – e.g.
+ *    Googlebot runs JavaScript and would otherwise be counted; since
+ *    2026-09-30), when Global Privacy Control or Do Not Track is on,
  *    outside inflaatio.fi / www.inflaatio.fi, when the page is framed by
  *    inflaatio.fi itself (the widget preview on /upotus/ohje/, or any URL with
  *    ?esikatselu), and while the page is being prerendered (it is sent when
@@ -76,7 +79,104 @@ export const PAGE_READ_MIN_SECONDS = 10;
 const MAX_PATH = 200;
 const MAX_HOST = 100;
 
+/**
+ * User-Agents of crawlers, link-preview fetchers, uptime monitors, headless
+ * and test browsers and HTTP libraries ("…bot" covers Googlebot, bingbot,
+ * YandexBot, AdsBot-Google, GPTBot, ClaudeBot …). Broad on purpose (the same
+ * list as reversi.site), but never names of apps whose in-app browsers people
+ * use. "Cubot" is a phone brand, not a bot.
+ */
+export const BOT_UA_RE = new RegExp(
+  [
+    '(?<!cu)bot\\b',
+    'crawl',
+    'spider',
+    'slurp',
+    'mediapartners',
+    'google-inspectiontool',
+    'googleother',
+    'facebookexternalhit',
+    'facebookcatalog',
+    'meta-externalagent',
+    'embedly',
+    'quora link preview',
+    'outbrain',
+    'pinterest/0\\.',
+    'vkshare',
+    'w3c_validator',
+    'whatsapp/',
+    'skypeuripreview',
+    'slack-imgproxy',
+    'flipboardproxy',
+    'qwantify',
+    'ia_archiver',
+    'archive\\.org',
+    'lighthouse',
+    'pagespeed',
+    'headless',
+    'phantomjs',
+    'puppeteer',
+    'playwright',
+    'selenium',
+    'webdriver',
+    'cypress',
+    'pingdom',
+    'uptime',
+    'statuscake',
+    'site24x7',
+    'checkly',
+    'monitor',
+    'healthcheck',
+    'curl/',
+    'wget',
+    'python-',
+    'go-http-client',
+    'java/',
+    'okhttp',
+    'axios',
+    'node-fetch',
+    'undici',
+    'scrapy',
+    'httrack',
+    'semrush',
+    'ahrefs',
+    'mj12',
+    'bytespider',
+    'chatgpt-user',
+    'claude-user',
+    'claude-web',
+    'perplexity',
+    'ccbot',
+    'dataforseo',
+    'feedfetcher',
+    'feedly',
+    'validator',
+    'preview',
+  ].join('|'),
+  'i',
+);
+
 /* ----------------------------------------------------------- pure helpers */
+
+/**
+ * True for crawlers and automated browsers: navigator.webdriver (Selenium,
+ * Playwright, Puppeteer, headless Chrome under automation), a missing or
+ * implausibly short User-Agent, or one matching BOT_UA_RE.
+ * @param {{userAgent?: string|null, webdriver?: boolean}} o
+ * @returns {boolean}
+ */
+export function isAutomatedBrowser({ userAgent, webdriver = false }) {
+  if (webdriver === true) return true;
+  const ua = String(userAgent ?? '');
+  return ua.length < 10 || BOT_UA_RE.test(ua);
+}
+
+/** isAutomatedBrowser() for this browser. */
+function automated() {
+  const nav = globalThis.navigator ?? {};
+  return isAutomatedBrowser({ userAgent: nav.userAgent, webdriver: nav.webdriver === true });
+}
+
 
 /**
  * @param {string} hostname
@@ -168,14 +268,15 @@ export function pageViewPayload({ pathname, canonical, notFound, referrer, hostn
 }
 
 /**
- * Whether this page load is counted: not with a privacy signal, not outside
- * the production hosts, and not when inflaatio.fi frames its own page (the
+ * Whether this page load is counted: not for crawlers or automated browsers
+ * (`bot`, isAutomatedBrowser), not with a privacy signal, not outside the
+ * production hosts, and not when inflaatio.fi frames its own page (the
  * widget preview on /upotus/ohje/) or the URL carries ?esikatselu (preview).
- * @param {{hostname: string, privacy: boolean, framedBySameOrigin?: boolean, search?: string}} o
+ * @param {{hostname: string, privacy: boolean, bot?: boolean, framedBySameOrigin?: boolean, search?: string}} o
  * @returns {boolean}
  */
-export function countsPageView({ hostname, privacy, framedBySameOrigin = false, search = '' }) {
-  if (privacy || !isProductionHost(hostname) || framedBySameOrigin) return false;
+export function countsPageView({ hostname, privacy, bot = false, framedBySameOrigin = false, search = '' }) {
+  if (bot || privacy || !isProductionHost(hostname) || framedBySameOrigin) return false;
   try {
     return !new URLSearchParams(search).has('esikatselu');
   } catch {
@@ -319,6 +420,7 @@ export function pageView() {
   const counted = countsPageView({
     hostname: window.location.hostname,
     privacy: privacySignal(),
+    bot: automated(),
     framedBySameOrigin: isOwnFrame(),
     search: window.location.search,
   });
@@ -362,6 +464,7 @@ function canSendOwn() {
     isProductionHost(window.location.hostname) &&
     hasAnalyticsConsent() &&
     !privacySignal() &&
+    !automated() &&
     !isOwnFrame()
   );
 }
