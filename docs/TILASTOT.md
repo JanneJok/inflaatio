@@ -146,7 +146,10 @@ tapahtuma muuttaa käsittelyn tarkoitusta, nosta `CONSENT_VERSION`.
   **Tätä aiemmat päivät voivat olla paisuneita**, joten vertaa trendejä vasta
   30.9.2026 alkaen tai katso suhdelukuja. Kaavion merkintä 3 näyttää
   päivän. Oikeaksi selaimeksi naamioitunut botti, joka ei paljasta itseään,
-  menee yhä läpi. Poikkeuspäivät merkitään "!".
+  menee yhä läpi. Poikkeuspäivät merkitään "!". Vanhojen bottipiikkien
+  siivous: `docs/supabase-bottisiivous.sql` (ensin esikatselu, sitten
+  piikkipäivät leikataan edeltävän 28 päivän mediaaniin; yksittäistä
+  bottiriviä ei voi tunnistaa, koska tunnisteita ei tallenneta).
 - **Paisutus:** Supabasen julkinen avain on julkinen, joten kuka tahansa voi
   lisätä rivejä, jotka läpäisevät tarkistukset. Trendit ja suhdeluvut ovat
   luotettavampia kuin yksittäinen päivä.
