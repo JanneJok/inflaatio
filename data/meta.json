@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-30T12:38:26.709Z",
+  "generatedAt": "2026-10-01T13:20:35.594Z",
   "sources": {
     "khi": {
       "name": "Kuluttajahintaindeksi (KHI)",
@@ -88,8 +88,8 @@
       "dataset": "FM.B.U2.EUR.4F.KR.DFR.LEV, FM.M.U2.EUR.RT.MM.EURIBOR1YD_.HSTA",
       "url": "https://data.ecb.europa.eu/data/datasets/FM",
       "license": "ECB statistics reuse policy (lähde mainittava)",
-      "updated": "2026-09-10T14:22:33.000Z",
-      "latest": "2026-08"
+      "updated": "2026-10-01T05:07:46.000Z",
+      "latest": "2026-09"
     }
   }
 }
