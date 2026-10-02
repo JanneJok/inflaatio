@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-01T13:20:35.594Z",
+  "generatedAt": "2026-10-02T12:39:29.998Z",
   "sources": {
     "khi": {
       "name": "Kuluttajahintaindeksi (KHI)",
@@ -34,8 +34,8 @@
       "dataset": "prc_hicp_minr",
       "url": "https://ec.europa.eu/eurostat/databrowser/view/prc_hicp_minr/default/table?lang=en",
       "license": "Eurostat reuse policy (CC BY 4.0)",
-      "updated": "2026-09-17T11:00:00+02:00",
-      "latest": "2026-08"
+      "updated": "2026-10-02T11:00:00+02:00",
+      "latest": "2026-09"
     },
     "ykhiAnnual": {
       "name": "Yhdenmukaistettu kuluttajahintaindeksi, vuositiedot",
